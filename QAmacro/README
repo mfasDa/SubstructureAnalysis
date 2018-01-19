@@ -1,0 +1,9 @@
+copyRunByRun.sh: copies all runs to your local machine. You have to adjust the environment variables at the beginning of the script to fit the location of your output on the grid. Also the run list should be adjusted. The script will make a directory for each run and copy AnalysisResults.root to it.
+
+plotPhiDistAllRuns.sh: this script will create the phi distribution plot of each run and store it in the run directory. Also here you have to adjust the list with run numbers. And also adjust the path to the plotting macro (see next).
+
+plot_PWG4HighPtTrackQAHybrid2013_Phi.C: plotting macro. There are several settings. Especially "trig" varies from period-to-period. So choose the one you have in your output. This you have to define in plotPhiDistAllRuns.sh
+
+CreateTexFile.C: this macro will create conveniently a tex file for latex beamer for the phi distribution plots you just created. Here you also have to adjust the run list.
+
+TrackPhiLHC12d.tex: this is the template to create the final latex beamer pdf document with all phi distributions. Note that in the beginning I made some extra slides with the inclusive distributions. You will see towards the end \input{phiDist.tex} which is where the tex file created with CreateTexFile.C is inserted.

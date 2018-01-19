@@ -1,0 +1,96 @@
+\documentclass[8pt,t]{beamer}
+%\usecolortheme[RGB={205,173,0}]{structure}
+\usecolortheme[RGB={30,144,255}]{structure}  
+
+%\useoutertheme{infolines} 
+\usetheme[height=7mm]{Rochester} 
+
+\setbeamertemplate{footline}{\hfill\insertframenumber/\inserttotalframenumber}
+
+%\setbeamertemplate{navigation symbols}{} 
+
+\setbeamersize{text margin left=2mm} 
+\setbeamersize{text margin right=2mm} 
+
+
+%\fontsize{4pt}{7.2}\selectfont
+
+\usepackage[utf8x]{inputenc}
+\usepackage{default}
+\usepackage{graphicx}
+\usepackage{flafter}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{subfigure}
+\usepackage{epsfig}
+\usepackage{fancyhdr}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{pgf}
+\usepackage[shortlabels]{enumitem}
+\usepackage[titletoc]{appendix}
+
+\usepackage{hyperref}   %% produces clickable links in xdvi
+\usepackage{booktabs}
+
+%\scriptsize{2pt}
+\captionsetup{font=scriptsize,labelfont=scriptsize}
+%\setbeamerfont{caption}{size=\scriptsize} 
+%\setbeamerfont{caption}{size=\small}
+
+\newcommand{\rom}[1]{{\mathrm{#1}}}   % switch to rom in math 
+\newcommand{\pt}{\ensuremath{p_\rom{T}}}
+\newcommand{\ptleadtrack}{\ensuremath{p_\rom{T}^{\rom{lead\;track}}}}
+\newcommand{\GeVc}{\text{\GeV/}\ensuremath{c}}
+\newcommand{\ptjetrec}{\ensuremath{p_\rom{T,\rom{ch\;jet}}^{\rom{det}}}}
+\newcommand{\ptjetgen}{\ensuremath{p_\rom{T,\rom{ch\;jet}}^{\rom{part}}}}
+%\graphicspath{/data/wrk/HIjets/wrk/DetectorLevelEffects/LHC11a2aj/Train155to164/Spectrum2/PtCut0150/}
+
+\begin{document}
+
+\title{Tracking QA LHC12d}
+\author{Marta Verweij}
+\institute[WSU]{
+  WSU\\[1ex]
+  \texttt{marta.verweij@cern.ch}
+}
+
+%--- the titlepage frame -------------------------%
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}
+\frametitle{$\varphi$ of hybrid tracks, all runs}
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+   \includegraphics[width=\linewidth]{PhiCent10kINT7Run0.eps}
+\end{column}
+\begin{column}{0.5\textwidth}
+   \includegraphics[width=\linewidth]{PhiCent10kEMCEJERun0.eps}
+\end{column}
+\end{columns}
+
+Left: minimum bias. Right: EMCal triggered.
+
+\color{red}{For $\varphi \sim 6$ anti-dijet tracking inefficiency.}
+
+\color{black}
+Decrease of global track efficiency for $\varphi<2$ due to inefficient SPD for
+many runs (see backup slides for run-by-run QA).
+
+\color{blue}
+It seems that the hybrid tracks as present in the AOD right now for this data set, are not ideal
+for dijet studies.
+\color{black}
+\end{frame}
+
+\input{phiDist.tex}
+
+\end{document}
