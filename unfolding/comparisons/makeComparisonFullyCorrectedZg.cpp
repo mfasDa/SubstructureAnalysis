@@ -28,6 +28,7 @@ std::array<int, 2> GetPtRange(TString rangestring){
     auto tokens = make_unique<TObjArray>(rangestring.Tokenize("_"));
     return std::array<int, 2> {{static_cast<TObjString *>(tokens->At(0))->String().Atoi(), static_cast<TObjString *>(tokens->At(0))->String().Atoi()}};
 }
+
 void makePlotTrigger(std::string_view filename, std::string_view trigger){
     auto filereader = make_unique<TFile>(TFile::Open(filename.data(), "READ"));
 
@@ -53,7 +54,7 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger){
     const std::array<Style_t, 10> MARKERS = {{24, 25, 26, 27, 28, 29, 30, 31, 32, 33}};
 
     int nspec = 0;
-    for(auto h : *reader->GetListOfKeys()){
+    for(auto h : *(filereader->GetListOfKeys())){
         TString histname = h->GetName();
         if(histname.Contains("corrected_zg_"));
     }

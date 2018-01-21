@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <string>
+#include <sstream>
 #include <vector>
 #include <ROOT/TSeq.hxx>
 #include <TFile.h>
@@ -48,8 +50,8 @@ std::vector<PtBin> ExtractEfficiencies(TFile *data){
         auto ptstring = std::string_view(hist->GetName()).substr(strlen(TAG), strlen(hist->GetName()) - strlen(TAG));
         std::cout << ptstring << std::endl;
         auto delim = ptstring.find("_");
-        auto ptmin = atoi(ptstring.substr(0, delim).data());
-        auto ptmax = atoi(ptstring.substr(delim+1, ptstring.length()-(delim+1)).data());
+        auto ptmin = std::stoi(std::string(ptstring.substr(0, delim)));
+        auto ptmax = std::stoi(std::string(ptstring.substr(delim+1, ptstring.length()-(delim+1))));
         result.push_back({(double)ptmin, (double)ptmax, hist});
     }
     std::sort(result.begin(), result.end(), std::less<PtBin>());
@@ -76,13 +78,13 @@ TString ExtractTrigger(std::string_view unfoldedfile){
     return result;
 }
 
-void makeUnfoldingCorrectionZg(std::string_view unfoldedfile){
+void makeUnfoldingCorrectionZg(std::string_view unfoldedfile, int iteration = 4){
     // Steps:
     // 1. Correction for undfolding (done in previous step)
     // 2. Correction for efficiency (here)
     // Use spectrum at iteration 4
     auto filereader = make_unique<TFile>(TFile::Open(unfoldedfile.data()));
-    auto unfolded = make_unique<TH2>(Get<TH2>(filereader.get(), "zg_unfolded_iter4.root"));   
+    auto unfolded = make_unique<TH2>(Get<TH2>(filereader.get(), Form("zg_unfolded_iter%d.root", iteration)));   
     auto efficiencies = ExtractEfficiencies(filereader.get());
     auto unfoldedbins = ExtractUnfoldedBins(unfolded.get());
 
@@ -104,7 +106,8 @@ void makeUnfoldingCorrectionZg(std::string_view unfoldedfile){
     }
 
     auto trigger = ExtractTrigger(unfoldedfile);
-    TString outname = "corrected_zg_" + trigger + ".root";
-    auto outputwriter = make_unique<TFile>(TFile::Open(outname, "RECREATE"));
+    std::stringstream outname;
+    outname <<  "corrected_zg_" << trigger << ".root";
+    auto outputwriter = make_unique<TFile>(TFile::Open(outname.str().data(), "RECREATE"));
     for(auto c : corrected) c->Write();
 }

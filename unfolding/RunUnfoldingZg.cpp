@@ -102,7 +102,7 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void RooSimpleZg(std::string_view filedata, std::string_view filemc)
+void RunUnfoldingZg(std::string_view filedata, std::string_view filemc)
 {
   Int_t difference = 1;
   Int_t Ppol = 0;
@@ -385,7 +385,7 @@ TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t
 #if !defined(__CLING__) 
 int main(int argc, const char **argv)
 {
-  RooSimpleZg(argv[0], argv[1]);
+  RunUnfoldingZg(argv[0], argv[1]);
   return EXIT_SUCCESS;
 } // Main program when run stand-alone
 #endif
