@@ -83,7 +83,7 @@ double ExtractRadius(std::string_view unfoldedfile){
     std::istringstream parser((std::string)unfoldedfile);
     std::string tmp;
     while(std::getline(parser, tmp, '_')){
-        if(tmp.find("R")){
+        if(tmp.find("R") != std::string::npos){
             radius = double(std::stoi(tmp.substr(1,2)))/10.;
             break;
         }
