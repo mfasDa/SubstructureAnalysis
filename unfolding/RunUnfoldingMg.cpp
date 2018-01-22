@@ -115,7 +115,7 @@ void RunUnfoldingMg(std::string_view filedata, std::string_view filemc)
   for(auto f = 0.; f <= 400.; f+= 20.) ptbinvec_true.emplace_back(f);
   // zg must range from 0 to 0.5
   std::vector<double> massbins;
-  for(auto f = 0.; f <= 30.; f+= 0.5) massbins.emplace_back(f);
+  for(auto f = 0.; f <= 50.; f+= 0.5) massbins.emplace_back(f);
   const Int_t kNZgBinsSmearedNC = 10;
 
   TH2D *hraw(new TH2D("hraw", "hraw", massbins.size()-1, massbins.data(), ptbinvec_smear.size() - 1, ptbinvec_smear.data())),

@@ -1,3 +1,4 @@
+
 #ifndef __CLING__
 #include <array>
 #include <memory>
@@ -71,7 +72,7 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger, double
         auto filereader = make_unique<TFile>(TFile::Open(filename.data(), "READ"));
         for(auto h : TRangeDynCast<TKey>(filereader->GetListOfKeys())){
             std::string histname = h->GetName();
-            if(histname.find("corrected_zg_") != std::string::npos){
+            if(histname.find("corrected_mg_") != std::string::npos){
                 auto hist = h->ReadObject<TH1>();
                 hist->SetDirectory(nullptr);
                 hist->Scale(1./hist->Integral());
@@ -86,7 +87,7 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger, double
     gPad->SetLeftMargin(0.14);
     gPad->SetRightMargin(0.06);
 
-    auto axis = new TH1F(Form("zgaxis_%s_R%02d", trigger.data(), int(radius * 10.)), "; z_{g}; 1/N_{jet} dN/dz_{g}", 100, 0., 0.6);
+    auto axis = new TH1F(Form("massaxis_%s_R%02d", trigger.data(), int(radius * 10.)), "; M_{g} (GeV/c^{2}); 1/N_{jet} dN/dM_{g} ((GeV/c^{2})^{-1})", 100, 0., 40.);
     axis->SetStats(false);
     axis->GetYaxis()->SetRangeUser(0., 0.4);
     axis->Draw("axis");
@@ -97,7 +98,7 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger, double
     leg->SetTextFont(42);
     leg->Draw();
 
-    auto label = new TPaveText(0.15, 0.15, 0.45, 0.2, "NDC");
+    auto label = new TPaveText(0.15, 0.8, 0.45, 0.85, "NDC");
     label->SetBorderSize(0);
     label->SetFillStyle(0);
     label->SetTextFont(42);
@@ -121,18 +122,18 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger, double
     gPad->Update();
 }
 
-void makeComparisonFullyCorrectedZg(){
+void makeComparisonFullyCorrectedMg(){
     std::array<double, 2> jetradii = {{0.2, 0.4}};
     std::array<std::string, 3> triggers = {{"INT7", "EJ1", "EJ2"}};
 
-    auto plot = new TCanvas("comparisonFullyCorrected", "Fully corrected zg", 1200, 800);
+    auto plot = new TCanvas("comparisonFullyCorrected", "Fully corrected mass", 1200, 800);
     plot->Divide(3,2);
     int irad(0), itrg(0);
     for(auto radius : jetradii){
         itrg=0;
         for(auto trg : triggers){
             plot->cd(irad*3+itrg+1);
-            makePlotTrigger(Form("Unfolded_Zg_R%02d_%s/corrected_zg_R%02d_%s.root", int(radius * 10.), trg.data(), int(radius * 10.), trg.data()), trg, radius);
+            makePlotTrigger(Form("Unfolded_Mg_R%02d_%s/corrected_mg_R%02d_%s.root", int(radius * 10.), trg.data(), int(radius * 10.), trg.data()), trg, radius);
             itrg++;
         }
         irad++;
