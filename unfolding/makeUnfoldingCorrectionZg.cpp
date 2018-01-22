@@ -1,5 +1,6 @@
 #ifndef __CLING__
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -11,7 +12,6 @@
 #include <TH2.h>
 #include <TKey.h>
 #include <TList.h>
-#include <TString.h>
 #endif
 
 struct PtBin {
@@ -43,9 +43,9 @@ std::unique_ptr<t> make_unique(t *object){
 std::vector<PtBin> ExtractEfficiencies(TFile *data){
     const char *TAG = "efficiency_";
     std::vector<PtBin> result;
-    for(auto k : *(data->GetListOfKeys())){
+    for(auto k : TRangeDynCast<TKey>(data->GetListOfKeys())){
         if(!contains(k->GetName(), "efficiency")) continue;
-        auto hist = static_cast<TH1 *>(static_cast<TKey *>(k)->ReadObj());
+        auto hist = static_cast<TKey *>(k)->ReadObject<TH1>();
         hist->SetDirectory(nullptr);
         auto ptstring = std::string_view(hist->GetName()).substr(strlen(TAG), strlen(hist->GetName()) - strlen(TAG));
         std::cout << ptstring << std::endl;
@@ -70,12 +70,25 @@ std::vector<PtBin> ExtractUnfoldedBins(const TH2 *data) {
     return result;
 }
 
-TString ExtractTrigger(std::string_view unfoldedfile){
-    TString result;
+std::string ExtractTrigger(std::string_view unfoldedfile){
+    std::string result;
     if(contains(unfoldedfile, "EJ1")) result = "EJ1";
     else if(contains(unfoldedfile, "EJ2")) result = "EJ2";
     else if(contains(unfoldedfile, "INT7")) result = "INT7";
     return result;
+}
+
+double ExtractRadius(std::string_view unfoldedfile){
+    double radius(0.);
+    std::stringstream parser(std::string(unfoldedfile));
+    std::string tmp;
+    while(std::getline(parser, tmp, '_')){
+        if(tmp.find("R")){
+            radius = double(std::stoi(tmp.substr(1,2)))/10.;
+            break;
+        }
+    }
+    return radius;
 }
 
 void makeUnfoldingCorrectionZg(std::string_view unfoldedfile, int iteration = 4){
@@ -106,8 +119,9 @@ void makeUnfoldingCorrectionZg(std::string_view unfoldedfile, int iteration = 4)
     }
 
     auto trigger = ExtractTrigger(unfoldedfile);
+    auto radius = ExtractRadius(unfoldedfile);
     std::stringstream outname;
-    outname <<  "corrected_zg_" << trigger << ".root";
+    outname <<  "corrected_zg_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger << ".root";
     auto outputwriter = make_unique<TFile>(TFile::Open(outname.str().data(), "RECREATE"));
     for(auto c : corrected) c->Write();
 }
