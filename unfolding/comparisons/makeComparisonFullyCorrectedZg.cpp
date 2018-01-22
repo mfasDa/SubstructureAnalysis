@@ -42,7 +42,7 @@ std::unique_ptr<t> make_unique(t *object){
 }
 
 std::array<int, 2> GetPtRange(std::string_view rangestring){
-    std::stringstream parser(std::string(rangestring));
+    std::istringstream parser((std::string)rangestring);
     std::vector<std::string> tokens;
     std::string tmp;
     while(std::getline(parser, tmp, '_')) tokens.push_back(tmp);

@@ -80,7 +80,7 @@ std::string ExtractTrigger(std::string_view unfoldedfile){
 
 double ExtractRadius(std::string_view unfoldedfile){
     double radius(0.);
-    std::stringstream parser(std::string(unfoldedfile));
+    std::istringstream parser((std::string)unfoldedfile);
     std::string tmp;
     while(std::getline(parser, tmp, '_')){
         if(tmp.find("R")){
