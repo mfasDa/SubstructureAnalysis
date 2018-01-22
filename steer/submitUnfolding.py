@@ -24,12 +24,12 @@ def GetUnfoldingDir(sourcedir):
     return sourcedir.replace("steer", "unfolding")
 
 def submit_unfolding(datadir, mcdir, jetradius, trigger, observable):
-    basedir = os.path.abspath(sys.argv[0])
+    basedir = os.path.abspath(os.path.dirname(sys.argv[0]))
     unfoldingdir = GetUnfoldingDir(basedir)
     unfoldingscript = os.path.join(unfoldingdir, "RunUnfolding%s.cpp" %observable)
     datafile = os.path.join(os.path.abspath(datadir), "JetSubstructureTree_R%02d_%s.root" %(int(jetradius * 10.), trigger))
-    mcfile = os.path.join(os.path.abspath(mcdir), "JetSubstructure_R%02d_INT7_merged.root" %(int(jetradius * 10.)))
-    outputdir = os.path.join(os.getcwd(), "Unfolded_%s_R%02d_%s" %(observable, jetradius, trigger))
+    mcfile = os.path.join(os.path.abspath(mcdir), "JetSubstructureTree_R%02d_INT7_merged.root" %(int(jetradius * 10.)))
+    outputdir = os.path.join(os.getcwd(), "Unfolded_%s_R%02d_%s" %(observable, int(jetradius * 10.), trigger))
     jobscript = os.path.join(outputdir, "jobscript.sh")
     submit_job(make_jobscript(jobscript, basedir, outputdir, unfoldingscript, datafile, mcfile))
 

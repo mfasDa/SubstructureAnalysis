@@ -5,6 +5,15 @@ OUTPUTDIR=$2
 DATAFILE=$3
 MCFILE=$4
 
+alias myalienv="alienv -w /home/markus/alice/sw"
+
+function myalibash
+    {
+	local version=$1
+	cmd=$(printf "/usr/local/bin/alienv -w /home/markus/alice/sw/ --no-refresh printenv %s" $version)
+	eval `$cmd`
+    }
+
 if [ ! -d $OUTPUTDIR ]; then mkdir -p $OUTPUTDIR; fi
 cd $OUTPUTDIR
 
