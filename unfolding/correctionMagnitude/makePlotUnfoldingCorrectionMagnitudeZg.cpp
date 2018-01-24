@@ -63,7 +63,7 @@ Range GetRangeForTrigger(std::string_view filename) {
     return result;
 }
 
-void makePlotUnfoldingCorrectionZg(std::string_view filename){
+void makePlotUnfoldingCorrectionMagnitudeZg(std::string_view filename){
     auto ptrange = GetRangeForTrigger(filename);
     auto npanel = static_cast<int>((ptrange.fMax - ptrange.fMin)/20.),
          ncol = npanel / 3 + (npanel % 3 ? 1 : 0);
