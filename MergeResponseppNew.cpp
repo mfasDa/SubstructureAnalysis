@@ -1,5 +1,6 @@
 //////Full detector simulation//////////////////////
 #ifndef __CLING__
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <memory>
