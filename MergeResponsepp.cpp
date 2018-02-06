@@ -76,8 +76,10 @@ void MergeResponsepp(const char *inputdir, const char *treefile, const char *his
     TTree *substructuretree(nullptr);
     for(auto k : TRangeDynCast<TKey>(treereader->GetListOfKeys())){
       if(!k) continue;
-      if(TString(k->GetName()).Contains("jetSubstructure")){
-        substructuretree = static_cast<TTree *>(static_cast<TKey *>(k)->ReadObj());
+      std::cout << "Processing key " << k->GetName() << std::endl;
+      TString keyname(k->GetName());
+      if(keyname.Contains("jetSubstructure") || keyname.Contains("JetSubstructure")){
+        substructuretree = k->ReadObject<TTree>();
         break;
       }
     }
