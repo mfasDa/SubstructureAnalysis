@@ -20,7 +20,7 @@ std::string FindTree(TFile &reader) {
     auto result = std::string();
     for(auto k : TRangeDynCast<TKey>(reader.GetListOfKeys())){
         auto treename = std::string(k->GetName());
-        if(treename.find("jetSubstructure") != std::string::npos) { 
+        if(treename.find("jetSubstructure") != std::string::npos || treename.find("JetSubstructure") != std::string::npos) { 
             result = treename;
             break;
         }
@@ -28,14 +28,19 @@ std::string FindTree(TFile &reader) {
     return result;
 }
 
-void makeJetPtCorrelation(std::string_view filemc){
+void makeJetPtCorrelation(std::string_view filemc, bool withWeight = true){
+    bool debug = false;
     auto filereader = std::unique_ptr<TFile>(TFile::Open(filemc.data(), "READ"));
     TTreeReader treereader(Get<TTree>(*filereader, FindTree(*filereader).data()));
     TTreeReaderValue<double>    ptrec(treereader, "PtJetRec"),
                                 ptsim(treereader, "PtJetSim"),
-                                nefrec(treereader, "NEFRec"),
-//                                weight(treereader, "PythiaWeight");
-                                weight(treereader, "EventWeight");
+                                nefrec(treereader, "NEFRec");
+    std::unique_ptr<TTreeReaderValue<double>> weight;
+    if(withWeight){
+        weight = std::unique_ptr<TTreeReaderValue<double>>(new TTreeReaderValue<double>(treereader, "PythiaWeight"));
+        //weight = std::unique_ptr<TTreeReaderValue<double>>(new TTreeReaderValue<double>(treereader, "EventWeight"));
+
+    }
     TH1 *hpttrue = new TH1D("hPtTrue", "true pt", 200, 0, 200);                            
     auto hptrec = new TH1D("hPtRec", "true pt", 200, 0, 200);                            
     TH2 *histo = new TH2D("ptcorr", "; p_{t, part} (GeV/c); p_{t, det} (GeV/c)", 40, 0., 200., 15, 0., 300.);
@@ -46,15 +51,26 @@ void makeJetPtCorrelation(std::string_view filemc){
         //if(*ptrec <= DBL_EPSILON) continue; // Filter matched jets
         if(*nefrec > 0.97) continue;
         if(*ptrec < 10) continue;   // in order to match with Leticia's trees
-        histo->Fill(*ptsim, *ptrec, *weight);
-        histodiff->Fill(*ptsim, (*ptrec - *ptsim)/(*ptsim), *weight);
-        profilediff->Fill(*ptsim, (*ptrec - *ptsim)/(*ptsim), *weight);
-        hpttrue->Fill(*ptsim, *weight);
-        hptrec->Fill(*ptrec, *weight);
+        double usedweight = 1.;
+        if(weight.get() != nullptr) {
+            usedweight = *(*weight);
+        } else {
+            if(debug)std::cout << "No weight found" << std::endl;
+        }
+        if(debug) std::cout << "Using weight " << usedweight << std::endl;
+        histo->Fill(*ptsim, *ptrec, usedweight);
+        histodiff->Fill(*ptsim, (*ptrec - *ptsim)/(*ptsim), usedweight);
+        profilediff->Fill(*ptsim, (*ptrec - *ptsim)/(*ptsim), usedweight);
+        hpttrue->Fill(*ptsim, usedweight);
+        hptrec->Fill(*ptrec, usedweight);
         rawcounts->Fill(*ptsim);
     }
 
-    auto histwriter = std::unique_ptr<TFile>(TFile::Open("EnergyScale.root", "RECREATE"));
+    std::string tag = static_cast<std::string>(filemc);
+    tag.replace(tag.find("JetSubstructureTree_"), strlen("JetSubstructureTree_"), "");
+    tag.replace(tag.find(".root"), 5, "");
+
+    auto histwriter = std::unique_ptr<TFile>(TFile::Open(Form("EnergyScale_%s.root", tag.data()), "RECREATE"));
     histwriter->cd();
     histo->Write();
     histodiff->Write();

@@ -39,6 +39,17 @@ std::vector<int> GetPtHardBins(const char *inputdir, bool &usechilds){
   return pthardbins;
 }
 
+int FindNonZeroBin(const TH1 *hist) {
+  auto bin = -1;
+  for(auto b : ROOT::TSeqI(1, hist->GetXaxis()->GetNbins()+1)){
+    if(hist->GetBinContent(b)) {
+      bin = b;
+      break;
+    }
+  }
+  return bin;
+}
+
 void MergeResponsepp(const char *inputdir, const char *treefile, const char *histfile){
   TString basename(treefile);
   basename.ReplaceAll(".root", "");
@@ -62,7 +73,10 @@ void MergeResponsepp(const char *inputdir, const char *treefile, const char *his
     std::unique_ptr<TFile> filereader(TFile::Open(inputfile, "READ")); 
     filereader->cd(dirname);
     TList *histos = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
-    int databin = usechilds ? 1 : b+1;
+    //int databin = usechilds ? 1 : b+1;
+    auto trialshist = static_cast<TH1 *>(histos->FindObject("fHistTrials")) ;
+    auto databin = FindNonZeroBin(trialshist);
+    std::cout << "Found non-o bin with index " << databin << std::endl;
     auto xsection = static_cast<TH1 *>(histos->FindObject("fHistXsection"))->GetBinContent(databin);
     auto nTrials = static_cast<TH1 *>(histos->FindObject("fHistTrials"))->GetBinContent(databin);
     auto nEvents = static_cast<TH1 *>(histos->FindObject("fHistEvents"))->GetBinContent(databin);
