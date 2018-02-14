@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include <ROOT/TSeq.hxx>
 #include <RStringView.h>
 #include <TFile.h>
 #include <TH1.h>
@@ -14,6 +15,41 @@
 #include <TROOT.h>
 #include <TTreeReader.h>
 #endif
+
+std::vector<double> getJetPtBinning(){
+    std::vector<double> binning;
+    auto max = 0.;
+    binning.emplace_back(max);
+    while(max < 10.){
+        max += 1.;
+        binning.emplace_back(max);
+    }
+    while(max < 20.){
+        max += 2.;
+        binning.emplace_back(max);
+    }
+    while(max < 50.){
+        max += 5.;
+        binning.emplace_back(max);
+    }
+    while(max < 100.){
+        max += 10.;
+        binning.emplace_back(max);
+    }
+    while(max < 200.){
+        max += 20.;
+        binning.emplace_back(max);
+    }
+    return binning;
+}
+
+void CorrectBinWidth(TH1 *hist){
+    for(auto b : ROOT::TSeqI(1, hist->GetXaxis()->GetNbins()+1)){
+        auto bw = hist->GetXaxis()->GetBinWidth(b);
+        hist->SetBinContent(b, hist->GetBinContent(b)/bw);
+        hist->SetBinError(b, hist->GetBinError(b)/bw);
+    }
+}
 
 TTree *GetTree(TFile &reader){
     TTree *result(nullptr);
@@ -26,8 +62,9 @@ TTree *GetTree(TFile &reader){
     return result;
 }
 
-TH1 *GetDetLevelJetSpectrum(std::string_view filename) {
-    TH1 *pthist = new TH1D("SpecJetPtDet", "", 200, 0., 200.);
+TH1 *GetDetLevelJetSpectrum(std::string_view filename, bool isNeutralJets) {
+    auto binning = getJetPtBinning();
+    auto pthist = new TH1D("SpecJetPtDet", "", binning.size() -1, binning.data());
     pthist->SetDirectory(nullptr);
     auto datafile = std::unique_ptr<TFile>(TFile::Open(filename.data(), "READ"));
     gROOT->cd();
@@ -36,21 +73,21 @@ TH1 *GetDetLevelJetSpectrum(std::string_view filename) {
     TTreeReaderValue<double> nefrec(treereader, "NEFRec");
     TTreeReaderValue<double> pythiaweight(treereader, "PythiaWeight");
     for(auto en : treereader){
-        if(*nefrec > 0.97) continue;            // Make cut on neutral energy fraction removing single cluster jets
+        if(!isNeutralJets && *nefrec > 0.97) continue;            // Make cut on neutral energy fraction removing single cluster jets
         pthist->Fill(*ptrec, *pythiaweight);
     }
     return pthist;
 }
 
-void ExtractTriggerEfficiencies(double radius){
+void ExtractTriggerEfficiencies(double radius, const char *jettype){
     std::array<std::string, 3> triggers = {{"INT7", "EJ1", "EJ2"}};
     TH1 *mbref = nullptr;
     std::vector<TH1 *> emcaltriggers;
     for(auto t : triggers) {
         std::stringstream filename, histname;
-        filename << "JetSubstructureTree_R" << std::setw(2) << std::setfill('0') << int(radius * 10) << "_" << t << "_merged.root";
+        filename << "JetSubstructureTree_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10) << "_" << t << "_merged.root";
         std::cout << "Analysing trigger " << t << " with filename " << filename.str() <<  std::endl;
-        auto hist = GetDetLevelJetSpectrum(filename.str());
+        auto hist = GetDetLevelJetSpectrum(filename.str(), TString(jettype).Contains("NeutralJets"));
         histname << "specPt" << t;
         hist->SetName(histname.str().data());
         hist->GetXaxis()->SetTitle("p_{t,jet} (GeV/c)");

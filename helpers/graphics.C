@@ -7,7 +7,7 @@ struct Style {
   Style_t marker;
 
   template<typename t>
-  void SetStyle(t &object) {
+  void SetStyle(t &object) const {
     object.SetMarkerColor(color);
     object.SetMarkerStyle(marker);
     object.SetLineColor(color);  
