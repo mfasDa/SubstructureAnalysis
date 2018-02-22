@@ -5,6 +5,7 @@
 #include <TFile.h>
 #include <TH1.h>
 #include <TKey.h>
+#include <TProfile.h>
 #include <TString.h>
 #endif
 
@@ -21,10 +22,12 @@ void reweight(std::string_view filename){
 
       fwrite->mkdir(d->GetName());
       fwrite->cd(d->GetName());
-      for(auto h : *histlist) {
+      for(auto h : TRangeDynCast<TH1>(histlist)) {
+        if(!h) continue;
         TString histname(h->GetName());
         if(histname.Contains("fh1Xsec") || histname.Contains("fh1Trials")) continue;
-        static_cast<TH1 *>(h)->Scale(weight);
+        if(h->IsA() == TProfile::Class()) continue;     // don't scale profile histograms
+        h->Scale(weight);
       }
       histlist->Write(histlist->GetName(), TObject::kSingleKey);
     }
