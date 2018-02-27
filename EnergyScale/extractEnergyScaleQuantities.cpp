@@ -36,7 +36,7 @@ std::vector<point> GetData(TH2 *ptdiff2d) {
 }
 
 void extractEnergyScaleQuantities(double radius) {
-  auto reader = std::unique_ptr<TFile>(TFile::Open(Form("EnergyScale_R%02d.root", int(radius*10.)), "READ"));
+  auto reader = std::unique_ptr<TFile>(TFile::Open(Form("EnergyScale_FullJets_R%02d_INT7_merged.root", int(radius*10.)), "READ"));
   auto data = GetData(static_cast<TH2 *>(reader->Get("ptdiff")));
 
   auto mean = new TGraphErrors, median = new TGraphErrors, resolution = new TGraphErrors;
