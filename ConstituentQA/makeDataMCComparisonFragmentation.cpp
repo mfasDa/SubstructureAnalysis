@@ -29,18 +29,18 @@ enum FragmentationType_t {
   kNeutralZ
 };
 
-Double_t GetNumberOfJets(THnSparse *jetsparse, double ptmin, double ptmax){
+Double_t GetNumberOfJets(THnSparse *jetsparse, double ptmin, double ptmax, bool withnefcut){
   auto globneffirst = jetsparse->GetAxis(1)->GetFirst(), globneflast = jetsparse->GetAxis(1)->GetLast(),
        binNefMin = jetsparse->GetAxis(1)->FindBin(0.02 + kVerySmall), binNefMax = jetsparse->GetAxis(1)->FindBin(0.98 - kVerySmall);
-  jetsparse->GetAxis(1)->SetRangeUser(binNefMin, binNefMax);
+  if(withnefcut) jetsparse->GetAxis(1)->SetRangeUser(binNefMin, binNefMax);
   auto ptdist = std::unique_ptr<TH1>(jetsparse->Projection(0));
-  jetsparse->GetAxis(1)->SetRangeUser(globneffirst, globneflast);
+  if(withnefcut) jetsparse->GetAxis(1)->SetRangeUser(globneffirst, globneflast);
 
   auto binptmin = ptdist->GetXaxis()->FindBin(ptmin + kVerySmall), binptmax = ptdist->GetXaxis()->FindBin(ptmax - kVerySmall);
   return ptdist->Integral(binptmin, binptmax);
 }
 
-TH1 * GetFragmentation(JetData &histos, FragmentationType_t frag, Double_t ptmin, Double_t ptmax) {
+TH1 * GetFragmentation(JetData &histos, FragmentationType_t frag, Double_t ptmin, Double_t ptmax, bool withnefcut) {
   THnSparse *constituentsparse = nullptr;
   auto axis = -1;
 
@@ -57,12 +57,12 @@ TH1 * GetFragmentation(JetData &histos, FragmentationType_t frag, Double_t ptmin
        binptmin = constituentsparse->GetAxis(0)->FindBin(ptmin + kVerySmall), binptmax = constituentsparse->GetAxis(0)->FindBin(ptmax - kVerySmall),
        binnefmin = constituentsparse->GetAxis(1)->FindBin(0.02 + kVerySmall), binnefmax = constituentsparse->GetAxis(1)->FindBin(0.98-kVerySmall);
   constituentsparse->GetAxis(0)->SetRange(binptmin, binptmax);
-  constituentsparse->GetAxis(1)->SetRange(binnefmin, binnefmax);
+  if(withnefcut) constituentsparse->GetAxis(1)->SetRange(binnefmin, binnefmax);
   auto result = constituentsparse->Projection(axis);
   constituentsparse->GetAxis(0)->SetRangeUser(globptfirst, globptlast);
-  constituentsparse->GetAxis(1)->SetRange(globneffirst, globneflast);  
+  if(withnefcut) constituentsparse->GetAxis(1)->SetRange(globneffirst, globneflast);  
   result->SetDirectory(nullptr);
-  result->Scale(1./GetNumberOfJets(histos.fJetSparse.get(), ptmin, ptmax));
+  result->Scale(1./GetNumberOfJets(histos.fJetSparse.get(), ptmin, ptmax, withnefcut));
   return result;
 };
 
@@ -77,7 +77,7 @@ JetData Read(const char *filename, const char *trigger, double jetradius){
   return {std::unique_ptr<THnSparse>(jetsparse), std::unique_ptr<THnSparse>(chargedsparse), std::unique_ptr<THnSparse>(neutralsparse)};
 }
 
-TCanvas *makeFragmentationPlot(JetData &data, JetData &mc, FragmentationType_t t, const char *trigger, double jetradius) {
+TCanvas *makeFragmentationPlot(JetData &data, JetData &mc, FragmentationType_t t, const char *trigger, double jetradius, bool withnefcut) {
   std::string tag, xtitle, ytitle;
   double xmax(-1);
   switch(t){
@@ -125,8 +125,8 @@ TCanvas *makeFragmentationPlot(JetData &data, JetData &mc, FragmentationType_t t
     ptlabel->AddText(Form("%.1f GeV/c < p_{t,jet} < %.1f GeV/c", ptmin, ptmax));
     ptlabel->Draw();
 
-    auto dataspec = GetFragmentation(data, t, ptmin, ptmax),
-         mcspec = GetFragmentation(mc, t, ptmin, ptmax);
+    auto dataspec = GetFragmentation(data, t, ptmin, ptmax, withnefcut),
+         mcspec = GetFragmentation(mc, t, ptmin, ptmax, withnefcut);
     datastyle.SetStyle(*dataspec);
     mcstyle.SetStyle(*mcspec);
     dataspec->Draw("epsame");
@@ -141,21 +141,25 @@ TCanvas *makeFragmentationPlot(JetData &data, JetData &mc, FragmentationType_t t
   return plot;
 } 
 
-void makeFragmentationPlots(const char *datafile, const char *mcfile, const char *trigger, double jetradius) {
+void makeFragmentationPlots(const char *datafile, const char *mcfile, const char *trigger, double jetradius, bool withnefcut) {
   auto jetsData =  Read(datafile, trigger, jetradius),
        jetsMC = Read(mcfile, trigger, jetradius);
-  makeFragmentationPlot(jetsData, jetsMC, kChargedPt, trigger, jetradius)->SaveAs(Form("CompDataMC_ptch_R%02d_%s.pdf", int(jetradius*10.), trigger));
-  makeFragmentationPlot(jetsData, jetsMC, kChargedZ, trigger, jetradius)->SaveAs(Form("CompDataMC_zch_R%02d_%s.pdf", int(jetradius*10.), trigger));
-  makeFragmentationPlot(jetsData, jetsMC, kNeutralE, trigger, jetradius)->SaveAs(Form("CompDataMC_ene_R%02d_%s.pdf", int(jetradius*10.), trigger));
-  makeFragmentationPlot(jetsData, jetsMC, kNeutralZ, trigger, jetradius)->SaveAs(Form("CompDataMC_zne_R%02d_%s.pdf", int(jetradius*10.), trigger));
+  std::stringstream tag;
+  tag << Form("R%02d", int(jetradius*10.)) << "_" << trigger;
+  if(withnefcut) tag << "_withnefcut";
+  else tag << "_withoutnefcut";
+  makeFragmentationPlot(jetsData, jetsMC, kChargedPt, trigger, jetradius, withnefcut)->SaveAs(Form("CompDataMC_ptch_%s.pdf", tag.str().data()));
+  makeFragmentationPlot(jetsData, jetsMC, kChargedZ, trigger, jetradius, withnefcut)->SaveAs(Form("CompDataMC_zch_%s.pdf", tag.str().data()));
+  makeFragmentationPlot(jetsData, jetsMC, kNeutralE, trigger, jetradius, withnefcut)->SaveAs(Form("CompDataMC_ene_%s.pdf", tag.str().data()));
+  makeFragmentationPlot(jetsData, jetsMC, kNeutralZ, trigger, jetradius, withnefcut)->SaveAs(Form("CompDataMC_zne_%s.pdf", tag.str().data()));
 }
 
-void makeDataMCComparisonFragmentation(const char *datafile, const char *mcfile){
+void makeDataMCComparisonFragmentation(const char *datafile, const char *mcfile, bool withnefcut){
   std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"};
   std::vector<double> jetradii = {0.2, 0.4};
   for(auto r : jetradii){
     for(auto t : triggers) {
-      makeFragmentationPlots(datafile, mcfile, t.data(), r);
+      makeFragmentationPlots(datafile, mcfile, t.data(), r, withnefcut);
     }
   }
 }
