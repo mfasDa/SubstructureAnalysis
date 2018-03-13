@@ -8,6 +8,7 @@
 #include <TFile.h>
 #include <TH1.h>
 #include <TKey.h>
+#include <TSystem.h>
 #include <TTreeReader.h>
 #endif
 
@@ -53,7 +54,7 @@ double GetTriggerRejection(TFile &data, const char *trigger) {
   data.cd("MaxPatchINT7");
   auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
   auto spec = static_cast<TH1 *>(histlist->FindObject("hPatchADCMaxEJERecalc"));
-  std::map<std::string, int> thresholds16 = {{"EJ1", 255} , {"EJ2", 221}};
+  std::map<std::string, int> thresholds16 = {{"EJ1", 255} , {"EJ2", 204}};
   return spec->Integral()/spec->Integral(spec->GetXaxis()->FindBin(thresholds16.find(trigger)->second + kVerySmall), spec->GetXaxis()->GetNbins());
 }
 
@@ -65,13 +66,13 @@ double ExtractEvents(TFile &reader, const std::string_view container){
     return lumi;
 }
 
-double ExtractLumi(const std::string_view container){
+double ExtractLumi(const std::string_view container, bool withnormalization){
     auto reader = std::unique_ptr<TFile>(TFile::Open("AnalysisResults.root", "READ"));
     reader->cd(container.data());
     auto numberofevents = ExtractEvents(*reader, container);
     double rejection = 1.;
     auto trigger = extractTrigger(container);
-    if(trigger.find("E") != std::string::npos) rejection = GetTriggerRejection(*reader, trigger.data());
+    if(withnormalization && trigger.find("E") != std::string::npos) rejection = GetTriggerRejection(*reader, trigger.data());
     std::cout << "Using rejection factor " << rejection << " and " << numberofevents << " events for Trigger " << trigger << std::endl;
     numberofevents *= rejection;
     std::cout << "Inspected number of events by trigger: " << numberofevents << std::endl;
@@ -98,10 +99,17 @@ TH1 * ExtractRawYield(const std::string_view filename){
     return hpt;
 }
 
-TH1 *extractNormalizedSpectrum(double r, const std::string_view trigger) {
+bool ExistsJetRadius(double r, const std::string_view jettype, const std::string_view trigger) {
+    std::stringstream treefile, jettag;
+    jettag << jettype << "_"<< "R" << std::setw(2) << std::setfill('0') << int(r * 10.) << "_" << trigger;
+    treefile << "JetSubstructureTree_" << jettag.str() << ".root";
+    return !gSystem->AccessPathName(treefile.str().data());
+}
+
+TH1 *extractNormalizedSpectrum(double r, const std::string_view jettype, const std::string_view trigger, bool withnormalization) {
     std::cout << "Extracting spectrum for trigger " << trigger << " and radius " << r << std::endl;
     std::stringstream contname, treefile, histname, jettag;
-    jettag << "R" << std::setw(2) << std::setfill('0') << int(r * 10.) << "_" << trigger;
+    jettag << jettype << "_"<< "R" << std::setw(2) << std::setfill('0') << int(r * 10.) << "_" << trigger;
     contname << "JetSubstructure_" << jettag.str();
     treefile << "JetSubstructureTree_" << jettag.str() << ".root";
     histname << "hPtJet" << jettag.str();
@@ -109,18 +117,20 @@ TH1 *extractNormalizedSpectrum(double r, const std::string_view trigger) {
     auto isINT7 = (trigger.find("INT7") != std::string::npos);
     auto hist = ExtractRawYield(treefile.str());
     hist->SetName(histname.str().data());
-    hist->Scale(1./ExtractLumi(contname.str()));
+    hist->Scale(1./ExtractLumi(contname.str(), withnormalization));
     return hist;
 }
 
-void extractNormalizedSpectrumRejectionFactor(bool emcmode){
+void extractNormalizedSpectrumRejectionFactor(const std::string_view jettype, bool emcmode, bool withnormalization){
     auto writer = std::unique_ptr<TFile>(TFile::Open("normalized_wrejection.root", "RECREATE"));
-    std::array<double, 2> radii = {{0.2, 0.4}};
+    std::array<double, 4> radii = {{0.2, 0.3, 0.4, 0.5}};
     std::array<std::string, 3> triggers = {"EJ1", "EJ2", "INT7"};
     for(auto t: triggers) {
         if((emcmode && (t.find("INT7") != std::string::npos)) || (!emcmode && (t.find("EJ") != std::string::npos))) continue;
         for(auto r : radii) {
-            auto h = extractNormalizedSpectrum(r, t);
+            if(!ExistsJetRadius(r, jettype, t)) continue;
+            std::cout << "Processing jet radius " << r << std::end;
+            auto h = extractNormalizedSpectrum(r, jettype, t, withnormalization);
             writer->cd();
             h->Write();
         }
