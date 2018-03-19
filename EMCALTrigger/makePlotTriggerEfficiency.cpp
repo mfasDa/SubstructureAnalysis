@@ -13,6 +13,8 @@
 #include <TString.h>
 #endif
 
+#include "../helpers/graphics.C"
+
 const std::vector<std::string> kEMCALtriggers = {"EJ1", "EJ2"};
 const std::map<std::string, Color_t> colors = {{"INT7", kBlack}, {"EJ1", kRed}, {"EJ2", kBlue}};
 const std::map<std::string, Style_t> markers = {{"INT7", 20}, {"EJ1", 24}, {"EJ2", 25}};
@@ -107,41 +109,40 @@ std::vector<Spectra> ExtractMinBiasSpectra(const std::string_view jettype, bool 
     return ExtractSpectraFromFile(filename.str(), mbtriggers);
 }
 
-void PlotSpectra(const Spectra &triggers, const Spectra &mb, bool doleg){
+void PlotSpectra(const std::string_view jettype, const Spectra &triggers, const Spectra &mb, bool doleg){
+    gPad->SetLeftMargin(0.14);
+    gPad->SetRightMargin(0.06);
     gPad->SetLogy();
     auto frame = new TH1F(Form("FrameR%02d", int(triggers.fR * 10.)), "; p_{t,j} (GeV/c); 1/N_{ev} dN/dp_{t} ((GeV/c)^{-1})", 200., 0., 200);
     frame->SetDirectory(nullptr);
     frame->SetStats(false);
-    frame->GetYaxis()->SetRangeUser(1e-9, 1e-3);
+    frame->GetYaxis()->SetRangeUser(1e-10, 1e-3);
     frame->Draw("axis");
 
     TLegend *leg = nullptr;
     if(doleg){
-        leg = new TLegend(0.65, 0.7, 0.89, 0.89);
-        leg->SetBorderSize(0);
-        leg->SetFillStyle(0);
-        leg->SetTextFont(42);
+        leg = new TLegend(0.68, 0.7, 0.92, 0.89);
+        InitWidget<TLegend>(*leg);
         leg->Draw();
     }
     
-    auto label = new TPaveText(0.15, 0.15, 0.45, 0.22, "NDC");
-    label->SetBorderSize(0);
-    label->SetFillStyle(0);
-    label->SetTextFont(42);
-    label->AddText(Form("Full jets, R=%0.1f", triggers.fR));
+    auto label = new TPaveText(0.22, 0.8, 0.52, 0.87, "NDC");
+    InitWidget<TPaveText>(*label);
+    std::string jettypestring;
+    if(jettype.find("FullJets") != std::string::npos) jettypestring = "Full jets";
+    else if(jettype.find("NeutralJets") != std::string::npos) jettypestring = "Neutral jets";
+    label->AddText(Form("%s, R=%0.1f", jettypestring.data(), triggers.fR));
     label->Draw();
 
     auto mbtrigger = mb.fSpectra[0];
-    mbtrigger->SetMarkerColor(colors.find("INT7")->second);
-    mbtrigger->SetLineColor(colors.find("INT7")->second);
-    mbtrigger->SetMarkerStyle(markers.find("INT7")->second);
+    auto mbstyle = Style{colors.find("INT7")->second, markers.find("INT7")->second};
+    mbstyle.SetStyle<TH1>(*mbtrigger);
     mbtrigger->Draw("epsame");
     if(leg) leg->AddEntry(mbtrigger, "INT7", "lep");
 
     for(auto t : triggers.fSpectra) {
-        t->SetMarkerColor(colors.find(t->GetName())->second);
-        t->SetLineColor(colors.find(t->GetName())->second);
-        t->SetMarkerStyle(markers.find(t->GetName())->second);
+        auto trgstyle = Style{colors.find(t->GetName())->second, markers.find(t->GetName())->second};
+        trgstyle.SetStyle<TH1>(*t);
         t->Draw("epsame");
         if(leg) leg->AddEntry(t, t->GetName(), "lep");
     }
@@ -149,21 +150,22 @@ void PlotSpectra(const Spectra &triggers, const Spectra &mb, bool doleg){
 }
 
 void PlotEfficiency(std::vector<TH1 *> efficiencies, double r){
-   auto frame = new TH1F(Form("effframeR%02d", int(r*10.)), "; p_{t,j} (GeV/c); Trigger efficiency", 200, 0., 200.);
-   frame->SetDirectory(nullptr);
-   frame->SetStats(false);
-   frame->GetYaxis()->SetRangeUser(0., 1.5);
-   frame->Draw("axis");
+    gPad->SetLeftMargin(0.14);
+    gPad->SetRightMargin(0.06);
+    auto frame = new TH1F(Form("effframeR%02d", int(r*10.)), "; p_{t,j} (GeV/c); Trigger efficiency", 200, 0., 200.);
+    frame->SetDirectory(nullptr);
+    frame->SetStats(false);
+    frame->GetYaxis()->SetRangeUser(0., 1.5);
+    frame->Draw("axis");
 
-   for(auto e : efficiencies){
-       auto tokens = tokenize(e->GetName(), '_');
-       const auto &trigger = tokens[2];
-       e->SetMarkerColor(colors.find(trigger)->second);
-       e->SetLineColor(colors.find(trigger)->second);
-       e->SetMarkerStyle(markers.find(trigger)->second);
-       e->Draw("epsame");
-   }
-   gPad->Update();
+    for(auto e : efficiencies){
+        auto tokens = tokenize(e->GetName(), '_');
+        const auto &trigger = tokens[2];
+        auto trgstyle = Style{colors.find(trigger)->second, markers.find(trigger)->second};
+        trgstyle.SetStyle<TH1>(*e);
+        e->Draw("epsame");
+    }
+    gPad->Update();
 }
 
 void makePlotTriggerEfficiency(const std::string_view jettype, bool wrejection, int version = 0){
@@ -182,7 +184,7 @@ void makePlotTriggerEfficiency(const std::string_view jettype, bool wrejection, 
         auto rmatcher = [&r](const Spectra & s) -> bool { return TMath::Abs(s.fR - r ) < 1e-5; };
         auto rtriggers = *(std::find_if(spectraTrigger.begin(), spectraTrigger.end(), rmatcher));
         auto rmb = *(std::find_if(spectraMB.begin(), spectraMB.end(), rmatcher));
-        PlotSpectra(rtriggers, rmb, irad == 0);
+        PlotSpectra(jettype, rtriggers, rmb, irad == 0);
 
         plot->cd(irad + jetradii.size() + 1);
         auto refficiencies = ExtractTriggerEfficiencies(rtriggers, rmb);
@@ -194,7 +196,7 @@ void makePlotTriggerEfficiency(const std::string_view jettype, bool wrejection, 
     plot->Update();
 
     std::stringstream filename;
-    filename << "efficiencies";
+    filename << "efficiencies_" << jettype;
     if(wrejection) filename << "_wrejection";
     filename << ".root";
     auto writer = std::unique_ptr<TFile>(TFile::Open(filename.str().data(), "RECREATE"));
