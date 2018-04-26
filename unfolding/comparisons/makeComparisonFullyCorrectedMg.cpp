@@ -15,6 +15,8 @@
 #include <TPaveText.h>
 #endif
 
+#include "../../helpers/graphics.C"
+
 struct RangedObject {
     double min;
     double max;
@@ -89,19 +91,18 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger, double
 
     auto axis = new TH1F(Form("massaxis_%s_R%02d", trigger.data(), int(radius * 10.)), "; M_{g} (GeV/c^{2}); 1/N_{jet} dN/dM_{g} ((GeV/c^{2})^{-1})", 100, 0., 40.);
     axis->SetStats(false);
-    axis->GetYaxis()->SetRangeUser(0., 0.4);
+    axis->GetYaxis()->SetRangeUser(0., 0.2);
     axis->Draw("axis");
 
     auto leg = new TLegend(0.51, 0.5, 0.91, 0.89);
+    InitWidget<TLegend>(*leg);
     leg->SetBorderSize(0);
     leg->SetFillStyle(0);
     leg->SetTextFont(42);
     leg->Draw();
 
     auto label = new TPaveText(0.15, 0.8, 0.45, 0.85, "NDC");
-    label->SetBorderSize(0);
-    label->SetFillStyle(0);
-    label->SetTextFont(42);
+    InitWidget<TPaveText>(*label);
     label->AddText(Form("Trigger: %s,  R=%0.1f", trigger.data(), radius));
     label->Draw();
 
@@ -110,9 +111,8 @@ void makePlotTrigger(std::string_view filename, std::string_view trigger, double
     const std::array<Style_t, 10> MARKERS = {{24, 25, 26, 27, 28, 29, 30, 31, 32, 33}};
     for(auto h : histograms) {
         if(h.max <= select_range[0] || h.min >= select_range[1]) continue;
-        h.hist->SetMarkerColor(COLORS[histcounter]);
-        h.hist->SetLineColor(COLORS[histcounter]);
-        h.hist->SetMarkerStyle(MARKERS[histcounter]);
+        Style mystyle{COLORS[histcounter], MARKERS[histcounter]};
+        mystyle.SetStyle<TH1>(*(h.hist));
         h.hist->Draw("epsame");
         leg->AddEntry(h.hist, Form("%.1f GeV/c < p_{t} < %.1f GeV/c", h.min, h.max), "lep");
         histcounter++;

@@ -141,7 +141,7 @@ void plot_PWG4HighPtTrackQAHybrid2013_general(const char *ContainerInputMerged =
   if (histsGlobAll)
     fPtPhiGlobAll = static_cast<TH2 *>(histsGlobAll->FindObject("fPtPhi"));
   auto fPtPhiGlobSt = static_cast<TH2 *>(histsGlobSt->FindObject("fPtPhi"));
-  auto fPtPhiGlobCnoITS = static_cast<TH2 *>(histsGlobCnoITS->FindObject("fPtPhi"));
+  auto fPtPhiGlobCnoITS = histsGlobCnoITS ? static_cast<TH2 *>(histsGlobCnoITS->FindObject("fPtPhi")) : nullptr;
   auto fPtPhiGlobCnoSPD = static_cast<TH2 *>(histsGlobCnoSPD->FindObject("fPtPhi"));
 
   TH2 *fPtVarGlobAll(nullptr), *fPtVarGlobSt(nullptr), *fPtVarGlobCnoSPD(nullptr), *fPtVarGlobCnoITS(nullptr);

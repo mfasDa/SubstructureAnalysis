@@ -9,9 +9,10 @@ def merge(outputfile, filestomerge):
         cmd += " %s" %f
     os.system(cmd)
 
-def extract_run(path):
+def extract_run(path, inputdir):
+    mypath = path.replace(inputdir, "")
     result = -1
-    tokens = path.split("/")
+    tokens = mypath.split("/")
     for t in tokens:
         if t.isdigit():
             result = int(t)
@@ -24,7 +25,7 @@ def find_files(inputdir, rootfile, runlist):
         for f in files:
             if rootfile in f:
                 allfiles.append(os.path.join(root, f))
-    return [f for f in allfiles if extract_run(f) in runlist]
+    return [f for f in allfiles if extract_run(f, inputdir) in runlist]
 
 def parse_runlist(runlistname):
     runs = []
@@ -42,6 +43,8 @@ def parse_runlist(runlistname):
 
 def merge_runs_filtered(outputfile, inputdir, rootfilename, runlist):
     outputdir = os.path.dirname(outputfile)
+    if not outputdir or not len(outputdir):
+        outputdir = os.getcwd()
     if not os.path.exists(outputdir):
         os.makedirs(outputdir)
     merge(outputfile, find_files(inputdir, rootfilename, parse_runlist(runlist)))
