@@ -42,15 +42,15 @@ bool CheckFileGood(const std::string_view filename) {
   return true;
 }
 
-std::vector<int> GetListOfRuns(const std::string_view inputdir, const std::string_view cluster) {
+std::vector<int> GetListOfRuns(const std::string_view inputdir) {
   std::string runsstring = gSystem->GetFromPipe("ls -1 | grep 000 | sort").Data();
   std::vector<int> runlist;
   std::stringstream runparser(runsstring);
   std::string tmp;
   while(std::getline(runparser, tmp, '\n')){
     auto content = lsdir(tmp);
-    if(std::find(content.begin(), content.end(), Form("PatchADCSpectra_%s.root", cluster.data())) != content.end()){
-      if(CheckFileGood(std::string(inputdir) + "/" + tmp + Form("/PatchADCSpectra_%s.root", cluster.data()))) runlist.emplace_back(std::stoi(tmp));
+    if(std::find(content.begin(), content.end(), "EJEspectra.root") != content.end()){
+      if(CheckFileGood(std::string(inputdir) + "/" + tmp + "/EJEspectra.root")) runlist.emplace_back(std::stoi(tmp));
     }
   }
   std::sort(runlist.begin(), runlist.end(), std::less<int>());
@@ -58,28 +58,21 @@ std::vector<int> GetListOfRuns(const std::string_view inputdir, const std::strin
 }
 
 
-TH1 *GetNormalizedSpectrum(const std::string_view filename, const std::string_view trigger, const std::string_view cluster) {
+TH1 *GetNormalizedSpectrum(const std::string_view filename, const std::string_view trigger) {
   bool isEMCAL = trigger[0] == 'E';
   auto reader = std::unique_ptr<TFile>(TFile::Open(filename.data(), "READ"));
   std::stringstream histname;
-  if(trigger.find("MB") != std::string::npos){
-    histname << "hPatchADC" << trigger;
-  } else {
-    auto patchtype = (trigger.find("EG") != std::string::npos) ? "EGA" : "EJE";
-    histname << "hPatchADC" << patchtype << trigger << cluster;
-  }
-  auto patches = static_cast<TH1 *>(reader->Get(histname.str().data()));
-  patches->SetDirectory(nullptr);
-  return patches;
+  histname << "ClusterSpectrum" << trigger;
+  auto clusters = static_cast<TH1 *>(reader->Get(histname.str().data()));
+  clusters->SetDirectory(nullptr);
+  return clusters;
 }
 
-TCanvas *DrawRuns(std::vector<int> runrange, const std::string_view inputdir, const std::string_view trigger, const std::string_view cluster, int index){
-  auto plot = new TCanvas(Form("runByRunComparisonRecalcPatches%s%s%d", trigger.data(), cluster.data(), index), Form("comparison runs %d trigger %s in cluster ", index, trigger.data()), 800, 600);
+TCanvas *DrawRuns(std::vector<int> runrange, const std::string_view inputdir, const std::string_view trigger, int index){
+  auto plot = new TCanvas(Form("runByRunComparisonClusters%s%d", trigger.data(), index), Form("comparison runs %d trigger %s", index, trigger.data()), 800, 600);
   plot->SetLogy();
 
-  bool isEJ = trigger.find("EJ") != std::string::npos;
-  int nadc = isEJ ? 1000. : 300.;
-  auto frame = new TH1F(Form("frame%s%d", trigger.data(), index), "; ADC; 1/N_{ev} dN_{patches}/dADC", nadc, 0., nadc);
+  auto frame = new TH1F(Form("frame%s%d", trigger.data(), index), "; E_{cluster} (GeV); 1/N_{ev} dN_{clusters}/dE_{cluster} ((GeV)^{-1})", 50., 0., 50.);
   frame->SetDirectory(nullptr);
   frame->SetStats(false);
   frame->GetYaxis()->SetRangeUser(1e-6, 100.);
@@ -99,7 +92,7 @@ TCanvas *DrawRuns(std::vector<int> runrange, const std::string_view inputdir, co
   int counter(0);
   for(auto r : runrange){
     std::cout << "Getting the data for run " << r << std::endl;
-    auto hist = GetNormalizedSpectrum(Form("%s/%09d/PatchADCSpectra_%s.root", inputdir.data(), r, cluster.data()), trigger, cluster);
+    auto hist = GetNormalizedSpectrum(Form("%s/%09d/EJEspectra.root", inputdir.data(), r), trigger);
     styles[counter++].SetStyle<TH1>(*hist);
     hist->SetName(Form("%d", r));
     hist->Draw("epsame");
@@ -109,11 +102,11 @@ TCanvas *DrawRuns(std::vector<int> runrange, const std::string_view inputdir, co
   return plot;
 }
 
-void makeRunByRunComparisonRecalcPatches(const std::string_view trigger, const std::string_view cluster, std::string inputdir = ""){
+void makeRunByRunComparisonJEClusters(const std::string_view trigger, std::string inputdir = ""){
   std::array<std::string, 5> formats = {{"eps", "pdf", "gif", "png", "jpg"}};
   std::cout << "Finding runs in input dir " << inputdir << " ... " << std::endl;
   if(!inputdir.length()) inputdir = gSystem->GetWorkingDirectory();
-  auto runs = GetListOfRuns(inputdir, cluster);
+  auto runs = GetListOfRuns(inputdir);
   std::cout << "Found " << runs.size() << " runs ..." << std::endl;
   auto ncanvas  = runs.size()/10;
   if(runs.size() % 10) ncanvas++;
@@ -127,7 +120,7 @@ void makeRunByRunComparisonRecalcPatches(const std::string_view trigger, const s
       nrunsproc++;
     }
     if(!nrunsproc) break;
-    auto plot = DrawRuns(runlistPanel, inputdir, trigger, cluster, panels);
+    auto plot = DrawRuns(runlistPanel, inputdir, trigger, panels);
     for(auto f : formats) {
       std::stringstream outname;
       outname << plot->GetName() << "." << f;
