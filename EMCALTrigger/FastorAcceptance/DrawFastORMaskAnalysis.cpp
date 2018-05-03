@@ -27,21 +27,6 @@ using TFilePtr = std::unique_ptr<TFile>;
 
 AliEMCALGeometry *egeo(nullptr);
 
-int GetTRUChannelRun2(int ifield, int ibit){
-      const int kChannelMap[6][16] = {{ 8, 9,10,11,20,21,22,23,32,33,34,35,44,45,46,47},   // Channels in mask0
-                                      {56,57,58,59,68,69,70,71,80,81,82,83,92,93,94,95},   // Channels in mask1
-                                      { 4, 5, 6, 7,16,17,18,19,28,29,30,31,40,41,42,43},   // Channels in mask2
-                                      {52,53,54,55,64,65,66,67,76,77,78,79,88,89,90,91},   // Channels in mask3
-                                      { 0, 1, 2, 3,12,13,14,15,24,25,26,27,36,37,38,39},   // Channels in mask4
-                                      {48,49,50,51,60,61,62,63,72,73,74,75,84,85,86,87}};  // Channels in mask5
-      return kChannelMap[ifield][ibit];
-}
-
-int RemapTRUIndex(int itru) {
-  int map[46] = {0,1,2,5,4,3,6,7,8,11,10,9,12,13,14,17,16,15,18,19,20,23,22,21,24,25,26,29,28,27,30,31,32,33,37,36,38,39,43,42,44,45,49,48,50,51};
-  return map[itru];
-}
-
 std::vector<int> ReadMaskedFastors(const char *textfile){
   std::vector<int> fastorabsids;
   std::ifstream reader(textfile);

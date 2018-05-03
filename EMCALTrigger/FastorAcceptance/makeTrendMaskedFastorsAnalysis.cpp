@@ -197,9 +197,9 @@ void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = ""){
   
   auto graphs = convertToGraphs(masks);
   int ndiff = graphs[0]->GetX()[graphs[0]->GetN()-1] - graphs[0]->GetX()[0];
-  int ndigdiff = getDigits(ndiff), scaler = TMath::Power(10, ndigdiff - 1);
-  auto plotmin = (static_cast<int>(graphs[0]->GetX()[0])/scaler) * scaler,
-       plotmax = ((static_cast<int>(graphs[0]->GetX()[graphs[0]->GetN()-1])) + 1) * scaler;
+  int ndigdiff = getDigits(ndiff), scaler = TMath::Power(10, ndigdiff - 2);
+  auto plotmin = (static_cast<int>(graphs[0]->GetX()[0])/scaler - 1) * scaler,
+       plotmax = (static_cast<int>(graphs[0]->GetX()[graphs[0]->GetN()-1])/scaler + 1) * scaler;
   auto framesize = plotmax - plotmin;
 
   auto plot = new TCanvas("masktrending", "Trending reg mask", 800);
