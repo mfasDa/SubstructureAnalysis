@@ -16,6 +16,7 @@
 #include <TH1.h>
 #include <TLegend.h>
 #include <TLine.h>
+#include <TPaveText.h>
 
 #include "AliCDBEntry.h"
 #include "AliCDBManager.h"
@@ -123,7 +124,7 @@ void DrawAllFastOrs(const std::set<int> &fastors, Color_t mycolor) {
   }
 }
 
-TCanvas *PlotMaskedChannels(const std::set<int> &ocdb, const std::set<int> &l0, const std::set<int> &l1){
+TCanvas *PlotMaskedChannels(int runnumber, const std::set<int> &ocdb, const std::set<int> &l0, const std::set<int> &l1){
   // first three helper functions to draw the
   // of course in functional style (lambda functions)
   std::function<void()> DrawSupermoduleGrid = [](){
@@ -261,6 +262,22 @@ TCanvas *PlotMaskedChannels(const std::set<int> &ocdb, const std::set<int> &l0, 
   leg->AddEntry(bl1, Form("L1: %d", int(channelsL1.size())), "f");
   leg->Draw();
 
+  int alldead = channelsAll.size() + channelsOCDBL0.size() + channelsOCDBL1.size() + channelsL0L1.size()
+                + channelsOCDB.size() + channelsL0.size() + channelsL1.size(); 
+
+  TPaveText *sumlabel = new TPaveText(0.75, 0.54, 0.99, 0.58, "NDC");
+  InitWidget<TPaveText>(*sumlabel);
+  sumlabel->SetTextAlign(12);
+  sumlabel->AddText(Form("Sum: %d", alldead));
+  sumlabel->Draw();
+
+  double rlpos = 0.1;
+  TPaveText *runlabel = new TPaveText(0.75, rlpos, 0.99, rlpos + 0.04, "NDC");
+  InitWidget<TPaveText>(*runlabel);
+  runlabel->SetTextAlign(12);
+  runlabel->AddText(Form("Run %d", runnumber));
+  runlabel->Draw();
+
   std::cout << "Number of dead channels in ALL methods:" << channelsAll.size() << std::endl; 
   std::cout << "Number of dead channels in OCDB and L0:" << channelsOCDBL0.size() << std::endl; 
   std::cout << "Number of dead channels in OCDB and L1:" << channelsOCDBL1.size() << std::endl; 
@@ -269,6 +286,18 @@ TCanvas *PlotMaskedChannels(const std::set<int> &ocdb, const std::set<int> &l0, 
   std::cout << "Number of dead channels in L0 only:    " << channelsL0.size() << std::endl; 
   std::cout << "Number of dead channels in L1 only:    " << channelsL1.size() << std::endl; 
 
+  // Write sum of channels to json file
+  std::ofstream writer("maskcomparison.json");
+  writer << "{" << std::endl;
+  writer << "  \"all\": " << channelsAll.size() << "," << std::endl;
+  writer << "  \"ocdbl0\": " << channelsOCDBL0.size() << "," << std::endl;
+  writer << "  \"ocdbl1\": " << channelsOCDBL1.size() << "," << std::endl;
+  writer << "  \"l0l1\": " << channelsL0L1.size() << "," << std::endl;
+  writer << "  \"ocdb\": " << channelsOCDB.size() << "," << std::endl;
+  writer << "  \"l0\": " << channelsL0.size() << "," << std::endl;
+  writer << "  \"l1\": " << channelsL1.size() << "," << std::endl;
+  writer << "  \"sum\": " << alldead << std::endl;
+  writer << "}" << std::endl;
   return result;
 }
 
@@ -285,5 +314,5 @@ void visualizeMaskComparisonRun(int runnumber){
   else year = 2018;
   egeo = AliEMCALGeometry::GetInstanceFromRunNumber(runnumber);
   AliCDBManager::Instance()->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", year)); 
-  SaveCanvas(Form("compMaskedFastors_%d", runnumber), PlotMaskedChannels(ReadMaskedFastorsOCDB(runnumber), ReadMaskedFastorsFile("maskedFastorsFreq_L0_EG1.txt"), ReadMaskedFastorsFile("maskedFastorsFreq_L1_EG1.txt")));
+  SaveCanvas(Form("compMaskedFastors_%d", runnumber), PlotMaskedChannels(runnumber, ReadMaskedFastorsOCDB(runnumber), ReadMaskedFastorsFile("maskedFastorsFreq_L0_EG1.txt"), ReadMaskedFastorsFile("maskedFastorsFreq_L1_EG1.txt")));
 }
