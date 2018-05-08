@@ -108,7 +108,7 @@ TH1 *extractNormalizedSpectrum(double r, const std::string_view jettype, const s
 
 void extractNormalizedSpectrumRejectionFactorV1(const std::string_view jettype, bool emcmode, bool luminorm){
     auto writer = std::unique_ptr<TFile>(TFile::Open(luminorm ? "normalized_wrejection_v1.root" : "normalized_norejection.root", "RECREATE"));
-    std::array<double, 2> radii = {{0.2, 0.4}};
+    std::array<double, 4> radii = {{0.2, 0.3, 0.4, 0.5}};
     std::array<std::string, 3> triggers = {"EJ1", "EJ2", "INT7"};
     for(auto t: triggers) {
         if((emcmode && (t.find("INT7") != std::string::npos)) || (!emcmode && (t.find("EJ") != std::string::npos))) continue;

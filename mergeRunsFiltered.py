@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 import os
 import sys
 
@@ -48,6 +49,17 @@ def merge_runs_filtered(outputfile, inputdir, rootfilename, runlist):
     if not os.path.exists(outputdir):
         os.makedirs(outputdir)
     merge(outputfile, find_files(inputdir, rootfilename, parse_runlist(runlist)))
+
+def Usage():
+    print("Usage: ./merge_runs_filtered.py OUTPUTFILE INTPUTDIR ROOTFILENAME RUNLIST")
+    print("")
+    print("  OUTPUTFILE:     Full path of the output file")
+    print("  INPUTDIR:       Directory in which to find files to merge")
+    print("  ROOTFILENAME:   Name of the root file to merge")
+    print("  RUNLIST:        List of good runs to be merged")
     
 if __name__ == "__main__":
+    if len(sys.argv) < 5:
+        Usage()
+        sys.exit(1)
     merge_runs_filtered(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
