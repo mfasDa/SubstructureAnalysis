@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+from __future__ import print_function
 
 import os
 import sys
@@ -14,7 +15,7 @@ def find_files(inputdir, rootfilename):
 def main(inputdir, rootfile):
   script=os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "FilterTree.cpp")
   base = os.getcwd()
-  print "IAMHERE"
+  print("IAMHERE")
   for f in find_files(inputdir, rootfile):
     os.chdir(os.path.dirname(f))
     print "Processing %s" %f
@@ -22,5 +23,5 @@ def main(inputdir, rootfile):
     os.chdir(base)
 
 if __name__ == "__main__":
-    print "IMAHERE"
+    print("IMAHERE")
     main(os.getcwd(), sys.argv[1])

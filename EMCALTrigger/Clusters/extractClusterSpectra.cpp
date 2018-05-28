@@ -44,7 +44,7 @@ void extractClusterSpectra(const std::string_view tag = "Default", const std::st
   const std::array<const std::string, 6> kTriggerClusters = {{"ANY", "CENT", "CENTNOTRD", "CENTBOTH", "ONLYCENT", "ONLYCENTNOTRD"}};
   const std::array<const std::string, 9> kTriggerClasses = {{"MB", "EG1", "EG2", "EJ1", "EJ2", "DG1", "DG2", "DJ1", "DJ2"}};
 
-  std::unique_ptr<TFile> writer(TFile::Open("ClusterSpectra.root", "RECREATE"));
+  std::unique_ptr<TFile> writer(TFile::Open(Form("ClusterSpectra_%s.root", tag.data()), "RECREATE"));
   for(const auto & tcl : kTriggerClusters) writer->mkdir(tcl.data());
   std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));  
   reader->cd(Form("ClusterQA_%s", tag.data()));

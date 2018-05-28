@@ -1,16 +1,17 @@
 #! /usr/bin/env python
+from future import print_function
 import os, sys
 
 def ExecMerge(outputfile, filelist):
-    print "Merging output to %s" %outputfile
+    print("Merging output to %s" %outputfile)
     mergecommand = "hadd -f %s" %(outputfile)
     for gridfile in filelist:
-        print "Adding %s" %gridfile
+        print("Adding %s" %gridfile)
         mergecommand += " %s" %(gridfile)
     os.system(mergecommand)
 
 def GetFilelist(inputpath, filename):
-    print "walking %s" %inputpath
+    print("walking %s" %inputpath)
     result = []
     for root, dirs, files in os.walk(inputpath):
         for f in files:
@@ -26,7 +27,7 @@ def DoMerge(inputpath, filename):
     for pthard in sorted(os.listdir(inputpath)):
         if not pthard.isdigit():
             continue
-        print "Merging all file from pt-hard bin %s" %(pthard)
+        print("Merging all file from pt-hard bin %s" %(pthard))
         outputdir = os.path.join(mergedir, pthard)
         if not os.path.exists(outputdir):
             os.makedirs(outputdir, 0755)
