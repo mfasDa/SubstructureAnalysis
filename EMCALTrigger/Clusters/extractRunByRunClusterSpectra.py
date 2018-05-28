@@ -7,7 +7,7 @@ import sys
 script = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "extractClusterSpectra.cpp")
 
 def getlistoffiles(inputdir, filetofind):
-  logging.info("searching %s in inputdir %s, ", filetofind, inputdir, filetofind)
+  logging.info("searching %s in inputdir %s, ", filetofind, inputdir)
   listoffiles = []
   for root, dirs, files in os.walk(inputdir):
     for f in files:
