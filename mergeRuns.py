@@ -7,12 +7,12 @@ def ExecMerge(outputfile, filelist):
     logging.info("Merging output to %s" %outputfile)
     mergecommand = "hadd -f %s" %(outputfile)
     for gridfile in filelist:
-        print("Adding %s" %gridfile)
+        logging.info("Adding %s" %gridfile)
         mergecommand += " %s" %(gridfile)
     os.system(mergecommand)
 
 def GetFilelist(inputpath, filename):
-    print("walking %s" %inputpath)
+    logging.debug("walking %s" %inputpath)
     result = []
     for root, dirs, files in os.walk(inputpath):
         for f in files:
