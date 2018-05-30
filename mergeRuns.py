@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-from future import print_function
+from __future__ import print_function
 import os, sys
 
 def ExecMerge(outputfile, filelist):
