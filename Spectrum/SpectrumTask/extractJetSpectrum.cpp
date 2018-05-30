@@ -17,7 +17,8 @@
 
 TH1 *makeJetSparseProjection(THnSparse *hsparse, int triggercluster, bool nefcut) {
   auto clusterbin = hsparse->GetAxis(4)->FindBin(triggercluster);
-  hsparse->GetAxis(4)->SetRange(clusterbin);
+  std::cout << "Found cluster bin for projection " << clusterbin << std::endl;
+  hsparse->GetAxis(4)->SetRange(clusterbin, clusterbin);
   if(nefcut){
     hsparse->GetAxis(3)->SetRangeUser(0., 0.98);
   }
@@ -63,6 +64,7 @@ TH1 *getNormalizedJetSpectrum(TFile &reader, double radius, const std::string_vi
   if(doScale){
     auto norm = static_cast<TH1 *>(histlist->FindObject("hClusterCounter"));
     auto clusterbin = norm->GetXaxis()->FindBin(triggercluster);
+    std::cout << "Found cluster bin for norm " << clusterbin << std::endl;
     projected->Scale(1./norm->GetBinContent(clusterbin));
   }
   return projected;
@@ -89,7 +91,9 @@ void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root
   auto dn = dirname(inputfile);
   std::stringstream outputfile;
   if(dn.length()) outputfile << dn << "/";
-  outputfile << "JetSpectra_" << getClusterName(triggercluster) << ".root";
+  outputfile << "JetSpectra_" << getClusterName(triggercluster);
+  if(!doScale) outputfile << "_noscale";
+  outputfile << ".root";
   std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ")),
                          writer(TFile::Open(outputfile.str().data(), "RECREATE"));
 

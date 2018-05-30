@@ -26,8 +26,8 @@ std::vector<TH1 *> makeNormalizedClusterSpectra(THnSparse * clustersparse, const
     std::stringstream histname;
     histname << "clusterSpectrum_" << (emcal ? "EMCAL" : "DCAL") << "_" << trigger << "_" << trgclst.first;
     clustersparse->GetAxis(5)->SetRange(trgclst.second + 1, trgclst.second + 1);
-    clustersparse->GetAxis(5)->SetRange(0, clustersparse->GetAxis(5)->GetNbins());
     auto spec = clustersparse->Projection(1);
+    clustersparse->GetAxis(5)->SetRange(0, clustersparse->GetAxis(5)->GetNbins());
     spec->SetDirectory(nullptr);
     spec->SetName(histname.str().data());
     auto normval = norm->GetBinContent(trgclst.second + 1);

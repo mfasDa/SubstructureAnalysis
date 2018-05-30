@@ -20,7 +20,7 @@
 
 TH1 *makeJetSparseProjection(THnSparse *hsparse, int triggercluster, bool nefcut) {
   auto clusterbin = hsparse->GetAxis(4)->FindBin(triggercluster);
-  hsparse->GetAxis(4)->SetRange(clusterbin);
+  hsparse->GetAxis(4)->SetRange(clusterbin, clusterbin);
   if(nefcut){
     hsparse->GetAxis(3)->SetRangeUser(0., 0.98);
   }
@@ -95,7 +95,8 @@ void extractJetSpectrumFromSplit(const std::string_view inputdir = ".", int trig
   
   std::stringstream outputfile;
   if(inputdir != std::string_view(".")) outputfile << inputdir << "/";
-  outputfile << "JetSpectra_" << getClusterName(triggercluster) << ".root";
+  outputfile << "JetSpectra_" << getClusterName(triggercluster);
+  if(!doScale) outputfile << "_noscale" << ".root";
   std::unique_ptr<TFile> writer(TFile::Open(outputfile.str().data(), "RECREATE"));
 
   for(const auto &jt : kJetTypes) {
