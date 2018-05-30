@@ -1,9 +1,10 @@
 #! /usr/bin/env python
 from __future__ import print_function
+import logging
 import os, sys
 
 def ExecMerge(outputfile, filelist):
-    print("Merging output to %s" %outputfile)
+    logging.info("Merging output to %s" %outputfile)
     mergecommand = "hadd -f %s" %(outputfile)
     for gridfile in filelist:
         print("Adding %s" %gridfile)
@@ -27,14 +28,15 @@ def DoMerge(inputpath, filename):
     for pthard in sorted(os.listdir(inputpath)):
         if not pthard.isdigit():
             continue
-        print("Merging all file from pt-hard bin %s" %(pthard))
+        logging.info("Merging all file from pt-hard bin %s" %(pthard))
         outputdir = os.path.join(mergedir, pthard)
         if not os.path.exists(outputdir):
             os.makedirs(outputdir, 0755)
         ExecMerge(os.path.join(outputdir, filename), GetFilelist(os.path.join(inputpath, pthard), filename))
-    print "Done"
+    logging.info("Done")
 
 if __name__ == "__main__":
+    logging.basicConfig(format="[%(levelname)s] %(message)s", level = logging.INFO)
     inputpath = sys.argv[1]
     rootfile = "AnalysisResults.root"
     if len(sys.argv) > 2:
