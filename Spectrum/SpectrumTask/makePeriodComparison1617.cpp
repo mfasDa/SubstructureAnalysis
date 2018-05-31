@@ -48,7 +48,7 @@ std::vector<TH1 *> readTriggerHistos(const std::string_view filename, const std:
 
 void makePeriodComparison1617(const std::string_view jettype, const std::string_view trigger, const std::string_view triggercluster){
   std::map<std::string, Style> periods = {
-    {"LHC16i", {kBlue, 25}}, {"LHC16j", {kGreen, 26}}, {"LHC16k", {kViolet, 27}}, {"LHC17", {kRed, 28}}
+    {"LHC16h", {kOrange, 29}}, {"LHC16i", {kBlue, 25}}, {"LHC16j", {kGreen, 26}}, {"LHC16k", {kViolet, 27}}, {"LHC17", {kRed, 28}}
   };
 
   auto plot = new ROOT6tools::TSavableCanvas(Form("periodComparison%s%s", jettype.data(), trigger.data()), Form("Period comparison %s in trigger %s", jettype.data(), trigger.data()), 1200, 1000);

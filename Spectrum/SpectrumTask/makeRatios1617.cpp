@@ -48,7 +48,7 @@ std::vector<TH1 *> readTriggerHistos(const std::string_view filename, const std:
 
 void makeRatios1617(const std::string_view jettype, const std::string_view trigger, const std::string_view triggercluster){
   std::map<std::string, Style> periods = {
-    {"LHC16i", {kBlue, 25}}, {"LHC16j", {kGreen, 26}}, {"LHC16k", {kViolet, 27}}
+    {"LHC16h", {kOrange, 29}}, {"LHC16i", {kBlue, 25}}, {"LHC16j", {kGreen, 26}}, {"LHC16k", {kViolet, 27}}
   };
 
   auto plot = new ROOT6tools::TSavableCanvas(Form("periodRatios%s%s", jettype.data(), trigger.data()), Form("Period comparison %s in trigger %s", jettype.data(), trigger.data()), 1200, 1000);
@@ -59,8 +59,8 @@ void makeRatios1617(const std::string_view jettype, const std::string_view trigg
   for(auto irad : ROOT::TSeqI(2,6)){
     plot->cd(ipad);
     gPad->SetRightMargin(0.2);
-    //(new ROOT6tools::TAxisFrame(Form("JetSpecFrameR%02d%s%s", irad, jettype.data(), trigger.data()), "p_{t,jet} (GeV/c)", "period / sum 2017", 0., 200., 0.5, 2.5))->Draw("axis");
-    (new ROOT6tools::TAxisFrame(Form("JetSpecFrameR%02d%s%s", irad, jettype.data(), trigger.data()), "p_{t,jet} (GeV/c)", "period / sum 2017", 0., 200., 0., 800.))->Draw("axis");
+    (new ROOT6tools::TAxisFrame(Form("JetSpecFrameR%02d%s%s", irad, jettype.data(), trigger.data()), "p_{t,jet} (GeV/c)", "period / sum 2017", 0., 200., 0., 1.5))->Draw("axis");
+    //(new ROOT6tools::TAxisFrame(Form("JetSpecFrameR%02d%s%s", irad, jettype.data(), trigger.data()), "p_{t,jet} (GeV/c)", "period / sum 2017", 0., 200., 0., 800.))->Draw("axis");
 
     if(ipad == 1) {
       leg = new ROOT6tools::TDefaultLegend(0.8, 0.45, 0.99, 0.89);

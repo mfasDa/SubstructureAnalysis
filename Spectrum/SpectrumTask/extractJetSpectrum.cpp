@@ -1,5 +1,6 @@
 #ifndef __CLING__
 #include <array>
+#include <iostream>
 #include <iomanip>
 #include <memory>
 #include <sstream>
