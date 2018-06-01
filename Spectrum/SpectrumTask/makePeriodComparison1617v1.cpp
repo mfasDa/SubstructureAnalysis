@@ -1,7 +1,5 @@
 #ifndef __CLING__
 #include <algorithm>
-#include <iomanip>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <string>
@@ -14,6 +12,7 @@
 #include <TKey.h>
 #include <TLegend.h>
 #include <TPaveText.h>
+#include <TSystem.h>
 
 #include "TAxisFrame.h"
 #include "TDefaultLegend.h"
@@ -36,6 +35,7 @@ std::string findDirectory(const TFile &reader, const std::string_view jettype, c
 
 std::vector<TH1 *> readTriggerHistos(const std::string_view filename, const std::string_view jettype, const std::string_view trigger){
   std::vector<TH1 *> result;
+  if(gSystem->AccessPathName(filename.data())) return result;
   std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
   auto dirname = findDirectory(*reader, jettype, trigger);
   if(!dirname.length()) return result;
@@ -50,44 +50,24 @@ std::vector<TH1 *> readTriggerHistos(const std::string_view filename, const std:
   return result;
 }
 
-std::vector<TH1 *> readTriggerHistosNorm(const std::string_view filename, const std::string_view jettype, const std::string_view trigger, const std::string_view triggercluster){
-  std::vector<TH1 *> result;
-  std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-  auto dirname = findDirectory(*reader, jettype, trigger);
-  if(!dirname.length()) return result;
-  reader->cd(dirname.data());
-
-  for(auto radius : ROOT::TSeqI(2, 6)){
-    std::stringstream eventsname, rawname, normalizedname;
-    eventsname << "EventCount_" << jettype << "_R" << std::setw(2) << std::setfill('0') << radius << "_" << trigger;
-    rawname << "RawJetSpectrum_" << jettype << "_R" << std::setw(2) << std::setfill('0') << radius << "_" << trigger << "_" << triggercluster;
-    normalizedname << "JetSpectrum_" << jettype << "_R" << std::setw(2) << std::setfill('0') << radius << "_" << trigger << "_" << triggercluster;
-    std::cout << "Getting event counter " << eventsname.str() << ", raw spectrum " << rawname.str().data() << std::endl;
-    auto ev = static_cast<TH1 *>(gDirectory->Get(eventsname.str().data())),
-         spectrum = static_cast<TH1 *>(gDirectory->Get(rawname.str().data())); 
-    spectrum->SetDirectory(nullptr);
-    spectrum->SetName(normalizedname.str().data());
-    spectrum->Scale(1./ev->GetBinContent(1));
-    result.emplace_back(spectrum);
-  }
-  return result;
-}
-
-void makePeriodComparison1617(const std::string_view jettype, const std::string_view trigger, const std::string_view triggercluster){
+void makePeriodComparison1617v1(const std::string_view jettype, const std::string_view trigger, const std::string_view triggercluster){
   std::map<std::string, Style> periods = {
-    {"LHC16h", {kOrange, 29}}, {"LHC16i", {kBlue, 25}}, {"LHC16j", {kGreen, 26}}, {"LHC16k", {kViolet, 27}}, {"LHC17", {kRed, 28}}
+    {"LHC16h", {kRed, 24}}, {"LHC16i", {kBlue, 25}}, {"LHC16j", {kGreen, 26}}, {"LHC16k", {kViolet, 27}}, {"LHC16o", {kMagenta, 28}},
+    {"LHC16p", {kTeal, 29}}, {"LHC17h", {kOrange, 30}}, {"LHC17i", {kGray, 24}}, {"LHC17j", {kRed-5, 25}}, {"LHC17k", {kAzure-4, 26}}, 
+    {"LHC17l", {kGreen-5, 27}}, {"LHC17m", {kMagenta - 8, 28}}, {"LHC17o", {kCyan +3, 29}}
   };
 
-  auto plot = new ROOT6tools::TSavableCanvas(Form("periodComparison%s%s", jettype.data(), trigger.data()), Form("Period comparison %s in trigger %s", jettype.data(), trigger.data()), 1200, 1000);
+  auto plot = new ROOT6tools::TSavableCanvas(Form("periodComparisonAll%s%s", jettype.data(), trigger.data()), Form("Period comparison %s in trigger %s", jettype.data(), trigger.data()), 1200, 1000);
   plot->Divide(2,2);
+
+  double xrange = (trigger == std::string_view("INT7") ? 100. : 200.), yrange = (trigger == std::string_view("INT7") ? 1e-9 : 1e-7);
 
   int ipad = 1;
   TLegend *leg(nullptr);
-  double xrange = (trigger == std::string_view("INT7") ? 100. : 200.), yrange = (trigger == std::string_view("INT7") ? 1e-9 : 1e-7);
   for(auto irad : ROOT::TSeqI(2,6)){
     plot->cd(ipad);
     gPad->SetLogy();
-    (new ROOT6tools::TAxisFrame(Form("JetSpecFrameR%02d%s%s", irad, jettype.data(), trigger.data()), "p_{t,jet} (GeV/c)", "1/N_{trg} dN_{jet}/dp_{t,jet} ((GeV/c)^{-1}", 0., xrange, yrange, 200))->Draw("axis");
+    (new ROOT6tools::TAxisFrame(Form("JetSpecFrameAllR%02d%s%s", irad, jettype.data(), trigger.data()), "p_{t,jet} (GeV/c)", "1/N_{trg} dN_{jet}/dp_{t,jet} ((GeV/c)^{-1}", 0., xrange, yrange, 200))->Draw("axis");
 
     if(ipad == 1) {
       leg = new ROOT6tools::TDefaultLegend(0.65, 0.45, 0.89, 0.89);
@@ -103,7 +83,8 @@ void makePeriodComparison1617(const std::string_view jettype, const std::string_
   for(const auto &p : periods){
     std::stringstream infilename;
     infilename << p.first << "/JetSpectra_" << triggercluster << ".root";
-    auto histos = (p.first.find("LHC16") != std::string::npos) ? readTriggerHistos(infilename.str(), jettype, trigger) :readTriggerHistosNorm(infilename.str(), jettype, trigger, triggercluster) ;
+    auto histos = readTriggerHistos(infilename.str(), jettype, trigger);
+    if(!histos.size()) continue;
     
     ipad = 1;
     for(auto irad : ROOT::TSeqI(2, 6)){

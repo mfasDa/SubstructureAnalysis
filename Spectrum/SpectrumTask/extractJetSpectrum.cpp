@@ -51,24 +51,34 @@ std::string getClusterName(int triggercluster) {
   return clustername;
 }
 
-TH1 *getNormalizedJetSpectrum(TFile &reader, double radius, const std::string_view jettype, const std::string_view trigger, int triggercluster, bool doScale){
-  std::stringstream dirname, normalizedname;
+std::array<TH1 *, 3> getNormalizedJetSpectrum(TFile &reader, double radius, const std::string_view jettype, const std::string_view trigger, int triggercluster){
+  std::array<TH1 *, 3> result;
+  std::stringstream dirname, eventsname, rawname, normalizedname;
   dirname << "JetSpectrum_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger;
+  eventsname << "EventCount_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger;
   reader.cd(dirname.str().data());
   auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
   auto jetsparse = static_cast<THnSparse *>(histlist->FindObject("hJetTHnSparse"));
 
+  auto norm = static_cast<TH1 *>(histlist->FindObject("hClusterCounter"));
+  auto clusterbin = norm->GetXaxis()->FindBin(triggercluster);
+  std::cout << "Found cluster bin for norm " << clusterbin << std::endl;
+  auto eventcounter = new TH1F(eventsname.str().data(), "; trigger; number of events", 1, 0.5, 1.5);
+  eventcounter->SetDirectory(nullptr);
+  eventcounter->SetBinContent(1, norm->GetBinContent(clusterbin));
+  result[0] = eventcounter;
+
   auto projected = makeJetSparseProjection(jetsparse, triggercluster, jettype == std::string_view("FullJets"));
   normalizedname << dirname.str() << "_" << getClusterName(triggercluster);
-  projected->SetName(normalizedname.str().data());
+  rawname << "Raw" << normalizedname.str(); 
+  projected->SetName(rawname.str().data());
   projected->SetDirectory(nullptr);
-  if(doScale){
-    auto norm = static_cast<TH1 *>(histlist->FindObject("hClusterCounter"));
-    auto clusterbin = norm->GetXaxis()->FindBin(triggercluster);
-    std::cout << "Found cluster bin for norm " << clusterbin << std::endl;
-    projected->Scale(1./norm->GetBinContent(clusterbin));
-  }
-  return projected;
+  result[1] = projected;
+  auto normalized = static_cast<TH1 *>(projected->Clone(normalizedname.str().data()));
+  normalized->SetDirectory(nullptr);
+  result[2] = normalized;
+  normalized->Scale(1./eventcounter->GetBinContent(1));
+  return result;
 }
 
 bool hasSpectrum(const TFile &reader, const std::string_view jettype, double radius, const std::string_view trigger){
@@ -85,7 +95,7 @@ bool hasSpectrum(const TFile &reader, const std::string_view jettype, double rad
   return found;
 }
 
-void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root", int triggercluster = 0, bool doScale = true){
+void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root", int triggercluster = 0){
   const std::array<const std::string, 2> kJetTypes = {{"FullJets", "NeutralJets"}};
   const std::array<const std::string, 5> kTriggers = {{"INT7", "EG1", "EG2", "EJ1", "EJ2"}};
   
@@ -93,7 +103,6 @@ void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root
   std::stringstream outputfile;
   if(dn.length()) outputfile << dn << "/";
   outputfile << "JetSpectra_" << getClusterName(triggercluster);
-  if(!doScale) outputfile << "_noscale";
   outputfile << ".root";
   std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ")),
                          writer(TFile::Open(outputfile.str().data(), "RECREATE"));
@@ -111,9 +120,9 @@ void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root
           writer->mkdir(outdirname.str().data());
           outputdirCreated = true;
         }
-        auto spec = getNormalizedJetSpectrum(*reader, radius, jt, trg, triggercluster, doScale);
+        auto spectra = getNormalizedJetSpectrum(*reader, radius, jt, trg, triggercluster);
         writer->cd(outdirname.str().data());
-        spec->Write();
+        for(auto spec : spectra) spec->Write();
       }
     }
   }
