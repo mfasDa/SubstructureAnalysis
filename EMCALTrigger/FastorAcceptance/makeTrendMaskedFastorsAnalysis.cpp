@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <forward_list>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -9,6 +10,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
+
 #include <ROOT/TSeq.hxx>
 #include <RStringView.h>
 #include <TCanvas.h>
@@ -16,6 +19,7 @@
 #include <TH1.h>
 #include <TLegend.h>
 #include <TMath.h>
+#include <TProcPool.h>
 #include <TString.h>
 #include <TSystem.h>
 
@@ -24,11 +28,26 @@
 #include "AliEMCALTriggerDCSConfig.h"
 #include "AliEMCALTriggerSTUDCSConfig.h"
 #include "AliEMCALTriggerTRUDCSConfig.h"
+
+#include "TAxisFrame.h"
+#include "TSavableCanvas.h"
 #endif
 
 #include "../../helpers/graphics.C"
 #include "../../helpers/math.C"
 #include "../../helpers/string.C"
+
+struct trendingfile {
+  std::unordered_map<std::string, TObject *>          fTrendObjects;
+
+  void AddTendObject(const std::string_view key, TObject *trendobject) { fTrendObjects.insert(std::pair<std::string, TObject *>(key, trendobject)); }
+
+  void Write(const std::string_view filename) {
+    std::unique_ptr<TFile> writer(TFile::Open(filename.data(), "RECREATE"));
+    writer->cd();
+    for(auto o : fTrendObjects) o.second->Write(o.first.data());
+  }
+};
 
 class Runlists { 
 public:
@@ -127,8 +146,20 @@ std::pair<int, int> getNumberOfMaskedFastors(const std::string_view textfile) {
   return {nemcal, ndcal};
 }
 
+int determineYear(int runnumber){
+  int year = 2015;
+  if(runnumber < 247171) year = 2015;
+  else if(runnumber >= 247171 && runnumber < 267255) year = 2016;
+  else if(runnumber >= 267255 && runnumber < 282901) year = 2017;
+  else year = 2018;
+  return year;
+}
+
 std::pair<int, int> getNumberOfMaskedFastorsOCDB(int run){
   AliCDBManager *cdb = AliCDBManager::Instance();
+  if(!cdb->IsDefaultStorageSet()){
+    cdb->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", determineYear(run)));
+  }
   cdb->SetRun(run);
 
   auto en = cdb->Get("EMCAL/Calib/Trigger");
@@ -170,31 +201,47 @@ std::vector<TGraph *> convertToGraphs(const std::set<runinfo> &trend){
   return result;
 }
 
+runinfo getRunInfo(int run) {
+  std::cout << "Processing run " << run << std::endl;
+  auto l0data = getNumberOfMaskedFastors(Form("%09d/maskedFastorsFreq_L0_EG1.txt", run)),
+       l1data = getNumberOfMaskedFastors(Form("%09d/maskedFastorsFreq_L1_EG1.txt", run)),
+       ocdbdata = getNumberOfMaskedFastorsOCDB(run);
+  return {
+    run, 
+    static_cast<double>(l0data.first) / 2944., 
+    static_cast<double>(l0data.second) / 1288., 
+    static_cast<double>(l1data.first) / 2944., 
+    static_cast<double>(l1data.second) / 1288.,
+    static_cast<double>(ocdbdata.first) / 2944., 
+    static_cast<double>(ocdbdata.second) / 1288.
+  };
+}
+
+std::set<runinfo> getRunInfoParallel(std::vector<int> runlist) {
+  TProcPool workerpool;
+  workerpool.SetNWorkers(8);
+  auto data = workerpool.Map([](Int_t run) -> runinfo { return getRunInfo(run); }, runlist);
+  std::set<runinfo> result; 
+  for(auto e : data) result.insert(e); 
+  return result; 
+}
+
 void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = ""){  
   Runlists goodruns;
   goodruns.Initialize("/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL");
   std::cout << "Using the following good runs: " << std::endl;
   goodruns.Print();
   AliCDBManager *cdb = AliCDBManager::Instance();
-  cdb->SetDefaultStorage("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/2016/OCDB");
-  std::set<runinfo> masks;
+  std::vector<int> runstocheck;
   for(auto r : getListOfRuns(inputdir)){
     if(!goodruns.findRun(r)) {
       std::cout << "run " << r << " not good - skipping ..." << std::endl;
       continue;        // Handle only good runs from the EMCAL good runlist 
     }
-    std::cout << "Processing run " << r << std::endl;
-    auto l0data = getNumberOfMaskedFastors(Form("%09d/maskedFastorsFreq_L0_EG1.txt", r)),
-         l1data = getNumberOfMaskedFastors(Form("%09d/maskedFastorsFreq_L1_EG1.txt", r)),
-         ocdbdata = getNumberOfMaskedFastorsOCDB(r);
-    masks.insert({r, static_cast<double>(l0data.first) / 2944., 
-                     static_cast<double>(l0data.second) / 1288., 
-                     static_cast<double>(l1data.first) / 2944., 
-                     static_cast<double>(l1data.second) / 1288.,
-                     static_cast<double>(ocdbdata.first) / 2944., 
-                     static_cast<double>(ocdbdata.second) / 1288.});
+    runstocheck.emplace_back(r);
   }
-  
+
+  auto masks = getRunInfoParallel(runstocheck);
   auto graphs = convertToGraphs(masks);
   int ndiff = graphs[0]->GetX()[graphs[0]->GetN()-1] - graphs[0]->GetX()[0];
   int ndigdiff = getDigits(ndiff), scaler = TMath::Power(10, ndigdiff - 2);
@@ -202,14 +249,10 @@ void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = ""){
        plotmax = (static_cast<int>(graphs[0]->GetX()[graphs[0]->GetN()-1])/scaler + 1) * scaler;
   auto framesize = plotmax - plotmin;
 
-  auto plot = new TCanvas("masktrending", "Trending reg mask", 800);
+  auto plot = new ROOT6tools::TSavableCanvas("masktrending", "Trending reg mask", 800, 600);
   double framemin = (graphs[0]->GetX()[0] / framesize) * framesize, 
          framemax = framemin + framesize;
-  auto frame = new TH1F("trendframe", "; run; frac masked fastors", framesize, framemin, framemax);
-  frame->SetDirectory(nullptr);
-  frame->SetStats(false);
-  frame->GetYaxis()->SetRangeUser(0., 0.4);
-  frame->Draw("axis");
+  (new ROOT6tools::TAxisFrame("trendframe", "run", "frac masked fastors", framemin, framemax, 0., 0.4))->Draw("axis");
 
   Color_t emcalcolor = kRed, dcalcolor = kBlue;
   Style_t ocdbstyle = 24, l0style = 25, l1style = 26;
@@ -221,10 +264,15 @@ void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = ""){
 
   std::array<std::string, 3> source = {{"L0", "L1", "OCDB"}};
   std::array<Style_t, 3> styles = {{l0style, l1style, ocdbstyle}};
+  trendingfile outputfile;
   for(auto ig : ROOT::TSeqI(0, 6)){
     Style{(ig % 2) ? dcalcolor : emcalcolor, styles[ig/2]}.SetStyle<TGraph>(*graphs[ig]);
     graphs[ig]->Draw("epsame");
     leg->AddEntry(graphs[ig], Form("%s, %s", (ig % 2) ? "DCAL": "EMCAL", source[ig/2].data()), "lep");
+    outputfile.AddTendObject(Form("%s%s", (ig % 2) ? "DCAL": "EMCAL", source[ig/2].data()), graphs[ig]);
   }
   gPad->Update();
+  plot->SaveCanvas("FastorTrending");
+
+  outputfile.Write("FastorTrending.root");
 }
