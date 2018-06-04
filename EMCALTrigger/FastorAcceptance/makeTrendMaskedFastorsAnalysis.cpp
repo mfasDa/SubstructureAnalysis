@@ -220,7 +220,8 @@ runinfo getRunInfo(int run) {
 std::set<runinfo> getRunInfoParallel(std::vector<int> runlist) {
   TProcPool workerpool;
   workerpool.SetNWorkers(8);
-  auto data = workerpool.Map([](Int_t run) -> runinfo { return getRunInfo(run); }, runlist);
+  //auto data = workerpool.Map([](Int_t run) -> runinfo { return getRunInfo(run); }, runlist);
+  auto data = workerpool.Map(getRunInfo, runlist);
   std::set<runinfo> result; 
   for(auto e : data) result.insert(e); 
   return result; 
