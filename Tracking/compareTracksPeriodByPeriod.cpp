@@ -27,11 +27,44 @@
 #include "../helpers/math.C"
 #include "../helpers/string.C"
 
-std::set<int> getListOfRuns(const std::string_view inputdir){
-  std::set<int> result;
+class PeriodTrending{
+public:
+  PeriodTrending() = default;
+  ~PeriodTrending() = default;
+
+  void AddTrendPoint(const std::string_view &period, double val, double error) { fData.insert({(std::string)period, val, error}); };
+  TH1 *CreateTrendingHistogram(const std::string_view name, const std::string_view title) const {
+    std::cout << "Found data with " << fData.size() << " periods " << std::endl;
+    auto result = new TH1F(name.data(), title.data(), fData.size(), -0.5, fData.size() - 0.5);
+    result->SetDirectory(nullptr);
+    result->SetStats(false);
+    int bincounter(0);
+    for(auto d : fData){
+      result->GetXaxis()->SetBinLabel(bincounter+1, d.fPeriodName.data());
+      result->SetBinContent(bincounter+1, d.fValue);
+      result->SetBinError(bincounter+1, d.fError);
+      bincounter++;
+    }
+    return result;
+  }
+private:
+  struct Trendpoint {
+    std::string             fPeriodName;
+    Double_t                fValue;
+    Double_t                fError;
+
+    bool operator==(const Trendpoint &other) const { return fPeriodName == other.fPeriodName; }
+    bool operator<(const Trendpoint &other) const { return fPeriodName < other.fPeriodName; }
+  };
+  
+  std::set<Trendpoint>      fData;
+};
+
+std::set<std::string> getListOfPeriods(const std::string_view inputdir){
+  std::set<std::string> result;
   for(auto d : tokenize(gSystem->GetFromPipe(Form("ls -1 %s", inputdir.data())).Data())){
-    if(is_number(d)){
-      if(!gSystem->AccessPathName(Form("%s/%s/AnalysisResults.root", inputdir.data(), d.data()))) result.insert(std::stoi(d));
+    if(d.find("LHC") != std::string::npos){
+      if(!gSystem->AccessPathName(Form("%s/%s/AnalysisResults.root", inputdir.data(), d.data()))) result.insert(d);
     }
   }
   return result;
@@ -77,7 +110,7 @@ double getmax(const TGraphErrors *g) {
   return result;
 }
 
-ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<int> &listofruns, const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, const std::map<double, TGraphErrors *> &trendgraphs){
+ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<std::string> &listofruns, const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, std::map<double, PeriodTrending> &trendgraphs){
   auto plot = new ROOT6tools::TSavableCanvas(Form("TrackComparison_%s_%s_%d", tracktype.data(), trigger.data(), index), Form("Track comparison %s track (%s) %d", tracktype.data(), trigger.data(), index), 800, 600);
   plot->cd();
   plot->SetLogy();
@@ -94,50 +127,46 @@ ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<int> &listofru
   
   std::array<Style, 10> styles = {{{kRed, 24}, {kBlue, 25}, {kGreen, 26}, {kViolet, 27}, {kOrange, 28}, {kMagenta, 29}, {kTeal, 30}, {kGray, 31}, {kAzure, 32}, {kBlack, 33}}};
   int ispec = 0;
-  for(auto r : listofruns){
-    auto spec = getNormalizedSpectrum(Form("%s/%09d/AnalysisResults.root", inputdir.data(), r), tracktype, trigger);
+  for(auto p : listofruns){
+    auto spec = getNormalizedSpectrum(Form("%s/%s/AnalysisResults.root", inputdir.data(), p.data()), tracktype, trigger);
     if(!spec)
-    spec->SetName(Form("%s_%s_%d", trigger.data(), tracktype.data(), r));
+    spec->SetName(Form("%s_%s_%s", trigger.data(), tracktype.data(), p.data()));
     styles[ispec++].SetStyle<TH1>(*spec);
     spec->Draw("epsame");
-    leg->AddEntry(spec, Form("%d", r), "lep");
+    leg->AddEntry(spec, p.data(), "lep");
 
     // fill trending graphs
-    for(auto t : trendgraphs){
-      auto g = t.second;
+    for(auto &t : trendgraphs){
       auto b = spec->GetXaxis()->FindBin(t.first);
-      auto n = g->GetN();
-      g->SetPoint(n, r, spec->GetBinContent(b));
-      g->SetPointError(n, 0., spec->GetBinError(b));
+      t.second.AddTrendPoint(p, spec->GetBinContent(b), spec->GetBinError(b));
     }
   }
   plot->Update();
   return plot;
 }
-
-void compareTracksRunByRun(const std::string_view track_type, const std::string_view trigger, const std::string_view inputdir){
-  std::map<double, TGraphErrors *> trending = {{0.5, new TGraphErrors}, {1., new TGraphErrors}, {2., new TGraphErrors}, 
-                                               {5., new TGraphErrors}, {10., new TGraphErrors}, {20., new TGraphErrors}};
-  auto runs = getListOfRuns(inputdir);
-  if(!runs.size()){
-    std::cout << "No runs found in input dir " << inputdir << ", skipping ..." << std::endl;
+void compareTracksPeriodByPeriod(const std::string_view track_type, const std::string_view trigger, const std::string_view inputdir){
+  std::map<double, PeriodTrending> trending = {{0.5, PeriodTrending()}, {1., PeriodTrending()}, {2., PeriodTrending()}, 
+                                               {5., PeriodTrending()}, {10., PeriodTrending()}, {20., PeriodTrending()}};
+  auto periods = getListOfPeriods(inputdir);
+  if(!periods.size()){
+    std::cout << "No periods found in input dir " << inputdir << ", skipping ..." << std::endl;
     return; 
   } else {
-    std::cout << "Found " << runs.size() << " runs in input dir " << inputdir << " ..." << std::endl;
+    std::cout << "Found " << periods.size() << " periods in input dir " << inputdir << " ..." << std::endl;
   }
 
   int canvas = 0;
-  std::vector<int> runsplot;
-  for(auto r : runs) {
-    runsplot.emplace_back(r);
-    if(runsplot.size() == 10) {
-      auto compplot = MakePlot(canvas++, runsplot, inputdir, track_type, trigger, trending);
+  std::vector<std::string> periodsplot;
+  for(auto p : periods) {
+    periodsplot.emplace_back(p);
+    if(periods.size() == 10) {
+      auto compplot = MakePlot(canvas++, periodsplot, inputdir, track_type, trigger, trending);
       compplot->SaveCanvas(compplot->GetName());
-      runsplot.clear();
+      periodsplot.clear();
     }
   }
-  if(runsplot.size()){
-    auto compplot = MakePlot(canvas++, runsplot, inputdir, track_type, trigger, trending);
+  if(periodsplot.size()){
+    auto compplot = MakePlot(canvas++, periodsplot, inputdir, track_type, trigger, trending);
     compplot->SaveCanvas(compplot->GetName());
   }
 
@@ -148,15 +177,17 @@ void compareTracksRunByRun(const std::string_view track_type, const std::string_
 
   std::set<double> ptref;
   int ipad = 1;
+  std::unique_ptr<TFile> writer(TFile::Open(Form("trending_%s_%s.root", track_type.data(), trigger.data()), "RECREATE"));
+  writer->cd();
   for(auto en : trending) ptref.insert(en.first);   // no c++17, so sad ...
   for(auto pt : ptref ){
     trendplot->cd(ipad++);
     gPad->SetLeftMargin(0.18);
     gPad->SetRightMargin(0.1);
-    auto trendgraph = trending.find(pt)->second;
-    auto frame = new ROOT6tools::TAxisFrame(Form("trend%s%s_pt%d", track_type.data(), trigger.data(), int(pt * 10.)), "run", Form("1/N_{trg} dN/dp_{t}|_{pt = %.1f GeV/c} ((GeV/c)^{-1})", pt), *runs.begin(), *runs.rbegin(), getmin(trendgraph) * 0.9, getmax(trendgraph) * 1.1);
-    frame->GetXaxis()->SetNdivisions(305);
-    frame->Draw("axis");
+    auto trendhist = trending.find(pt)->second.CreateTrendingHistogram(Form("trending_pt%03d_%s_%s", int(pt * 10.), track_type.data(), trigger.data()), Form("Track trending %s tracks p_{t} = %.1f GeV/c %s", track_type.data(), pt, trigger.data()));
+    trendhist->GetYaxis()->SetTitle(Form("1/N_{trg} dN/dp_{t}|_{p_{t} = 5 GeV/c} ((GeV/c)^{-1}"));
+    trendstyle.SetStyle<TH1>(*trendhist);
+    trendhist->Draw("pe");
     if(ipad == 2){
       auto trklab =new ROOT6tools::TNDCLabel(0.2, 0.84, 0.55, 0.89, Form("Track type: %s", track_type.data()));
       trklab->SetTextAlign(12);
@@ -165,17 +196,7 @@ void compareTracksRunByRun(const std::string_view track_type, const std::string_
       trglab->SetTextAlign(12);
       trglab->Draw();
     }
-
-    trendstyle.SetStyle<TGraphErrors>(*trendgraph);
-    trendgraph->Draw("lepsame");
+    trendhist->Write(trendhist->GetName());
   }
   trendplot->SaveCanvas(trendplot->GetName());
-
-  std::unique_ptr<TFile> writer(TFile::Open(Form("trending_%s_%s.root", track_type.data(), trigger.data()), "RECREATE"));
-  writer->cd();
-  for(auto t : trending){
-    auto g = t.second;
-    g->SetName(Form("trending_%03d", int(10. * t.first)));
-    g->Write(g->GetName());
-  }
 }
