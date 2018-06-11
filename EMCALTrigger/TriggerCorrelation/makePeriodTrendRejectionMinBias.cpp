@@ -34,8 +34,8 @@ TH1 *extractRejection(const std::string_view filename, const std::string_view di
   fracMB->SetDirectory(nullptr);
   fracMB->Scale(1./fracMB->GetBinContent(binMB));
   // correct for downscaling
-  std::map<std::string, std::string> triggers = {{"EMC7", "CEMC7-B-NOPF-CENT"}, {"EG2", "CEMC7EG2-B-NOPF-CENT"}, {"EJ2", "CEMC7EJ2-B-NOPF-CENT"}, 
-                                                 {"DMC7", "CDMC7-B-NOPF-CENT"}, {"DG2", "CDMC7DG2-B-NOPF-CENT"}, {"DJ2", "CDMC7DJ2-B-NOPF-CENT"}};
+  std::map<std::string, std::string> triggers = {{"EG2", "CEMC7EG2-B-NOPF-CENT"}, {"EJ2", "CEMC7EJ2-B-NOPF-CENT"}, 
+                                                 {"DG2", "CDMC7DG2-B-NOPF-CENT"}, {"DJ2", "CDMC7DJ2-B-NOPF-CENT"}};
   for(auto t : triggers) {
     auto weight = downscalehandler->GetDownscaleFactorForTriggerClass(t.second.data());
     std::cout << "Found weight " << weight << " for trigger " << t.first << " (" << t.second << ")" << std::endl;
@@ -63,9 +63,9 @@ TH1 *makeTrendHisto(const std::string_view trigger, const std::map<std::string, 
 void makePeriodTrendRejectionMinBias(const std::string_view filename, const std::string_view dirname = "ClusterQA_INT7"){
   std::map<std::string, int> periods = {{"LHC17h", 272610}, {"LHC17i", 274442}, {"LHC17j", 274671}, {"LHC17k", 276508}, 
                                         {"LHC17l", 278216}, {"LHC17m", 280140}, {"LHC17o", 281961}}; // run number needed for downscale correction
-  std::array<std::string, 8> triggers = {{"EG1", "EG2", "EJ1", "EJ2", "DG1", "DG2", "DJ1", "DJ2"}};
-  std::map<std::string, std::pair<double, double>> ranges = {{"EG1", {0., 10000.}}, {"EG2", {0., 1000.}}, {"EJ1", {0., 10000.}}, {"EJ2", {0., 4000.}}, 
-                                                             {"DG1", {0., 20000.}}, {"DG2", {0., 2000.}}, {"DJ1", {0., 100000.}}, {"DJ2", {0., 50000.}}};
+  std::array<std::string, 10> triggers = {{"EMC7", "EG1", "EG2", "EJ1", "EJ2", "DMC7", "DG1", "DG2", "DJ1", "DJ2"}};
+  std::map<std::string, std::pair<double, double>> ranges = {{"EMC7", {0., 150.}}, {"EG1", {0., 10000.}}, {"EG2", {0., 1000.}}, {"EJ1", {0., 10000.}}, {"EJ2", {0., 4000.}}, 
+                                                             {"DMC7", {0., 300.}}, {"DG1", {0., 20000.}}, {"DG2", {0., 2000.}}, {"DJ1", {0., 100000.}}, {"DJ2", {0., 50000.}}};
   std::map<std::string, TH1 *> trendhists;
   for(const auto & t : triggers) trendhists[t] = makeTrendHisto(t, periods);
   
@@ -82,8 +82,8 @@ void makePeriodTrendRejectionMinBias(const std::string_view filename, const std:
     }
   }
 
-  auto plot = new TCanvas("trendingRejection2017", "Trending trigger rejection 2017", 1200, 800);
-  plot->Divide(4,2);
+  auto plot = new TCanvas("trendingRejection2017", "Trending trigger rejection 2017", 1400, 800);
+  plot->Divide(5,2);
 
   for(auto itrg : ROOT::TSeqI(0, triggers.size())){
     plot->cd(itrg+1);

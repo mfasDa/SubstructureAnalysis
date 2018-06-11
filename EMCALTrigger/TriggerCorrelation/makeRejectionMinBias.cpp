@@ -28,9 +28,15 @@ TH1 *extractRejection(const std::string_view filename, const std::string_view di
   auto fracMB = corrhist->ProjectionX("fracMB", binMB, binMB);
   fracMB->SetDirectory(nullptr);
   fracMB->Scale(1./fracMB->GetBinContent(binMB));
+  for(auto b : ROOT::TSeqI(0, fracMB->GetXaxis()->GetNbins())){
+    std::string_view triggerlabel(fracMB->GetXaxis()->GetBinLabel(b+1));
+    if(triggerlabel.length())
+      std::cout << "Raw fraction " << triggerlabel << ": " << fracMB->GetBinContent(b+1) << std::endl;
+  }
   // correct for downscaling
-  std::map<std::string, std::string> triggers = {{"EMC7", "CEMC7-B-NOPF-CENT"}, {"EG2", "CEMC7EG2-B-NOPF-CENT"}, {"EJ2", "CEMC7EJ2-B-NOPF-CENT"}, 
-                                                 {"DMC7", "CDMC7-B-NOPF-CENT"}, {"DG2", "CDMC7DG2-B-NOPF-CENT"}, {"DJ2", "CDMC7DJ2-B-NOPF-CENT"}};
+  // L0 triggers have identical downscale factors as MB - not correcting
+  std::map<std::string, std::string> triggers = {{"EG2", "CEMC7EG2-B-NOPF-CENT"}, {"EJ2", "CEMC7EJ2-B-NOPF-CENT"}, 
+                                                 {"DG2", "CDMC7DG2-B-NOPF-CENT"}, {"DJ2", "CDMC7DJ2-B-NOPF-CENT"}};
   for(auto t : triggers) {
     auto weight = downscalehandler->GetDownscaleFactorForTriggerClass(t.second.data());
     std::cout << "Found weight " << weight << " for trigger " << t.first << " (" << t.second << ")" << std::endl;
