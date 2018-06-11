@@ -26,6 +26,7 @@
 #include "AliEMCALTriggerSTUDCSConfig.h"
 #endif
 
+#include "../../helpers/cdb.C"
 #include "../../helpers/graphics.C"
 
 using Range = ROOT::TSeqI;
@@ -307,12 +308,7 @@ void SaveCanvas(const std::string &basename, const TCanvas *plot){
 }
 
 void visualizeMaskComparisonRun(int runnumber){
-  int year=2015;
-  if(runnumber <= 247170) year = 2015;
-  else if(runnumber <= 267254) year = 2016;
-  else if(runnumber <= 282900) year = 2017;
-  else year = 2018;
   egeo = AliEMCALGeometry::GetInstanceFromRunNumber(runnumber);
-  AliCDBManager::Instance()->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", year)); 
+  AliCDBManager::Instance()->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", getYearForRunNumber(runnumber))); 
   SaveCanvas(Form("compMaskedFastors_%d", runnumber), PlotMaskedChannels(runnumber, ReadMaskedFastorsOCDB(runnumber), ReadMaskedFastorsFile("maskedFastorsFreq_L0_EG1.txt"), ReadMaskedFastorsFile("maskedFastorsFreq_L1_EG1.txt")));
 }
