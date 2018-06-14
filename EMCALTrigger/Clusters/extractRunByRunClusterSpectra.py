@@ -15,19 +15,19 @@ def getlistoffiles(inputdir, filetofind):
         listoffiles.append(os.path.join(root, f))
   return listoffiles
 
-def extractrunclusterspectrum(basefile):
+def extractrunclusterspectrum(basefile, tag):
   logging.info("Processing %s", basefile)
   currentdir = os.getcwd()
   rundir = os.path.dirname(basefile)
   runfile = os.path.basename(basefile)
   os.chdir(rundir)
-  os.system("root -l -b -q \'%s(\"INT7\", \"%s\")\'" %(script, runfile))
+  os.system("root -l -b -q \'%s(\"%s\", \"%s\")\'" %(script, tag, runfile))
   os.chdir(currentdir)
 
-def extractclusterspectra(inputdir, rootfile):
+def extractclusterspectra(inputdir, rootfile, tag):
   for specfile in getlistoffiles(inputdir, rootfile):
-    extractrunclusterspectrum(specfile)
+    extractrunclusterspectrum(specfile, tag)
 
 if __name__ == "__main__":
   logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
-  extractclusterspectra(sys.argv[2] if len(sys.argv) > 2 else os.getcwd(), sys.argv[1])
+  extractclusterspectra(sys.argv[2] if len(sys.argv) > 2 else os.getcwd(), sys.argv[1], sys.argv[3] if len(sys.argv) > 3 else "INT7")

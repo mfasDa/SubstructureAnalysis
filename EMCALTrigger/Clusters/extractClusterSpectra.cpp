@@ -1,4 +1,5 @@
 #ifndef __CLING__
+#include <algorithm>
 #include <array>
 #include <iostream>
 #include <map>
@@ -49,10 +50,18 @@ void extractClusterSpectra(const std::string_view tag = "Default", const std::st
   std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));  
   reader->cd(Form("ClusterQA_%s", tag.data()));
   auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
+  std::vector<TObject *> histcont;
+  for(auto o : *histlist) histcont.emplace_back(o);
   //histlist->Print();
   for(const auto &tls : kTriggerClasses) {
     if(tls != "MB") {
-      auto spectra = makeNormalizedClusterSpectra(static_cast<THnSparse *>(histlist->FindObject(Form("hClusterTHnSparseAll%s", tls.data()))), static_cast<TH1 *>(histlist->FindObject(Form("hTrgClustCounter%s", tls.data()))), tls[0] == 'E', tls);
+      auto spectra = makeNormalizedClusterSpectra(static_cast<THnSparse *>(
+        *std::find_if(histcont.begin(), histcont.end(), [&tls](const TObject *o) -> bool { 
+          TString histname(o->GetName()); return histname.Contains("hClusterTHnSparseAll") && histname.Contains(tls);
+        })), static_cast<TH1 *>(
+        *std::find_if(histcont.begin(), histcont.end(), [&tls](const TObject *o) -> bool {
+          TString histname(o->GetName()); return histname.Contains("hTrgClustCounter") && histname.Contains(tls);   
+        })), tls[0] == 'E', tls);
       for(auto s : spectra) std::cout << "histo " << s->GetName() << std::endl;
       for(auto tcl : kTriggerClusters){
         writer->cd(tcl.data());
@@ -62,7 +71,13 @@ void extractClusterSpectra(const std::string_view tag = "Default", const std::st
     } else {
       std::array<bool, 2> detcases = {{true, false}};
       for(auto d : detcases){
-        auto spectra = makeNormalizedClusterSpectra(static_cast<THnSparse *>(histlist->FindObject(Form("hClusterTHnSparseAll%s", tls.data()))), static_cast<TH1 *>(histlist->FindObject(Form("hTrgClustCounter%s", tls.data()))), d, tls);
+        auto spectra = makeNormalizedClusterSpectra(static_cast<THnSparse *>(
+        *std::find_if(histcont.begin(), histcont.end(), [&tls](const TObject *o) -> bool { 
+          TString histname(o->GetName()); return histname.Contains("hClusterTHnSparseAll") && histname.Contains(tls);
+        })), static_cast<TH1 *>(
+        *std::find_if(histcont.begin(), histcont.end(), [&tls](const TObject *o) -> bool {
+          TString histname(o->GetName()); return histname.Contains("hTrgClustCounter") && histname.Contains(tls);   
+         })), d, tls);
         for(auto s : spectra) std::cout << "histo " << s->GetName() << std::endl;
         for(auto tcl : kTriggerClusters){
           writer->cd(tcl.data());
