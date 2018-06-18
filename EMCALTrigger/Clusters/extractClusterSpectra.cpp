@@ -43,7 +43,7 @@ std::vector<TH1 *> makeNormalizedClusterSpectra(THnSparse * clustersparse, const
 
 void extractClusterSpectra(const std::string_view tag = "Default", const std::string_view filename = "AnalysisResults.root"){
   const std::array<const std::string, 6> kTriggerClusters = {{"ANY", "CENT", "CENTNOTRD", "CENTBOTH", "ONLYCENT", "ONLYCENTNOTRD"}};
-  const std::array<const std::string, 9> kTriggerClasses = {{"MB", "EG1", "EG2", "EJ1", "EJ2", "DG1", "DG2", "DJ1", "DJ2"}};
+  const std::array<const std::string, 11> kTriggerClasses = {{"MB", "EMC7", "EG1", "EG2", "EJ1", "EJ2", "DMC7", "DG1", "DG2", "DJ1", "DJ2"}};
 
   std::unique_ptr<TFile> writer(TFile::Open(Form("ClusterSpectra_%s.root", tag.data()), "RECREATE"));
   for(const auto & tcl : kTriggerClusters) writer->mkdir(tcl.data());
