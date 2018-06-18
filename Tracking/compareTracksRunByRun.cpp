@@ -3,8 +3,10 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "RStringView.h"
@@ -27,6 +29,14 @@
 #include "../helpers/math.C"
 #include "../helpers/string.C"
 
+struct RunSpectrum{
+  int fRun;
+  TH1 *fSpectrum;
+
+  bool operator==(const RunSpectrum &other) const { return fRun == other.fRun; }
+  bool operator<(const RunSpectrum &other) const { return fRun < other.fRun; }
+};
+
 std::set<int> getListOfRuns(const std::string_view inputdir){
   std::set<int> result;
   for(auto d : tokenize(gSystem->GetFromPipe(Form("ls -1 %s", inputdir.data())).Data())){
@@ -37,12 +47,15 @@ std::set<int> getListOfRuns(const std::string_view inputdir){
   return result;
 }
 
-TH1 *getNormalizedSpectrum(const std::string_view filename, const std::string_view tracktype, const std::string_view trigger){
+TH1 *getNormalizedSpectrum(const std::string_view filename, const std::string_view tracktype, const std::string_view trigger, bool isMC){
   std::cout << "Reading " << filename << std::endl;
   try {
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-    reader->cd(Form("ChargedParticleQA_%s_nocorr", tracktype.data()));
-    auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
+    std::stringstream dirbuilder;
+    dirbuilder << "ChargedParticleQA_" << tracktype.data();
+    if(!isMC) dirbuilder << "_nocorr";
+    auto dir = static_cast<TDirectoryFile *>(reader->Get(dirbuilder.str().data()));
+    auto histlist = static_cast<TList *>(static_cast<TKey *>(dir->GetListOfKeys()->At(0))->ReadObj());
     auto norm = static_cast<TH1 *>(histlist->FindObject(Form("hEventCount%s", trigger.data())));
     auto spec = std::unique_ptr<THnSparse>(static_cast<THnSparse *>(histlist->FindObject(Form("hPtEtaPhiAll%s", trigger.data()))));
     // Look in front of EMCAL
@@ -77,7 +90,7 @@ double getmax(const TGraphErrors *g) {
   return result;
 }
 
-ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<int> &listofruns, const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, const std::map<double, TGraphErrors *> &trendgraphs){
+ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<int> &listofruns, const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, bool isMC, const std::map<double, TGraphErrors *> &trendgraphs){
   auto plot = new ROOT6tools::TSavableCanvas(Form("TrackComparison_%s_%s_%d", tracktype.data(), trigger.data(), index), Form("Track comparison %s track (%s) %d", tracktype.data(), trigger.data(), index), 800, 600);
   plot->cd();
   plot->SetLogy();
@@ -91,31 +104,48 @@ ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<int> &listofru
   trglab->Draw();
   auto leg = new ROOT6tools::TDefaultLegend(0.75, 0.45, 0.89, 0.89);
   leg->Draw();
-  
+
+  // Parallelize reading spectra
+  std::set<RunSpectrum> spectra;
+  std::vector<std::thread> readingthreads;
+  std::mutex specmutex;
+  auto workertask = [&](int runnumber) {
+    std::string infilename;
+    if(isMC) infilename = Form("%s/%d/AnalysisResults.root", inputdir.data(), runnumber);
+    else infilename = Form("%s/%09d/AnalysisResults.root", inputdir.data(), runnumber);
+    auto spec = getNormalizedSpectrum(infilename.data(), tracktype, trigger, isMC);
+    spec->SetName(Form("%s_%s_%d", trigger.data(), tracktype.data(), runnumber));
+    //std::this_thread::sleep_for(std::chrono::duration<double, std::nano>(500));
+    std::unique_lock<std::mutex> writelock(specmutex);    // write operation to std::set must be locked
+    spectra.insert({runnumber, spec});
+  };
+  for(auto r : listofruns){
+    readingthreads.emplace_back(workertask, r);
+  }
+  for(auto &t : readingthreads) t.join();
+
   std::array<Style, 10> styles = {{{kRed, 24}, {kBlue, 25}, {kGreen, 26}, {kViolet, 27}, {kOrange, 28}, {kMagenta, 29}, {kTeal, 30}, {kGray, 31}, {kAzure, 32}, {kBlack, 33}}};
   int ispec = 0;
-  for(auto r : listofruns){
-    auto spec = getNormalizedSpectrum(Form("%s/%09d/AnalysisResults.root", inputdir.data(), r), tracktype, trigger);
-    if(!spec)
-    spec->SetName(Form("%s_%s_%d", trigger.data(), tracktype.data(), r));
-    styles[ispec++].SetStyle<TH1>(*spec);
-    spec->Draw("epsame");
-    leg->AddEntry(spec, Form("%d", r), "lep");
+  for(auto spectrum : spectra){
+    styles[ispec++].SetStyle<TH1>(*spectrum.fSpectrum);
+    spectrum.fSpectrum->Draw("epsame");
+    leg->AddEntry(spectrum.fSpectrum, Form("%d", spectrum.fRun), "lep");
 
     // fill trending graphs
     for(auto t : trendgraphs){
       auto g = t.second;
-      auto b = spec->GetXaxis()->FindBin(t.first);
+      auto b = spectrum.fSpectrum->GetXaxis()->FindBin(t.first);
       auto n = g->GetN();
-      g->SetPoint(n, r, spec->GetBinContent(b));
-      g->SetPointError(n, 0., spec->GetBinError(b));
+      g->SetPoint(n, spectrum.fRun, spectrum.fSpectrum->GetBinContent(b));
+      g->SetPointError(n, 0., spectrum.fSpectrum->GetBinError(b));
     }
   }
   plot->Update();
   return plot;
 }
 
-void compareTracksRunByRun(const std::string_view track_type, const std::string_view trigger, const std::string_view inputdir){
+void compareTracksRunByRun(const std::string_view track_type, const std::string_view trigger, const std::string_view inputdir, bool isMC){
+  ROOT::EnableThreadSafety();
   std::map<double, TGraphErrors *> trending = {{0.5, new TGraphErrors}, {1., new TGraphErrors}, {2., new TGraphErrors}, 
                                                {5., new TGraphErrors}, {10., new TGraphErrors}, {20., new TGraphErrors}};
   auto runs = getListOfRuns(inputdir);
@@ -131,13 +161,13 @@ void compareTracksRunByRun(const std::string_view track_type, const std::string_
   for(auto r : runs) {
     runsplot.emplace_back(r);
     if(runsplot.size() == 10) {
-      auto compplot = MakePlot(canvas++, runsplot, inputdir, track_type, trigger, trending);
+      auto compplot = MakePlot(canvas++, runsplot, inputdir, track_type, trigger, isMC, trending);
       compplot->SaveCanvas(compplot->GetName());
       runsplot.clear();
     }
   }
   if(runsplot.size()){
-    auto compplot = MakePlot(canvas++, runsplot, inputdir, track_type, trigger, trending);
+    auto compplot = MakePlot(canvas++, runsplot, inputdir, track_type, trigger, isMC, trending);
     compplot->SaveCanvas(compplot->GetName());
   }
 

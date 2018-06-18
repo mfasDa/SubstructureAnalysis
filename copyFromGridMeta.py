@@ -245,7 +245,7 @@ def main(ooutputpath, trainname, trainid, filestocpy):
     poolfiller.setdatapool(datapool)
     poolfiller.setalientool(alientool)
     poolfiller.start()
-    
+
     copyworkers = []
     for i in range(0, 4):
         worker = CopyHandler()

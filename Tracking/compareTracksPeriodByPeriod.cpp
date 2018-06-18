@@ -74,8 +74,8 @@ TH1 *getNormalizedSpectrum(const std::string_view filename, const std::string_vi
   std::cout << "Reading " << filename << std::endl;
   try {
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-    reader->cd(Form("ChargedParticleQA_%s_nocorr", tracktype.data()));
-    auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
+    auto dir = static_cast<TDirectoryFile *>(reader->Get(Form("ChargedParticleQA_%s_nocorr", tracktype.data())));
+    auto histlist = static_cast<TList *>(static_cast<TKey *>(dir->GetListOfKeys()->At(0))->ReadObj());
     auto norm = static_cast<TH1 *>(histlist->FindObject(Form("hEventCount%s", trigger.data())));
     auto spec = std::unique_ptr<THnSparse>(static_cast<THnSparse *>(histlist->FindObject(Form("hPtEtaPhiAll%s", trigger.data()))));
     // Look in front of EMCAL
