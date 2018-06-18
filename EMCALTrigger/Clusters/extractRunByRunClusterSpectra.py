@@ -2,6 +2,7 @@
 
 import logging
 import os
+import subprocess
 import sys
 import threading
 
@@ -13,7 +14,7 @@ def extractrunclusterspectrum(basefile, tag):
   rundir = os.path.dirname(basefile)
   runfile = os.path.basename(basefile)
   os.chdir(rundir)
-  os.system("root -l -b -q \'%s(\"%s\", \"%s\")\'" %(script, tag, runfile))
+  subprocess.call(['root', '-l', '-b', '-q', "\'%s(\"%s\", \"%s\")\'" %(script, tag, runfile)])
   os.chdir(currentdir)
 
 class Pool :
