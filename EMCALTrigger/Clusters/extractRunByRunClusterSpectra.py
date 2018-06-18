@@ -14,7 +14,8 @@ def extractrunclusterspectrum(basefile, tag):
   rundir = os.path.dirname(basefile)
   runfile = os.path.basename(basefile)
   os.chdir(rundir)
-  subprocess.call(['root', '-l', '-b', '-q', "\'%s(\"%s\", \"%s\")\'" %(script, tag, runfile)])
+  os.system("root -l -b -q \'%s(\"%s\", \"%s\")\'" %(script, tag, runfile))
+  #subprocess.call(['root', '-l', '-b', '-q', "\'%s(\"%s\", \"%s\")\'" %(script, tag, runfile)])
   os.chdir(currentdir)
 
 class Pool :
@@ -27,8 +28,10 @@ class Pool :
     return len(self.__data)
 
   def pop(self):
+    procfile = None
     self.__lock.acquire(True)
-    procfile = self.__data.pop(0)
+    if len(self.__data):
+      procfile = self.__data.pop(0)
     self.__lock.release()
     return procfile
 

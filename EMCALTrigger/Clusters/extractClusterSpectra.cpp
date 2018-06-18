@@ -57,10 +57,32 @@ void extractClusterSpectra(const std::string_view tag = "Default", const std::st
     if(tls != "MB") {
       auto spectra = makeNormalizedClusterSpectra(static_cast<THnSparse *>(
         *std::find_if(histcont.begin(), histcont.end(), [&tls](const TObject *o) -> bool { 
-          TString histname(o->GetName()); return histname.Contains("hClusterTHnSparseAll") && histname.Contains(tls);
+          std::vector<std::string> triggers = {tls};
+          if(tls == "EMC7") triggers.emplace_back("EMC8");
+          if(tls == "DMC7") triggers.emplace_back("DMC8");
+          TString histname(o->GetName());
+          bool found = false;
+          for(auto t : triggers) {
+            if(histname.Contains("hClusterTHnSparseAll") && histname.EndsWith(t.data())){
+              found = true;
+              break;
+            }
+          }
+          return found;
         })), static_cast<TH1 *>(
         *std::find_if(histcont.begin(), histcont.end(), [&tls](const TObject *o) -> bool {
-          TString histname(o->GetName()); return histname.Contains("hTrgClustCounter") && histname.Contains(tls);   
+          std::vector<std::string> triggers = {tls};
+          if(tls == "EMC7") triggers.emplace_back("EMC8");
+          if(tls == "DMC7") triggers.emplace_back("DMC8");
+          TString histname(o->GetName());
+          bool found = false;
+          for(auto t : triggers) {
+            if(histname.Contains("hTrgClustCounter") && histname.EndsWith(t.data())){
+              found = true;
+              break;
+            }
+          }
+          return found;
         })), tls[0] == 'E', tls);
       for(auto s : spectra) std::cout << "histo " << s->GetName() << std::endl;
       for(auto tcl : kTriggerClusters){
