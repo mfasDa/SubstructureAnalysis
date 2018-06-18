@@ -16,6 +16,7 @@
 #include <THnSparse.h>
 #include <TKey.h>
 #include <TList.h>
+#include <TROOT.h>
 #include <TSystem.h>
 
 #include <TAxisFrame.h>
