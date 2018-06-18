@@ -35,13 +35,16 @@ triggerdata readSpectrumData(TFile &reader, const std::string_view jettype, cons
   triggerdata result;
   result.fName = std::string(trigger);
   reader.cd(Form("%s_%s", jettype.data(), trigger.data()));
-  auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
+  gDirectory->ls();
+  std::vector<TObject *> listdata;
+  for(auto o : *(gDirectory->GetListOfKeys())) listdata.emplace_back(static_cast<TKey *>(o)->ReadObj());
   for(auto r : kJetRadii) {
-    auto spec = static_cast<TH1 *>(*std::find_if(histlist->begin(), histlist->end(), [r](const TObject *o) -> bool { 
+    auto spec = static_cast<TH1 *>(*std::find_if(listdata.begin(), listdata.end(), [r](const TObject *o) -> bool { 
       const std::string_view histname = o->GetName(); 
       return (histname.find(Form("R%02d", int(r*10.))) != std::string::npos) && (histname.find("JetSpectrum") == 0); 
     }));
     spec->SetDirectory(nullptr);
+    spec->Rebin(4);
     result.fData[r] = spec;
   }
   return result;
@@ -68,6 +71,7 @@ std::map<double, std::pair<double, double>> fillTriggerPanel(const triggerdata &
   (new ROOT6tools::TAxisFrame(Form("rejectionframe_%s", data.fName.data()), "p_{t} (GeV/c)", "Rejection factor", 0., 100., 0., yrange[data.fName]))->Draw("axis");
   (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.35, 0.89, Form("Trigger: %s", data.fName.data())))->Draw();
   auto leg = new ROOT6tools::TDefaultLegend(0.5, 0.15, 0.89, 0.4);
+  leg->Draw();
   for(auto r : kJetRadii) {
     auto spec = data.fData.find(r)->second;
     kStyles[r].SetStyle<TH1>(*spec);
@@ -103,7 +107,9 @@ void makeTriggerRejection(const std::string_view jettype, const std::string_view
   plot->Divide(2,2);
   auto rejectionRadius = new ROOT6tools::TSavableCanvas(Form("RejectionTrendRadius%s", jettype.data()), Form("Rejection trending vs radius for %s", jettype.data()), 800, 600);
   rejectionRadius->cd();
-  (new ROOT6tools::TAxisFrame(Form("axisTrendR%s", jettype.data()), "R", "Rejection", 0., 0.5, 0., 100000.))->Draw("axis");
+  rejectionRadius->SetLeftMargin(0.14);
+  rejectionRadius->SetRightMargin(0.06);
+  (new ROOT6tools::TAxisFrame(Form("axisTrendR%s", jettype.data()), "R", "Rejection", 0., 0.7, 0., 10000.))->Draw("axis");
   auto leg = new ROOT6tools::TDefaultLegend(0.15, 0.79, 0.89, 0.89);
   leg->SetNColumns(4);
   leg->Draw();
@@ -127,7 +133,7 @@ void makeTriggerRejection(const std::string_view jettype, const std::string_view
   rejectionRadius->Update();
   rejectionRadius->SaveCanvas(rejectionRadius->GetName());
 
-  std::unique_ptr<TFile> trendfile(TFile::Open(Form("rejectionTrendR%s.root", jettype.data()), "READ"));
+  std::unique_ptr<TFile> trendfile(TFile::Open(Form("rejectionTrendR%s.root", jettype.data()), "RECREATE"));
   trendfile->cd();
   for(auto t : trendings) t.second->Write(t.first.data());
 }
