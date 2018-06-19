@@ -96,7 +96,7 @@ double getmax(const TGraphErrors *g) {
 }
 
 ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<int> &listofruns, const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, bool isMC, bool restrictEMCAL, const std::map<double, TGraphErrors *> &trendgraphs){
-  auto plot = new ROOT6tools::TSavableCanvas(Form("TrackComparison_%s_%s_%d", tracktype.data(), trigger.data(), index), Form("Track comparison %s track (%s) %d", tracktype.data(), trigger.data(), index), 800, 600);
+  auto plot = new ROOT6tools::TSavableCanvas(Form("TrackComparison_%s_%s_%s_%d", tracktype.data(), trigger.data(), restrictEMCAL ? "EMCAL" : "Full", index), Form("Track comparison %s track (%s) %d", tracktype.data(), trigger.data(), index), 800, 600);
   plot->cd();
   plot->SetLogy();
 
@@ -177,7 +177,7 @@ void compareTracksRunByRun(const std::string_view track_type, const std::string_
   }
 
   // Draw trending
-  auto trendplot = new ROOT6tools::TSavableCanvas(Form("trackTrending_%s_%s", track_type.data(), trigger.data()), Form("Track trending %s track %s", track_type.data(), trigger.data()), 1200, 1000);
+  auto trendplot = new ROOT6tools::TSavableCanvas(Form("trackTrending_%s_%s_%s", track_type.data(), trigger.data(), restrictEMCAL ? "EMCAL" : "Full"), Form("Track trending %s track %s", track_type.data(), trigger.data()), 1200, 1000);
   trendplot->Divide(3,2);
   Style trendstyle{kBlack, 20};
 
@@ -206,7 +206,7 @@ void compareTracksRunByRun(const std::string_view track_type, const std::string_
   }
   trendplot->SaveCanvas(trendplot->GetName());
 
-  std::unique_ptr<TFile> writer(TFile::Open(Form("trending_%s_%s.root", track_type.data(), trigger.data()), "RECREATE"));
+  std::unique_ptr<TFile> writer(TFile::Open(Form("trending_%s_%s_%s.root", track_type.data(), trigger.data(), restrictEMCAL ? "EMCAL" : "Full"), "RECREATE"));
   writer->cd();
   for(auto t : trending){
     auto g = t.second;
