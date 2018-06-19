@@ -96,7 +96,7 @@ bool hasSpectrum(const TFile &reader, const std::string_view jettype, double rad
 }
 
 void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root", int triggercluster = 0){
-  const std::array<const std::string, 2> kJetTypes = {{"FullJets", "NeutralJets"}};
+  const std::array<const std::string, 3> kJetTypes = {{"FullJets", "NeutralJets", "ChargedJets"}};
   const std::array<const std::string, 5> kTriggers = {{"INT7", "EG1", "EG2", "EJ1", "EJ2"}};
   
   auto dn = dirname(inputfile);
