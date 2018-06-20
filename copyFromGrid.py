@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
+
 import commands
 import getopt
 import hashlib
@@ -285,7 +287,7 @@ class PoolFiller(threading.Thread):
                     self.__datapool.insert_pool(Filepair(inputfile, outputfile))
                     self.__wait()
 
-def transfer(sample, trainrun, outputlocation, targetfile):
+def transfer(sample, trainrun, outputlocation, targetfile, nstream):
     datapool = DataPool()
     alientool = AlienTool()    
 
@@ -295,7 +297,7 @@ def transfer(sample, trainrun, outputlocation, targetfile):
     poolfiller.start()
 
     copyworkers = []
-    for i in range(0, 4):
+    for i in range(0, nstream):
         worker = CopyHandler()
         worker.setdatapool(datapool)
         worker.setpoolfiller(poolfiller)
@@ -311,16 +313,17 @@ def transfer(sample, trainrun, outputlocation, targetfile):
 
 
 def usage():
-    print "Usage: ./copyFromGrid.py SAMPLE TRAINRUN OUTPUTPATH [OPTIONS]"
-    print ""
-    print "Arguments:"
-    print "  SAMPLE:     Path in alien to the sample base directory"
-    print "  TRAINRUN:   Full name of the train run (i. e. PWGJE/Jets_EMC_pp_MC/xxxx)"
-    print "  OUTPUTPATH: Local directory where to write the output to"
-    print ""
-    print "Options:"
-    print "  -f/--file=: Name of the file to be transferred (default: root_archive.zip)"
-    print "  -d/--debug: Run with increased debug level"
+    print("Usage: ./copyFromGrid.py SAMPLE TRAINRUN OUTPUTPATH [OPTIONS]")
+    print("")
+    print("Arguments:")
+    print("  SAMPLE:     Path in alien to the sample base directory")
+    print("  TRAINRUN:   Full name of the train run (i. e. PWGJE/Jets_EMC_pp_MC/xxxx)")
+    print("  OUTPUTPATH: Local directory where to write the output to")
+    print("")
+    print("Options:")
+    print("  -f/--file=:    Name of the file to be transferred (default: root_archive.zip)")
+    print("  -d/--debug:    Run with increased debug level")
+    print("  -n/--nstream=: Number of parallel streams (default: 4)")
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
@@ -331,17 +334,20 @@ if __name__ == "__main__":
     outputpath = str(sys.argv[3])
     outputfile = "root_archive.zip"
     debugging = False
+    nstream = 4
     try:
-        opt, arg = getopt.getopt(sys.argv[4:], "f:d", ["file=", "debug"])
+        opt, arg = getopt.getopt(sys.argv[4:], "f:dn:", ["file=", "debug", "nstream="])
         for o, a in opt:
             if o in ("-d", "--debug"):
                 debugging = True
             if o in ("-f", "--file"):
                 outputfile = a
+            if o in ("-n", "--nstream"):
+                nstream = int(a)
     except getopt.getopterror as e:
         sys.exit(1)
     loglevel=logging.INFO
     if debugging:
         loglevel = logging.DEBUG
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=loglevel)
-    transfer(sample, trainrun, outputpath, outputfile)
+    transfer(sample, trainrun, outputpath, outputfile, nstream)
