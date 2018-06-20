@@ -2,11 +2,13 @@
 
 import commands
 import getopt
+import hashlib
 import logging
 import md5
 import os
 import subprocess
 import sys
+import time
 import threading
 import zipfile
 
@@ -165,7 +167,7 @@ class CopyHandler(threading.Thread):
             return
         while not self.__datapool.getpoolsize():
             if not self.__poolfiller.isactive():
-            break
+                break
         time.sleep(5)
 
     def run(self):
@@ -192,7 +194,7 @@ class CopyHandler(threading.Thread):
             if not self.__poolfiller.isactive():
                 # if pool is empty exit, else keep thread alive for remaining files
                 if not self.__datapool.getpoolsize():
-                hasWork = False
+                    hasWork = False
 
 class PoolFiller(threading.Thread):
     
@@ -216,7 +218,7 @@ class PoolFiller(threading.Thread):
     def isactive(self):
         return self.__isactive
     
-    def run():
+    def run(self):
         self.__isactive = True
         self.__find_files()
         self.__isactive = False
@@ -230,9 +232,22 @@ class PoolFiller(threading.Thread):
         while self.__datapool.getpoolsize() > emptylimit:
             time.sleep(5)
 
+    def __get_trainid(self):
+        idstring = self.__trainrun[self.__trainrun.rfind("/")+1:]
+        return int(idstring.split("_")[0])
+
+    def __get_legotrain(self):
+        return self.__trainrun[0:self.__trainrun.rfind("/")] 
+
+    def __extract_trainid(self, directory):
+        return int(directory.split("_")[0])
+
     def __find_files(self):
         run = 0
         ptharbin = 0
+        trainid = self.__get_trainid()
+        legotrain = self.__get_legotrain()
+        logging.info("Train ID: %d", trainid)
         for levelone in self.__alientool.listdir(self.__sample):
             # both run and pt-hard bin must be numeric
             if not levelone.isdigit():
@@ -255,8 +270,15 @@ class PoolFiller(threading.Thread):
                     run = int(leveltwo)
                 logging.info("Doing %s %s", "pthard-bin" if isrun else "run", leveltwo)
                 tmppathtwo = os.path.join(tmppath, leveltwo)
-                inputdir= os.path.join(tmppathtwo, self.__trainrun)
-                inputfile = os.path.join(inputdir, self.__targetfile)
+                legotrainsdir = os.path.join(tmppathtwo, legotrain)
+                mylegotrain = ""
+                for t in self.__alientool.listdir(legotrainsdir):
+                    logging.debug("traindir %s", t) 
+                    if self.__extract_trainid(t) == trainid:
+                        mylegotrain = t
+                        break
+                logging.debug("Extracted train run %s", mylegotrain)
+                inputfile = os.path.join(legotrainsdir, mylegotrain, self.__targetfile)
                 outputdir = os.path.join(os.path.abspath(self.__outputlocation), "%02d" %pthardbin, "%d" %run)
                 outputfile = os.path.join(outputdir, self.__targetfile)
                 if not os.path.exists(outputfile):
@@ -284,7 +306,7 @@ def transfer(sample, trainrun, outputlocation, targetfile):
 
     # join all threads
     poolfiller.join()
-    for worker in workers:
+    for worker in copyworkers:
         worker.join()
 
 
