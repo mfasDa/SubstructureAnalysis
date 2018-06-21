@@ -244,12 +244,22 @@ class PoolFiller(threading.Thread):
     def __extract_trainid(self, directory):
         return int(directory.split("_")[0])
 
+    def __exist_traindir(self, legotrain, rundir):
+        pwg = legotrain[0:legotrain.find("/")]
+        traintype = legotrain[legotrain.find("/")+1:]
+        pwgs = self.__alientool.listdir(rundir)
+        if not pwg in pwgs:
+            return False
+        if not traintype in self.__alientool.listdir(os.path.join(rundir, pwg)):
+            return False
+        return True
+
     def __find_files(self):
         run = 0
         ptharbin = 0
         trainid = self.__get_trainid()
         legotrain = self.__get_legotrain()
-        logging.info("Train ID: %d", trainid)
+        logging.info("Train ID: %d, lego train %s", trainid, legotrain)
         for levelone in self.__alientool.listdir(self.__sample):
             # both run and pt-hard bin must be numeric
             if not levelone.isdigit():
@@ -272,6 +282,9 @@ class PoolFiller(threading.Thread):
                     run = int(leveltwo)
                 logging.info("Doing %s %s", "pthard-bin" if isrun else "run", leveltwo)
                 tmppathtwo = os.path.join(tmppath, leveltwo)
+                if not self.__exist_traindir(legotrain, tmppathtwo):
+                    logging.info("No train %s found in %s", legotrain, tmppathtwo)
+                    continue
                 legotrainsdir = os.path.join(tmppathtwo, legotrain)
                 mylegotrain = ""
                 for t in self.__alientool.listdir(legotrainsdir):
@@ -286,6 +299,13 @@ class PoolFiller(threading.Thread):
                 if not os.path.exists(outputfile):
                     self.__datapool.insert_pool(Filepair(inputfile, outputfile))
                     self.__wait()
+                else:
+                    # output file existing, check if nor corrupted
+                    if not self.__alientool.checkconsistency(inputfile, outputfile):
+                        # local file corrupted - retry transferring
+                        logging.info("Re-transferring file %s because of mismatch in MD5 sum", inputfile)
+                        self.__datapool.insert_pool(Filepair(inputfile, outputfile))
+                        self.__wait()
 
 def transfer(sample, trainrun, outputlocation, targetfile, nstream):
     datapool = DataPool()
