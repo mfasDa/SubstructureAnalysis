@@ -1,5 +1,6 @@
 #ifndef __CLING__
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <string>
@@ -21,6 +22,48 @@
 #endif
 
 #include "../../helpers/graphics.C"
+
+struct Trendpoint {
+  std::string fPeriod;
+  double fRadius;
+  double fPt;
+  double fVal;
+  double fError;
+
+  bool operator==(const Trendpoint &other) const { return fPeriod == other.fPeriod; }
+  bool operator<(const Trendpoint &other) const { return fPeriod < other.fPeriod; }
+};
+
+struct TrendingCollection {
+  std::vector<Trendpoint> fData;
+
+  TH1 *makeTrend(double radius, double pt){
+    std::set<Trendpoint> points;
+    for(const auto &d : fData) {
+      if(d.fRadius == radius && d.fPt == pt) points.insert(d);
+    }
+    TH1 *result = new TH1F("trend", "trend", points.size(), 0., points.size());
+    result->SetDirectory(nullptr);
+    int currentbin(1);
+    for(const auto &p : points){
+      result->GetXaxis()->SetBinLabel(currentbin, p.fPeriod.data());
+      result->SetBinContent(currentbin, p.fVal);
+      result->SetBinError(currentbin, p.fError);
+      currentbin++;
+    }
+    return result;
+  }
+};
+
+double getmax(const std::vector<TH1 *> histos){
+  auto hist = std::max_element(histos.begin(), histos.end(), [](const TH1 *first, const TH1 *second) {return first->GetMaximum() < second->GetMaximum();});
+  return (*hist)->GetMaximum();
+}
+
+double getmin(const std::vector<TH1 *> histos){
+  auto hist = std::min_element(histos.begin(), histos.end(), [](const TH1 *first, const TH1 *second) {return first->GetMinimum() < second->GetMinimum();});
+  return (*hist)->GetMinimum();
+}
 
 std::string findDirectory(const TFile &reader, const std::string_view jettype, const std::string_view trigger){
   std::string result;
@@ -80,6 +123,8 @@ void makePeriodComparison1617v1(const std::string_view jettype, const std::strin
     ipad++;
   }
 
+  TrendingCollection trending;
+  const std::array<double, 4> kTrendPt = {{20., 40., 60., 100.}};
   for(const auto &p : periods){
     std::stringstream infilename;
     infilename << p.first << "/JetSpectra_" << triggercluster << ".root";
@@ -94,10 +139,61 @@ void makePeriodComparison1617v1(const std::string_view jettype, const std::strin
       hist->Draw("epsame");
       if(ipad == 1) leg->AddEntry(hist, p.first.data(), "lep");
       ipad++;
+
+      // fill trending
+      for(auto pt : kTrendPt){
+        auto bin = hist->GetXaxis()->FindBin(pt);
+        trending.fData.push_back({p.first, double(irad)/10., pt, hist->GetBinContent(bin), hist->GetBinError(bin)});
+      }
     }
   }
 
   plot->cd();
   plot->Update();
   plot->SaveCanvas(plot->GetName());
+
+  // Create trending plot
+  auto trendplot = new ROOT6tools::TSavableCanvas(Form("trending_%s_%s", jettype.data(), trigger.data()), Form("Trending plot jet type %s, trigger %s", jettype.data(), trigger.data()), 1200, 1000);
+  trendplot->Divide(2,2);
+
+  std::map<double, Style> radstyles = {{0.2, {kRed, 24}}, {0.3, {kBlue, 25}}, {0.4, {kGreen, 26}}, {0.5, {kViolet, 27}}};
+  for(int ipt : ROOT::TSeqI(0, 4)){
+    trendplot->cd(ipt+1);
+    std::vector<TH1 *> trendhistos;
+    std::cout << "Doint pt " << kTrendPt[ipt] << std::endl;
+    for(auto r : ROOT::TSeqI(2, 6)){
+      auto hist = trending.makeTrend(double(r)/10., kTrendPt[ipt]);
+      hist->SetName(Form("trend_%s_%s_%d_R%02d", jettype.data(), trigger.data(), int(kTrendPt[ipt]), r));
+      radstyles[double(r)/10.].SetStyle<TH1>(*hist);
+      trendhistos.emplace_back(hist);
+    }
+
+    auto frame = static_cast<TH1 *>(trendhistos[0]->Clone());
+    frame->SetDirectory(nullptr);
+    frame->SetName(Form("trendframe_%s_%s_%d", jettype.data(), trigger.data(), int(kTrendPt[ipt])));
+    frame->SetTitle("");
+    frame->SetStats(false);
+    frame->GetYaxis()->SetTitle("1/N_{trg} dN/dp_{t}");
+    frame->GetYaxis()->SetRangeUser(0.8 * getmin(trendhistos), 1.2 * getmax(trendhistos));
+    frame->Draw("axis");
+
+    (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.35, 0.22, Form("p_{t,jet} = %.1f GeV/c", kTrendPt[ipt])))->Draw();
+    TLegend *leg(nullptr);
+    if(ipt == 0) {
+      leg = new ROOT6tools::TDefaultLegend(0.15, 0.8, 0.89, 0.89);
+      leg->SetNColumns(4);
+      leg->Draw();
+    }
+    for(auto h : trendhistos){
+      h->Draw("epsame");
+      if(leg) {
+        std::string_view histnamestring(h->GetName());
+        auto rstring = histnamestring.substr(histnamestring.find_last_of("_")+2);
+        leg->AddEntry(h, Form("R=%.1f", double(std::stoi(std::string(rstring)))/10.), "lep");
+      }
+    }
+  }
+  trendplot->cd();
+  trendplot->Update();
+  trendplot->SaveCanvas(trendplot->GetName());
 }
