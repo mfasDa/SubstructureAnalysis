@@ -158,7 +158,6 @@ void makePeriodComparison1617v1(const std::string_view jettype, const std::strin
 
   std::map<double, Style> radstyles = {{0.2, {kRed, 24}}, {0.3, {kBlue, 25}}, {0.4, {kGreen, 26}}, {0.5, {kViolet, 27}}};
   for(int ipt : ROOT::TSeqI(0, 4)){
-    trendplot->cd(ipt+1);
     std::vector<TH1 *> trendhistos;
     std::cout << "Doint pt " << kTrendPt[ipt] << std::endl;
     for(auto r : ROOT::TSeqI(2, 6)){
@@ -168,12 +167,16 @@ void makePeriodComparison1617v1(const std::string_view jettype, const std::strin
       trendhistos.emplace_back(hist);
     }
 
+    trendplot->cd(ipt+1);
+    gPad->SetLeftMargin(0.14);
+    gPad->SetRightMargin(0.06);
     auto frame = static_cast<TH1 *>(trendhistos[0]->Clone());
     frame->SetDirectory(nullptr);
     frame->SetName(Form("trendframe_%s_%s_%d", jettype.data(), trigger.data(), int(kTrendPt[ipt])));
     frame->SetTitle("");
     frame->SetStats(false);
     frame->GetYaxis()->SetTitle("1/N_{trg} dN/dp_{t}");
+    frame->GetYaxis()->SetTitleOffset(1.5);
     frame->GetYaxis()->SetRangeUser(0.8 * getmin(trendhistos), 1.2 * getmax(trendhistos));
     frame->Draw("axis");
 
