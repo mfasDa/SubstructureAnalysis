@@ -30,8 +30,10 @@ TH1 *getCorrectedRunCorrelation(int run, const std::string_view basename, const 
   downscalehandler->SetRun(run);
   std::stringstream filename;
   filename << basedir << "/" << std::setw(9) << std::setfill('0') << run << "/" << basename;
+  if(gSystem->AccessPathName(filename.str().data())) return nullptr;
   std::unique_ptr<TFile> reader(TFile::Open(filename.str().data(), "READ"));
   auto corrhist = static_cast<TH2 *>(reader->Get("hTriggerCorrelation"));
+  if(!corrhist) return nullptr;
   auto binMB = corrhist->GetYaxis()->FindBin("MB");
   auto fracMB = corrhist->ProjectionX("fracMB", binMB, binMB);
   fracMB->SetDirectory(nullptr);
@@ -74,6 +76,7 @@ TH1 *extractRejection(const std::string_view basefile, const std::string_view ba
   TH1 *rejection = nullptr;
   for(auto r : getListOfRuns(basedir)){
     auto raw = getCorrectedRunCorrelation(r, basefile, basedir);
+    if(!raw) continue;
     if(!rejection) rejection = raw;
     else {
       rejection->Add(raw);
