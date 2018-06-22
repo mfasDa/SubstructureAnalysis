@@ -147,10 +147,13 @@ ROOT6tools::TSavableCanvas *MakeTurnonPlots(const std::vector<TH1 *> &data, bool
   std::array<std::vector<std::string>, 2> triggers = {{{"MC7", "G1", "G2"}, {"J1", "J2"}}};
   std::array<std::string, 2> detectors = {"E", "D"};
   std::array<double, 4> ymax = {15000., 15000., 30000., 120000.};
+  std::vector<TH1 *> filecontent;
 
   ROOT6tools::TSavableCanvas *turnonCanvas = new ROOT6tools::TSavableCanvas("turnonPlot", "Turnon curves", 1200, 1000);
   turnonCanvas->Divide(2, 2);
 
+  std::map<std::string, std::pair<double, double>> fitranges = {{"EMC7", {5., 20.}}, {"EG1", {15., 50.}}, {"EG2", {10., 50.}}, {"EJ1", {25., 100.,}}, {"EJ2", {20., 100.}},
+                                                                {"DMC7", {5., 20.}}, {"DG1", {15., 50.}}, {"DG2", {10., 50.}}, {"DJ1", {25., 100.,}}, {"DJ2", {20., 100.}}};
   int padcount = 1;
   for (auto d : detectors)
   {
@@ -183,18 +186,23 @@ ROOT6tools::TSavableCanvas *MakeTurnonPlots(const std::vector<TH1 *> &data, bool
         mystyle.DefineHistogram(trgspec);
         trgspec->Draw("epsame");
 
-        bool isJet = s.find("J") != std::string::npos;
-        TF1 *turnonfit = new TF1(std::string("Fit" + d + s).data(), "pol0", isJet ? 20. : 10, 100);
-        trgspec->Fit(turnonfit, "N", "", isJet ? 20 : 10, isJet ? 100 : 50);
+        auto range = fitranges[d+s];
+        TF1 *turnonfit = new TF1(std::string("Fit" + d + s).data(), "pol0", range.first, 100);
+        trgspec->Fit(turnonfit, "N", "", range.first, range.second);
         turnonfit->SetLineColor(mystyle.GetColor());
         turnonfit->SetLineStyle(2);
         turnonfit->Draw("lsame");
 
         leg->AddEntry(trgspec, Form("%s: %.1f #pm %.1f", std::string(d + s).data(), turnonfit->GetParameter(0), turnonfit->GetParError(0)), "lep");
+        filecontent.emplace_back(trgspec);
       }
     }
   }
   turnonCanvas->cd();
+
+  std::unique_ptr<TFile> outfile(TFile::Open("ClusterTurnon.root", "RECREATE"));
+  outfile->cd();
+  for(auto h : filecontent) h->Write();
 
   return turnonCanvas;
 }

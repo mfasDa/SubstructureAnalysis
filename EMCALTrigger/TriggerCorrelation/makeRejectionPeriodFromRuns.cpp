@@ -44,11 +44,17 @@ TH1 *getCorrectedRunCorrelation(int run, const std::string_view basename, const 
   // L0 triggers have identical downscale factors as MB - not correcting
   std::map<std::string, std::string> triggers = {{"EG2", "CEMC7EG2-B-NOPF-CENT"}, {"EJ2", "CEMC7EJ2-B-NOPF-CENT"}, 
                                                  {"DG2", "CDMC7DG2-B-NOPF-CENT"}, {"DJ2", "CDMC7DJ2-B-NOPF-CENT"}};
+  auto refweight = downscalehandler->GetDownscaleFactorForTriggerClass("CINT7-B-NOPF-CENT");
   for(auto t : triggers) {
     auto weight = downscalehandler->GetDownscaleFactorForTriggerClass(t.second.data());
     std::cout << "Found weight " << weight << " for trigger " << t.first << " (" << t.second << ")" << std::endl;
+    if(weight == refweight) {
+      std::cout << "Don't apply weigth because trigger was downscaled synchronized with MB" << std::endl;
+      continue;
+    }
     if(weight) {
       auto b = fracMB->GetXaxis()->FindBin(t.first.data());
+      std::cout << "Corrected weight fir trigger :" << (fracMB->GetBinContent(b)/weight) << " +- " << (fracMB->GetBinError(b)/weight) << std::endl;
       fracMB->SetBinContent(b, fracMB->GetBinContent(b)/weight);
       fracMB->SetBinError(b, fracMB->GetBinError(b)/weight);
     }
@@ -105,4 +111,11 @@ void makeRejectionPeriodFromRuns(const std::string_view basename = "TriggerCorre
     std::string_view binlabel(fracMB->GetXaxis()->GetBinLabel(b+1));
     if(binlabel.length()) std::cout << binlabel << ": " << fracMB->GetBinContent(b+1) << " +- "  << fracMB->GetBinError(b+1) << std::endl; 
   }
+
+  // Write out histogram
+  std::unique_ptr<TFile> writer(TFile::Open("RejectionFracMB.root", "RECREATE"));
+  writer->cd();
+  fracMB->SetName("rejection");
+  fracMB->SetTitle("Rejection factors");
+  fracMB->Write();
 }
