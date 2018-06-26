@@ -4,7 +4,8 @@
 #include <memory>
 #include <queue>
 #include <thread>
-#include <ROOT/TSeq.h>
+#include <ROOT/TSeq.hxx>
+#include <ROOT/TProcessExecutor.hxx>
 #include <RStringView.h>
 #include <TCanvas.h>
 #include <TFile.h>
@@ -73,18 +74,40 @@ std::vector<int> getListOfRuns(const std::string_view basedir){
 }
 
 TH1 *extractRejection(const std::string_view basefile, const std::string_view basedir){
-  TH1 *rejection = nullptr;
-  for(auto r : getListOfRuns(basedir)){
-    auto raw = getCorrectedRunCorrelation(r, basefile, basedir);
-    if(!raw) continue;
-    if(!rejection) rejection = raw;
-    else {
-      rejection->Add(raw);
-      delete raw;
+  const Int_t NWORKERS = 10;
+  auto runlist = getListOfRuns(basedir);
+  auto workitem = [&](int workerID) {
+    int iteration = 0;
+    TH1 *raw(nullptr);
+    while(true){
+      auto index = iteration * NWORKERS + workerID;
+      if(index >= runlist.size()) break;
+      auto rundata = getCorrectedRunCorrelation(runlist[index], basefile, basedir);
+      if(raw){
+        raw->Add(rundata);
+        delete rundata;
+      } else {
+        raw = rundata;
+      }
+      iteration++;
     }
-  }
+    return raw;
+  };
+
+  ROOT::TProcessExecutor work(NWORKERS);
+  ROOT::ExecutorUtils::ReduceObjects<TH1 *> reducer;
+  auto rejection = work.MapReduce(workitem, ROOT::TSeqI(0, NWORKERS), reducer);
+
+  std::unique_ptr<TH1> mbcounts(static_cast<TH1 *>(rejection->Clone("MBCOUNTS")));
+  mbcounts->Reset();
+  mbcounts->Sumw2();
   auto binMB = rejection->GetXaxis()->FindBin("MB");
-  rejection->Scale(1./rejection->GetBinContent(binMB));
+  auto mbval = rejection->GetBinContent(binMB), mberr = rejection->GetBinError(binMB);
+  for(auto b : ROOT::TSeqI(0, rejection->GetXaxis()->GetNbins())){
+    mbcounts->SetBinContent(b+1, mbval);
+    mbcounts->SetBinError(b+1, mberr);
+  }
+  rejection->Divide(rejection, mbcounts.get(), 1., 1., "b");
   invert(rejection);
   return rejection;
 }
