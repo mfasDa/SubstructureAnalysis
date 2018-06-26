@@ -58,7 +58,8 @@ class Workqueue:
         outputfile = None
         filelist = None
         self.__lock.acquire(True)
-        nextentry = self.__data.pop(0)
+        if len(self.__data):
+            nextentry = self.__data.pop(0)
         self.__lock.release()
         if nextentry:
             outputfile = nextentry.Outputfile
