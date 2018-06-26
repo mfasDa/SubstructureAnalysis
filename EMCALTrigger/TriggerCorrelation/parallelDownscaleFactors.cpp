@@ -1,8 +1,10 @@
 #ifndef __CLING__
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <set>
 #include <string>
+#include <tuple>
 
 #include <ROOT/TProcessExecutor.hxx>
 #include <ROOT/TSeq.hxx>
@@ -16,36 +18,6 @@
 
 #include "../../helpers/cdb.C"
 #include "../../helpers/string.C"
-
-struct RunDownscale : public TObject{
-public:
-  RunDownscale() = default;
-  RunDownscale(int run, std::map<std::string, double> data) : fRun(run), fData(data) { }
-  virtual ~RunDownscale() = default;
-  
-  bool operator==(const RunDownscale &other) const { return fRun == other.fRun; }
-  bool operator<(const RunDownscale &other) const { return fRun < other.fRun; }
-
-  Int_t Run() const { return fRun; }
-  std::map<std::string, double> &Data() { return fData; }
-
-  virtual Int_t Compare(const TObject *other) const final{
-    RunDownscale *otherrun = (RunDownscale *)other;
-    if(*this == *otherrun) return 0;
-    else if(*this < *otherrun) return -1;
-    else return 1;
-  }
-  Bool_t IsEqual(const TObject *other) const final{
-    RunDownscale *otherrun = (RunDownscale *)other;
-    return *this == *otherrun;
-  }
-  Bool_t IsSortable() const final { return kTRUE; }
-
-private:
-  int                             fRun;
-  std::map<std::string, double>   fData;
-
-};
 
 std::map<std::string, double> getDownscaleFactorForRun(double run){
   std::map<std::string, double> result;
@@ -75,31 +47,41 @@ std::vector<int> getListOfRuns(const std::string_view basedir){
 }
 
 void parallelDownscaleFactors(const std::string_view basedir){
+  using rundata = std::tuple<int, std::map<std::string, double>>;
   auto runlist = getListOfRuns(basedir);
 
   const int NWORKERS = 10;
   auto workitem = [&](int workerID) {
-    TSortedList *result = new TSortedList;
+    std::vector<rundata> result;
     int idiv = 0;
     while(true){
       auto runid = NWORKERS * idiv + workerID;
       if(runid >= runlist.size()) break;
       auto myrun = runlist[runid];
       auto runds = getDownscaleFactorForRun(myrun);
-      result->Add(new RunDownscale(myrun, runds));
-      std::cout << "Current number of entries in pool: " << result->GetEntries() << std::endl;
+      result.push_back(std::make_tuple(myrun, runds));
       idiv += 1;
     }
     return result;
   };
+  
+  auto reducer = [](const std::vector<std::vector<rundata>> in){
+    std::vector<rundata> result;
+    for(auto s : in){
+      for(auto o : s){
+        result.push_back(o);
+      }
+    }
+    std::sort(result.begin(), result.end(), [](const rundata &first, const rundata &second) { return std::get<0>(first) < std::get<0>(second);});
+    return result;
+  };
   ROOT::TProcessExecutor processor(NWORKERS);
-  ROOT::ExecutorUtils::ReduceObjects<TSortedList *> redfun;
-  auto rundata = processor.MapReduce(workitem, ROOT::TSeqI(0, NWORKERS), redfun);
+  //ROOT::ExecutorUtils::ReduceObjects<TSortedList *> redfun;
+  auto runresult = processor.MapReduce(workitem, ROOT::TSeqI(0, NWORKERS), reducer);
 
   TGraph * geg2 = new TGraph;
-  for(auto r : *rundata){
-    auto robject = static_cast<RunDownscale *>(r);
-    geg2->SetPoint(geg2->GetN(), robject->Run(), robject->Data()["EG2"]);
+  for(auto r : runresult){
+    geg2->SetPoint(geg2->GetN(), std::get<0>(r), std::get<1>(r)["EG2"]);
   }
   geg2->Draw("ape");
 }
