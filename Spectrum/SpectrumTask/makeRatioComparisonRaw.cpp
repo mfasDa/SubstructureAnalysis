@@ -36,6 +36,7 @@ std::map<std::string, std::vector<TH1 *>> getRatios(const std::string_view jetty
     reader->cd(Form("%s_%s", jettype.data(), t.data()));
     for(auto r : ROOT::TSeqI(2, 6)){
       auto trg = static_cast<TH1 *>(gDirectory->Get(Form("RawJetSpectrum_%s_R%02d_%s_ANY", jettype.data(), r, t.data())));
+      if(!trg) trg = static_cast<TH1 *>(gDirectory->Get(Form("RawJetSpectrum_%s_R%02d_%ssub_ANY", jettype.data(), r, t.data())));
       trg->SetDirectory(nullptr);
       trg->SetName(Form("%s_R%02d", t.data(), r));
       trg->Sumw2();

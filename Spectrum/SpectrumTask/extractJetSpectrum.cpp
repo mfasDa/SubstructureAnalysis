@@ -51,12 +51,33 @@ std::string getClusterName(int triggercluster) {
   return clustername;
 }
 
+std::string getDriname(TFile &reader, double radius, const std::string_view jettype, const std::string_view trigger){
+  std::vector<std::string> tokens = {"JetSpectrum", std::string(jettype), Form("R%02d", int(radius*10.)), std::string(trigger)};
+  std::string result;
+  for(auto k : TRangeDynCast<TKey>(reader.GetListOfKeys())){
+    std::string_view keyname(k->GetName());
+    bool found(true);
+    for(const auto &t : tokens) {
+      if(keyname.find(t) == std::string::npos) {
+        found = false;
+        break;
+      }
+    }
+    if(found) {
+      result = std::string(keyname);
+      break;
+    }
+  }
+  return result;
+}
+
 std::array<TH1 *, 3> getNormalizedJetSpectrum(TFile &reader, double radius, const std::string_view jettype, const std::string_view trigger, int triggercluster){
   std::array<TH1 *, 3> result;
-  std::stringstream dirname, eventsname, rawname, normalizedname;
-  dirname << "JetSpectrum_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger;
+  std::stringstream eventsname, rawname, normalizedname;
   eventsname << "EventCount_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger;
-  reader.cd(dirname.str().data());
+  auto dirname = getDriname(reader, radius, jettype, trigger);
+  if(!dirname.length()) return result;
+  reader.cd(dirname.data());
   auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
   auto jetsparse = static_cast<THnSparse *>(histlist->FindObject("hJetTHnSparse"));
 
@@ -69,7 +90,7 @@ std::array<TH1 *, 3> getNormalizedJetSpectrum(TFile &reader, double radius, cons
   result[0] = eventcounter;
 
   auto projected = makeJetSparseProjection(jetsparse, triggercluster, jettype == std::string_view("FullJets"));
-  normalizedname << dirname.str() << "_" << getClusterName(triggercluster);
+  normalizedname << dirname << "_" << getClusterName(triggercluster);
   rawname << "Raw" << normalizedname.str(); 
   projected->SetName(rawname.str().data());
   projected->SetDirectory(nullptr);
@@ -82,17 +103,23 @@ std::array<TH1 *, 3> getNormalizedJetSpectrum(TFile &reader, double radius, cons
 }
 
 bool hasSpectrum(const TFile &reader, const std::string_view jettype, double radius, const std::string_view trigger){
-  std::stringstream dirname; 
-  dirname << "JetSpectrum_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger;
-  bool found(false);
-  for(auto k : *(reader.GetListOfKeys())) {
-    std::string keyname = k->GetName();
-    if(keyname == dirname.str()) {
-      found = true;
+  std::vector<std::string> tokens = {"JetSpectrum", std::string(jettype), Form("R%02d", int(radius*10.))};
+  bool hasdir(false);
+  for(auto k : TRangeDynCast<TKey>(reader.GetListOfKeys())){
+    std::string_view keyname(k->GetName());
+    bool found(true);
+    for(const auto &t : tokens) {
+      if(keyname.find(t) == std::string::npos) {
+        found = false;
+        break;
+      }
+    }
+    if(found) {
+      hasdir = true;
       break;
     }
   }
-  return found;
+  return hasdir;
 }
 
 void extractJetSpectrum(const std::string_view inputfile = "AnalysisResults.root", int triggercluster = 0){
