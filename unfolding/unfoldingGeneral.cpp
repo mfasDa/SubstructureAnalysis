@@ -19,7 +19,6 @@
 #include <tuple>
 #include <vector>
 
-#include "ROOT/RDataFrame.hxx"
 #include "ROOT/TSeq.hxx"
 #include "ROOT/TProcessExecutor.hxx"
 #include "RStringView.h"
