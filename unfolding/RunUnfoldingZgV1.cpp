@@ -85,5 +85,5 @@ void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view fi
     }
   };
 
-  unfoldingGeneral("zg", filedata, filemc, {zgbins, zgbins, ptbinvec_true, ptbinvec_smear}, dataextractor, mcextractor);
+  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins, ptbinvec_smear, zgbins}, dataextractor, mcextractor);
 }
