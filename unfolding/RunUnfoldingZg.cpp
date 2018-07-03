@@ -98,7 +98,7 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void RunUnfoldingZg(std::string_view filedata, std::string_view filemc)
+void RunUnfoldingZg(const std::string_view filedata, const std::string_view filemc)
 {
   ROOT::EnableThreadSafety();
   Int_t difference = 1;

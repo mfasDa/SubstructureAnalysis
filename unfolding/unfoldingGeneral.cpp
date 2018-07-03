@@ -55,8 +55,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
        *h2smeared(new TH2D("smeared", "smeared", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
        *h2smearednocuts(new TH2D("smearednocuts", "smearednocuts", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),  //true correlations with measured cuts
        *h2true(new TH2D("true", "true", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),   //full true correlation
-       *h2fulleff(new TH2D("truef", "truef", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),
-       *hcovariance(new TH2D("covariance", "covariance", 10, 0., 1., 10, 0, 1.));
+       *h2fulleff(new TH2D("truef", "truef", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data()));
 
   hraw->Sumw2();
   h2smeared->Sumw2();

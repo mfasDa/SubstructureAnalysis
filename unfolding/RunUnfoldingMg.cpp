@@ -122,8 +122,7 @@ void RunUnfoldingMg(std::string_view filedata, std::string_view filemc)
        *h2smeared(new TH2D("smeared", "smeared", massbins.size()-1, massbins.data(), ptbinvec_smear.size()-1, ptbinvec_smear.data())), //detector measured level but no cuts
        *h2smearednocuts(new TH2D("smearednocuts", "smearednocuts", massbins.size()-1, massbins.data(), ptbinvec_true.size()-1, ptbinvec_true.data())),  //true correlations with measured cuts
        *h2true(new TH2D("true", "true", massbins.size()-1, massbins.data(), ptbinvec_true.size()-1, ptbinvec_true.data())),   //full true correlation
-       *h2fulleff(new TH2D("truef", "truef", massbins.size()-1, massbins.data(), ptbinvec_true.size()-1, ptbinvec_true.data())),
-       *hcovariance(new TH2D("covariance", "covariance", 10, 0., 1., 10, 0, 1.));
+       *h2fulleff(new TH2D("truef", "truef", massbins.size()-1, massbins.data(), ptbinvec_true.size()-1, ptbinvec_true.data()));
 
   hraw->Sumw2();
   h2smeared->Sumw2();
