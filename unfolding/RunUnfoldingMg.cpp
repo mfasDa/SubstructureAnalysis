@@ -15,28 +15,14 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
-#include "TRandom.h"
-#include "TH1D.h"
+
 #include "RStringView.h"
-
-#include "TFile.h"
-#include "TVectorD.h"
-
-#include "TROOT.h"
-#include "ROOT/TDataFrame.hxx"
 #include "ROOT/TSeq.hxx"
 #include "TString.h"
-#include "TStyle.h"
-#include "TCanvas.h"
-#include "TLegend.h"
-#include "TRandom.h"
-#include "TPostScript.h"
 #include "TH2D.h"
 #include "TFile.h"
-#include "TLine.h"
-#include "TNtuple.h"
-#include "TMath.h"
-#include "TProfile.h"
+#include "TKey.h"
+#include "TROOT.h"
 #include "TTreeReader.h"
 
 #include "RooUnfoldResponse.h"
@@ -44,44 +30,21 @@
 //#include "RooUnfoldTestHarness2D.h"
 #endif
 
-TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *title,
-                           Int_t na, Int_t nb, Int_t kbin);
-TH2D *CorrelationHistPt(const TMatrixD &cov, const char *name, const char *title,
-                        Int_t na, Int_t nb, Int_t kbin);
-void Normalize2D(TH2 *h);
-TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t nbinsnew, Int_t lownew, Int_t highnew, Int_t lim);
-
-//==============================================================================
-// Global definitions
-//==============================================================================
-
-//const Double_t cutdummy = -99999.0;
-
-//==============================================================================
-// Gaussian smearing, systematic translation, and variable inefficiency
-//==============================================================================
-
-//==============================================================================
-// Example Unfolding
-//==============================================================================
-
-std::string basename(std::string_view filename) {
-  auto mybasename = filename.substr(filename.find_last_of("/")+1);
-  return std::string(mybasename);
-}
+#include "../helpers/filesystem.C"
+#include "../helpers/string.C"
+#include "../helpers/unfolding.C"
 
 std::vector<double> MakePtBinningSmeared(std::string_view trigger) {
-  auto mycontains = [&](std::string_view tocheck, std::string_view text) { return tocheck.find(text) != std::string::npos; };
   std::vector<double> binlimits;
-  if(mycontains(trigger, "INT7")){
+  if(contains(trigger, "INT7")){
     std::cout << "Using binning for trigger INT7\n";
     double ptbins[] = {20, 30, 40, 50, 60, 80, 100, 120};
     for(auto en : ROOT::TSeqI(0, sizeof(ptbins)/sizeof(double))) binlimits.emplace_back(ptbins[en]);
-  } else if(mycontains(trigger, "EJ2")){
+  } else if(contains(trigger, "EJ2")){
     std::cout << "Using binning for trigger EJ2\n";
     double ptbins[] = {60, 70, 80, 100, 120, 140, 160};
     for(auto en : ROOT::TSeqI(0, sizeof(ptbins)/sizeof(double))) binlimits.emplace_back(ptbins[en]);
-  } else if(mycontains(trigger, "EJ1")){
+  } else if(contains(trigger, "EJ1")){
     std::cout << "Using binning for trigger EJ1\n";
     double ptbins[] = {80, 90, 100, 110, 120, 140, 160, 180, 200, 220, 240, 260};
     for(auto en : ROOT::TSeqI(0, sizeof(ptbins)/sizeof(double))) binlimits.emplace_back(ptbins[en]);
@@ -93,7 +56,7 @@ TTree *GetDataTree(TFile &reader) {
   TTree *result(nullptr);
   for(auto k : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())){
     if(!k) continue;
-    if(((TString(k->GetName()).Contains("JetSubstructure")) || (TString(k->GetName()).Contains("jetSubstructure"))) 
+    if((contains(k->GetName(), "JetSubstructure") || contains(k->GetName(), "jetSubstructure"))
        && (k->ReadObj()->IsA() == TTree::Class())) {
       result = dynamic_cast<TTree *>(k->ReadObj());
     }
