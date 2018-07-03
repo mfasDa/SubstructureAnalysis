@@ -140,7 +140,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
 
       for (auto k : ROOT::TSeqI(0, h2true->GetNbinsY()))
         ptmatrices.emplace_back(CorrelationHistPt(covmat, Form("pearsonmatrix_iter%d_binpt%d", niter, k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
-
+      
       result.emplace_back(std::make_tuple(niter, hunf, hfold, shapematrices, ptmatrices));
       nstep++;
     }
@@ -157,8 +157,8 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     return result;
   };
 
-  ROOT::TProcessExecutor pool(NWORKERS);
-  auto unfoldingresult = pool.MapReduce(workitem, ROOT::TSeqI(0, NWORKERS), reducer);
+  ROOT::TProcessExecutor pool(std::min(NWORKERS, MAXITERATIONS));
+  auto unfoldingresult = pool.MapReduce(workitem, ROOT::TSeqI(0, std::min(NWORKERS, MAXITERATIONS)), reducer);
 
   auto tag = basename(filedata);
   tag.replace(tag.find(".root"), 5, "");

@@ -44,7 +44,7 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void RunUnfoldingMg(const std::string_view filedata, const std::string_view filemc)
+void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view filemc)
 {
   auto ptbinvec_smear = MakePtBinningSmeared(filedata); // Smeared binnning - only in the region one trusts the data
   std::vector<double> ptbinvec_true;

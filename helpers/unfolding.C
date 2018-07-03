@@ -13,7 +13,7 @@ TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldRespons
   refolded->Sumw2();
 
   int nbinsprobesmear = refolded->GetXaxis()->GetNbins(), nbinsprobetrue = unfolded->GetXaxis()->GetNbins(),
-      nbinsptsmear = refolded->GetYaxis()->GetNbins(), nbinspttrue = unfolded->GetXaxis()->GetNbins();
+      nbinsptsmear = refolded->GetYaxis()->GetNbins(), nbinspttrue = unfolded->GetYaxis()->GetNbins();
 
   for (auto i : ROOT::TSeqI(0, nbinsprobesmear)) {      // bins shape, reconstructed
     for (auto j : ROOT::TSeqI(0, nbinsptsmear)) {       // bins pt, reconstructed

@@ -261,97 +261,15 @@ void RunUnfoldingMg(std::string_view filedata, std::string_view filemc)
         covpt->SetDrawOption("colz");
         covpt->Write();
       }
+
     }
   }
-}
-
-TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *title,
-                           Int_t nBinsShape, Int_t nBinsPt, Int_t kBinShapeTrue)
-{
-
-  auto pearson = new TH2D(name, title, nBinsPt, 0, nBinsPt, nBinsPt, 0, nBinsPt);
-
-  for (auto x : ROOT::TSeqI(0, nBinsPt))
-  {
-    for (auto y : ROOT::TSeqI(0, nBinsPt))
-    {
-      auto indexx = kBinShapeTrue + nBinsShape * x;   // pt, true
-      auto indexy = kBinShapeTrue + nBinsShape * y;   // pt, smeared
-      auto Vv = cov(indexx, indexx) * cov(indexy, indexy);
-      if (Vv > 0.0)
-        pearson->SetBinContent(x + 1, y + 1, cov(indexx, indexy) / std::sqrt(Vv));
-    }
-  }
-  return pearson;
-}
-
-TH2D *CorrelationHistPt(const TMatrixD &cov, const char *name, const char *title,
-                        Int_t nbinsShapeTrue, Int_t nbinsPtTrue, Int_t kBinPtTrue)
-{
-
-  auto pearson = new TH2D(name, title, nbinsShapeTrue, 0, nbinsShapeTrue, nbinsShapeTrue, 0, nbinsShapeTrue);
-
-  for (auto x : ROOT::TSeqI(0, nbinsShapeTrue))
-  {
-    for (auto y : ROOT::TSeqI(0, nbinsShapeTrue))
-    {
-
-      auto indexx = x + nbinsShapeTrue * kBinPtTrue;    // shape, true
-      auto indexy = y + nbinsShapeTrue * kBinPtTrue;    // shape, smeared
-      auto Vv = cov(indexx, indexx) * cov(indexy, indexy);
-      if (Vv > 0.0)
-        pearson->SetBinContent(x + 1, y + 1, cov(indexx, indexy) / std::sqrt(Vv));
-    }
-  }
-  return pearson;
-}
-
-void Normalize2D(TH2 *h)
-{
-  Int_t nbinsYtmp = h->GetNbinsY();
-  const Int_t nbinsY = nbinsYtmp;
-  TArrayD norm(nbinsY);
-  for (Int_t biny = 1; biny <= nbinsY; biny++)
-  {
-    norm[biny - 1] = 0;
-    for (Int_t binx = 1; binx <= h->GetNbinsX(); binx++)
-    {
-      norm[biny - 1] += h->GetBinContent(binx, biny);
-    }
-  }
-
-  for (Int_t biny = 1; biny <= nbinsY; biny++)
-  {
-    for (Int_t binx = 1; binx <= h->GetNbinsX(); binx++)
-    {
-      if (norm[biny - 1] == 0)
-        continue;
-      else
-      {
-        h->SetBinContent(binx, biny, h->GetBinContent(binx, biny) / norm[biny - 1]);
-        h->SetBinError(binx, biny, h->GetBinError(binx, biny) / norm[biny - 1]);
-      }
-    }
-  }
-}
-
-TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t nbinsnew, Int_t lownew, Int_t highnew, Int_t lim)
-{
-  TH1D *hTruncate = new TH1D("hTruncate", "", nbinsnew, lownew, highnew);
-  hTruncate->Sumw2();
-  for (Int_t binx = 1; binx <= hTruncate->GetNbinsX(); binx++)
-  {
-    hTruncate->SetBinContent(binx, gr->GetBinContent(lim + binx));
-    hTruncate->SetBinError(binx, gr->GetBinError(lim + binx));
-  }
-
-  return hTruncate;
 }
 
 #if !defined(__CLING__) 
 int main(int argc, const char **argv)
 {
-  RunUnfoldingJetMass(argv[0], argv[1]);
+  RunUnfoldingMg(argv[0], argv[1]);
   return EXIT_SUCCESS;
 } // Main program when run stand-alone
 #endif
