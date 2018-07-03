@@ -25,3 +25,7 @@ bool is_number(const std::string& s)
   auto trimmed = trim(s);
   return !trimmed.empty() && std::find_if(trimmed.begin(), trimmed.end(), [](char c) { return !std::isdigit(c); }) == trimmed.end();
 }
+
+bool contains(const std::string_view base, const std::string_view tokens){
+  return base.find(tokens) != std::string::npos;
+}

@@ -49,15 +49,8 @@
 //#include "RooUnfoldTestHarness2D.h"
 #endif
 
+#include "../helpers/filesystem.C"
 #include "../helpers/unfolding.C"
-
-TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *title,
-                           Int_t na, Int_t nb, Int_t kbin);
-TH2D *CorrelationHistPt(const TMatrixD &cov, const char *name, const char *title,
-                        Int_t na, Int_t nb, Int_t kbin);
-void Normalize2D(TH2 *h);
-TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t nbinsnew, Int_t lownew, Int_t highnew, Int_t lim);
-TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldResponse &response);
 
 //==============================================================================
 // Global definitions
@@ -72,11 +65,6 @@ TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldRespons
 //==============================================================================
 // Example Unfolding
 //==============================================================================
-
-std::string basename(std::string_view filename) {
-  auto mybasename = filename.substr(filename.find_last_of("/")+1);
-  return std::string(mybasename);
-}
 
 std::vector<double> MakePtBinningSmeared(std::string_view trigger) {
   auto mycontains = [&](std::string_view tocheck, std::string_view text) { return tocheck.find(text) != std::string::npos; };
