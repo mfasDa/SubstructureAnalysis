@@ -17,7 +17,7 @@ std::vector<double> MakePtBinningSmeared(std::string_view trigger) {
   std::vector<double> binlimits;
   if(contains(trigger, "INT7")){
     std::cout << "Using binning for trigger INT7\n";
-    binlimits = {20, 30, 40, 50, 60, 80, 100, 120};
+    binlimits = {20, 30, 40, 50, 60, 80, 100, 120};   // c++11 std::initializer_list + move constructor
   } else if(contains(trigger, "EJ2")){
     std::cout << "Using binning for trigger EJ2\n";
     binlimits = {60, 70, 80, 100, 120, 140, 160};
@@ -41,8 +41,7 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view filemc)
-{
+void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_view filemc){
   auto ptbinvec_smear = MakePtBinningSmeared(filedata); // Smeared binnning - only in the region one trusts the data
   std::vector<double> ptbinvec_true;
   for(auto f = 0.; f <= 400.; f+= 20.) ptbinvec_true.emplace_back(f);
@@ -54,19 +53,19 @@ void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view fi
     std::unique_ptr<TFile> datafilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader datareader(GetDataTree(*datafilereader));
     TTreeReaderValue<double>  ptrecData(datareader, "PtJetRec"), 
-                              massRecData(datareader, "MgMeasured");
+                              massRecData(datareader, "MassRec");
     for(auto en : datareader){
       if(*ptrecData < ptminsmear || *ptrecData > ptmaxsmear) continue;
       hraw->Fill(*massRecData, *ptrecData);
     }
   };
   auto mymcextractor = [](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2 *h2true, TH2 *h2smeared, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc){
-  std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
+    std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
     TTreeReaderValue<double>  ptrec(mcreader, "PtJetRec"), 
                               ptsim(mcreader, "PtJetSim"), 
-                              massRec(mcreader, "MgMeasured"), 
-                              massSim(mcreader, "MgTrue"),
+                              massRec(mcreader, "MassRec"), 
+                              massSim(mcreader, "MassSim"),
                               weight(mcreader, "PythiaWeight");
     for(auto en : mcreader){
       //if(*ptsim > 200.) continue;
@@ -81,5 +80,5 @@ void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view fi
       response.Fill(*massRec, *ptrec, *massSim, *ptsim, *weight);
     }
   };
-  unfoldingGeneral("Mg", filedata, filemc, {ptbinvec_true, massbins, ptbinvec_smear, massbins}, mydataextractor, mymcextractor);
+  unfoldingGeneral("JetMass", filedata, filemc, {ptbinvec_true, massbins, ptbinvec_smear, massbins}, mydataextractor, mymcextractor);
 }

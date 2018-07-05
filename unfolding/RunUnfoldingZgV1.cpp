@@ -21,16 +21,13 @@ std::vector<double> MakePtBinningSmeared(std::string_view trigger) {
   std::vector<double> binlimits;
   if(contains(trigger, "INT7")){
     std::cout << "Using binning for trigger INT7\n";
-    double ptbins[] = {20, 30, 40, 50, 60, 80, 100, 120};
-    for(auto en : ROOT::TSeqI(0, sizeof(ptbins)/sizeof(double))) binlimits.emplace_back(ptbins[en]);
+    binlimits = {20, 30, 40, 50, 60, 80, 100, 120};
   } else if(contains(trigger, "EJ2")){
     std::cout << "Using binning for trigger EJ2\n";
-    double ptbins[] = {60, 70, 80, 100, 120, 140, 160};
-    for(auto en : ROOT::TSeqI(0, sizeof(ptbins)/sizeof(double))) binlimits.emplace_back(ptbins[en]);
+    binlimits = {60, 70, 80, 100, 120, 140, 160};
   } else if(contains(trigger, "EJ1")){
     std::cout << "Using binning for trigger EJ1\n";
-    double ptbins[] = {80, 90, 100, 110, 120, 140, 160, 180, 200, 220, 240, 260};
-    for(auto en : ROOT::TSeqI(0, sizeof(ptbins)/sizeof(double))) binlimits.emplace_back(ptbins[en]);
+    binlimits = {80, 90, 100, 110, 120, 140, 160, 180, 200, 220, 240, 260};
   }
   return binlimits;
 }
