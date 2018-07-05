@@ -1,3 +1,9 @@
+#ifndef __CLING__
+#include <memory>
+#include <TFile.h>
+#include <TKey.h>
+#include <TTree.h>
+#endif
 void WriteTree(TTree *t) {
     std::stringstream filename;
     filename << t->GetName() << ".root";
@@ -6,7 +12,7 @@ void WriteTree(TTree *t) {
     t->CloneTree()->Write();
 }
 
-void splitFile() {
+void splitFile(Bool_t writeTrees = true) {
     std::unique_ptr<TFile> reader(TFile::Open("AnalysisResults.root", "READ"));
     std::unique_ptr<TFile> writer(TFile::Open("AnalysisResults_split.root", "RECREATE"));
     for(auto c : TRangeDynCast<TKey>(reader->GetListOfKeys())){
@@ -24,10 +30,11 @@ void splitFile() {
         o->Write(o->GetName(), TObject::kSingleKey);
     }
     writer->Close();
-
-    for(auto c : TRangeDynCast<TKey>(reader->GetListOfKeys())){
-        if(auto t = dynamic_cast<TTree *>(c->ReadObj())){
-            WriteTree(t);
-        } 
+    if(writeTrees){
+        for(auto c : TRangeDynCast<TKey>(reader->GetListOfKeys())){
+            if(auto t = dynamic_cast<TTree *>(c->ReadObj())){
+                WriteTree(t);
+            } 
+        }
     }
 }
