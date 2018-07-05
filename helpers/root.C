@@ -3,8 +3,9 @@
 #include <TCollection.h>
 #endif
 
-std::vector<TObject *> CollectionToSTL(const TCollection *col){
-  std::vector<TObject *> result;
-  for(auto o : *col) result.emplace_back(o);
+template<class T>
+std::vector<T *> CollectionToSTL(const TCollection *col){
+  std::vector<T *> result;
+  for(auto o : TRangeDynCast<T>(col)) result.emplace_back(o);
   return result;
 }
