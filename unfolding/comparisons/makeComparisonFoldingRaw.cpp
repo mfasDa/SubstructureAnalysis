@@ -92,6 +92,7 @@ void makeComparisonFoldingRaw(const std::string_view inputfile) {
   }
   compplot->cd();
   compplot->Update();
+  compplot->SaveCanvas(compplot->GetName());
 
   // Also draw ratios
   auto ratioplot = new ROOT6tools::TSavableCanvas(Form("RatioFoldRaw_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()),
@@ -122,4 +123,5 @@ void makeComparisonFoldingRaw(const std::string_view inputfile) {
   }
   ratioplot->cd();
   ratioplot->Update();
+  ratioplot->SaveCanvas(ratioplot->GetName());
 }
