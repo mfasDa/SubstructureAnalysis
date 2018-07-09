@@ -6,6 +6,7 @@
 #include <ROOT/TSeq.hxx>
 #include <TFile.h>
 #include <TKey.h>
+#include <TRandom.h>
 #include <TTree.h>
 #include <TTreeReader.h>
 #endif
@@ -41,7 +42,7 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view filemc)
+void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view filemc, double fracSmearClosure = 0.2)
 {
   auto ptbinvec_smear = MakePtBinningSmeared(filedata); // Smeared binnning - only in the region one trusts the data
   std::vector<double> ptbinvec_true;
@@ -60,7 +61,7 @@ void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view fi
       hraw->Fill(*massRecData, *ptrecData);
     }
   };
-  auto mymcextractor = [](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2 *h2true, TH2 *h2smeared, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc){
+  auto mymcextractor = [fracSmearClosure](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2 *h2true, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure){
   std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
     TTreeReaderValue<double>  ptrec(mcreader, "PtJetRec"), 
@@ -68,6 +69,7 @@ void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view fi
                               massRec(mcreader, "MgMeasured"), 
                               massSim(mcreader, "MgTrue"),
                               weight(mcreader, "PythiaWeight");
+    TRandom samplesplitter;
     for(auto en : mcreader){
       //if(*ptsim > 200.) continue;
       h2fulleff->Fill(*massSim, *ptsim, *weight);
@@ -79,6 +81,16 @@ void RunUnfoldingMgV1(const std::string_view filedata, const std::string_view fi
       h2smeared->Fill(*massRec, *ptrec, *weight);
       h2true->Fill(*massSim, *ptsim, *weight);
       response.Fill(*massRec, *ptrec, *massSim, *ptsim, *weight);
+      
+      // split sample for closure test
+      // test sample and response must be statistically independent
+      // Split size determined by fraction used for smeared histogram
+      auto test = samplesplitter.Uniform();
+      if(test < fracSmearClosure) {
+        h2smearedClosure->Fill(*massRec, *ptrec, *weight);
+      } else {
+        responseClosure.Fill(*massRec, *ptrec, *massSim, *ptsim, *weight);
+      }
     }
   };
   unfoldingGeneral("Mg", filedata, filemc, {ptbinvec_true, massbins, ptbinvec_smear, massbins}, mydataextractor, mymcextractor);

@@ -2,10 +2,12 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <ROOT/RDataFrame.hxx>
 #include <RStringView.h>
 #include <ROOT/TSeq.hxx>
 #include <TFile.h>
 #include <TKey.h>
+#include <TRandom.h>
 #include <TTree.h>
 #include <TTreeReader.h>
 #endif
@@ -41,7 +43,8 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_view filemc){
+void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_view filemc, double fracSmearClosure = 0.2){
+  ROOT::EnableImplicitMT(10);
   auto ptbinvec_smear = MakePtBinningSmeared(filedata); // Smeared binnning - only in the region one trusts the data
   std::vector<double> ptbinvec_true;
   for(auto f = 0.; f <= 400.; f+= 20.) ptbinvec_true.emplace_back(f);
@@ -49,7 +52,11 @@ void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_vi
   std::vector<double> massbins;
   for(auto f = 0.; f <= 50.; f+= 0.5) massbins.emplace_back(f);
 
-  auto mydataextractor = [](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2 *hraw){
+  auto mydataextractor = [](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2D *hraw){
+    ROOT::RDataFrame recframe("jetSubstructure", filename);
+    auto datahist = recframe.Filter([ptminsmear, ptmaxsmear](double pt) { return pt >= ptminsmear && pt < ptmaxsmear; }, {"PtJetRec"}).Histo2D(*hraw, "MassRec", "PtJetRec");
+    *hraw = *datahist;
+    /*
     std::unique_ptr<TFile> datafilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader datareader(GetDataTree(*datafilereader));
     TTreeReaderValue<double>  ptrecData(datareader, "PtJetRec"), 
@@ -58,8 +65,9 @@ void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_vi
       if(*ptrecData < ptminsmear || *ptrecData > ptmaxsmear) continue;
       hraw->Fill(*massRecData, *ptrecData);
     }
+    */
   };
-  auto mymcextractor = [](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2 *h2true, TH2 *h2smeared, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc){
+  auto mymcextractor = [fracSmearClosure](const std::string_view filename, double ptminsmear, double ptmaxsmear, TH2 *h2true, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure){
     std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
     TTreeReaderValue<double>  ptrec(mcreader, "PtJetRec"), 
@@ -67,6 +75,7 @@ void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_vi
                               massRec(mcreader, "MassRec"), 
                               massSim(mcreader, "MassSim"),
                               weight(mcreader, "PythiaWeight");
+    TRandom samplesplitter;
     for(auto en : mcreader){
       //if(*ptsim > 200.) continue;
       h2fulleff->Fill(*massSim, *ptsim, *weight);
@@ -78,6 +87,16 @@ void RunUnfoldingJetMassV1(const std::string_view filedata, const std::string_vi
       h2smeared->Fill(*massRec, *ptrec, *weight);
       h2true->Fill(*massSim, *ptsim, *weight);
       response.Fill(*massRec, *ptrec, *massSim, *ptsim, *weight);
+
+      // split sample for closure test
+      // test sample and response must be statistically independent
+      // Split size determined by fraction used for smeared histogram
+      auto test = samplesplitter.Uniform();
+      if(test < fracSmearClosure) {
+        h2smearedClosure->Fill(*massRec, *ptrec, *weight);
+      } else {
+        responseClosure.Fill(*massRec, *ptrec, *massSim, *ptsim, *weight);
+      }
     }
   };
   unfoldingGeneral("JetMass", filedata, filemc, {ptbinvec_true, massbins, ptbinvec_smear, massbins}, mydataextractor, mymcextractor);
