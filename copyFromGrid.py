@@ -14,6 +14,110 @@ import time
 import threading
 import zipfile
 
+class AlienToken:
+    
+    def __init__self(hostname = None, port = None, port2 = None, user = None, pwd = None, nonce = None, sid = None, enc = None, expdata = None):
+        self.__hostname = hostname
+        self.__port = port
+        self.__port2 = port2
+        self.__user = user
+        self.__pwd = pwd
+        self.__nonce = nonce
+        self.__sid = sid
+        self.__enc = enc
+        self.__expdate = self.__convertstructtm(expdate)
+    
+    def __str__(self):
+        hostnamestr = self.__hostname if self.__hostname else "None"
+        portstr = "%d" %(sef.__port) if self.__port else "None"
+        port2str = "%d" %(sef.__port2) if self.__port else "None"
+        userstr = self.__user if self.__user else "None"
+        pwdstr = self.__pwd if self.__pwd else "None"
+        sidstr = "%d" %(self.__sid) if self.__sid else "None"
+        encstr = "%d" %(self.__enc) if self.__enc else "None"
+        expstr = time.strftime("%a, %d %b %Y %H:%M:%S", self.__expdate) if self.__expdate else "None"
+        return "Host: %s, Port: %s, Port2: %s, User: %s, Pwd: %s, Nonce: %s, SID: %s, Enc %s, Exp. date: %s" %(hostnamestr, portstr, port2str, userstr, pwdstr, noncestr, sidstr, encstr, expstr)
+
+    def sethost(self, hosthostname):
+        self.__hostname = hostname
+
+    def gethost(self):
+        return self.__hostname
+
+    def setport(self, port):
+        self.__port = port
+
+    def getport(self):
+        return self.__port
+
+    def setport2(self, port2):
+        self.__port2 = port2
+
+    def getport2(self):
+        return self.__port2
+    
+    def setuser(self, user):
+        self.__user = user
+
+    def getuser(self):
+        return self.__user
+
+    def setpwd(self, pwd):
+        self.__pwd = pwd
+
+    def getpwd(self):
+        return self.__pwd
+
+    def setnonce(self, nonce):
+        self.__nonce = nonce
+    
+    def getnonce(self):
+        return self.__nonce
+
+    def setsid(self, sid):
+        self.__sid = sid
+    
+    def getsid(self):
+        return self.__sid
+
+    def setenc(self, enc):
+        self.__enc = enc
+
+    def getenc(self):
+        return self.__enc
+    
+    def setexpdate(self, expdate):
+        self.__expdate = self.__convertstructtm(expdate)
+
+    def getexpdate(self):
+        return self.__expdate
+
+    def __convertstructtm(self, timestring):
+        try:
+            return time.strptime(test, "%a %b %d %H:%M:%S %Y")
+        except ValueError as e:
+            logging.error("Error parsing exp time string: %s" %e)
+            return None
+
+    def isvalid(self):
+        if not self.__expdate:
+            return False
+        now = time.currenttime()
+        tdiff = time.mktime(self.__expdate) - time.mktime(now)
+        if tdiff > 0:
+            return True
+        return False
+    
+    Hostname = property(gethost, sethost)
+    Port = property(getport, setport)
+    Port2 = property(getport2, setport2)
+    User = property(getuser, setuser)    
+    Pwd = property(getpwd, setpwd)
+    Nonce = property(getnonce, setnonce)
+    Sid = property(getsid, setsid)
+    Enc = property(getenc, setenc)
+    Expdate = property(getexpdate, setexpdate)
+
 class AlienTool: 
     
     def __init__(self):
@@ -88,6 +192,44 @@ class AlienTool:
             if errorstate:
                 continue
             return result
+
+    def fetchtokeninfo(self):
+        outstrings = subprocess.check_output("alien-token-info").split("\n")
+        token = AlienToken()
+        for info in outstrings:
+            if not ":" in info:
+                continue
+            key = info.split(":")[0].rstrip().lstrip()
+            value = info.split(":")[1].rstrip().lstrip() 
+            if not len(value):
+                continue
+            if key == "Host":
+                token.Hostname = value
+            elif key == "Port":
+                token.Port = int(value)
+            elif key == "Port2":
+                token.Port2 = int(value)
+            elif key == "User":
+                token.User = value
+            elif key == "Pwd":
+                token.Pwd = value
+            elif key == "Nonce":
+                token.Nonce = value
+            elif key == "SID":
+                token.Sid = int(value)
+            elif key == "Enc.Rep":
+                token.Enc = int(value)
+            elif key == "Expires":
+                token.Expdate = value
+        return token
+    
+    def checktoken(self):
+        token = self.fetchtokeninfo()
+        logging.info("Checking token:: %s" %(str(token)))
+        if not token.isvalid():
+            # Check for expired token
+            return False
+        return True
 
 class Filepair:
   
@@ -308,8 +450,11 @@ class PoolFiller(threading.Thread):
                         self.__wait()
 
 def transfer(sample, trainrun, outputlocation, targetfile, nstream):
-    datapool = DataPool()
     alientool = AlienTool()    
+    if not alientool.checktoken():
+        logging.error("No valid token found. Please execute \"alien-token-init\" first")
+        sys.exit(2)
+    datapool = DataPool()
 
     poolfiller = PoolFiller(sample, trainrun, outputlocation, targetfile, 1000)
     poolfiller.setdatapool(datapool)
