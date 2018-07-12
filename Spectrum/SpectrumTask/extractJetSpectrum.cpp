@@ -103,7 +103,7 @@ std::array<TH1 *, 3> getNormalizedJetSpectrum(TFile &reader, double radius, cons
 }
 
 bool hasSpectrum(const TFile &reader, const std::string_view jettype, double radius, const std::string_view trigger){
-  std::vector<std::string> tokens = {"JetSpectrum", std::string(jettype), Form("R%02d", int(radius*10.))};
+  std::vector<std::string> tokens = {"JetSpectrum", std::string(jettype), std::string(trigger), Form("R%02d", int(radius*10.))};
   bool hasdir(false);
   for(auto k : TRangeDynCast<TKey>(reader.GetListOfKeys())){
     std::string_view keyname(k->GetName());
