@@ -57,7 +57,7 @@ void makeComparisonFoldingRaw(const std::string_view inputfile) {
     } 
   }
   int ndists = hraw->GetYaxis()->GetNbins();
-  auto distmin = hraw->GetXaxis()->GetBinLowEdge(1), distmax = hraw->GetXaxis()->GetBinLowEdge(hraw->GetXaxis()->GetNbins());
+  auto distmin = hraw->GetXaxis()->GetBinLowEdge(1), distmax = hraw->GetXaxis()->GetBinLowEdge(hraw->GetXaxis()->GetNbins()+1);
   auto conf = extractFileTokens(inputfile);
 
   auto compplot = new ROOT6tools::TSavableCanvas(Form("CompFoldRaw_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()),
