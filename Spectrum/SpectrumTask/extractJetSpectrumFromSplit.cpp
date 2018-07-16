@@ -1,6 +1,7 @@
 #ifndef __CLING__
 #include <array>
 #include <iomanip>
+#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -52,24 +53,35 @@ std::string getClusterName(int triggercluster) {
   return clustername;
 }
 
-TH1 *getNormalizedJetSpectrum(const std::string_view fname, double radius, const std::string_view jettype, const std::string_view trigger, int triggercluster, bool doScale){
+std::array<TH1 *, 3> getNormalizedJetSpectrum(const std::string_view fname, double radius, const std::string_view jettype, const std::string_view trigger, int triggercluster){
+  std::array<TH1 *, 3> result;
+  std::stringstream eventsname, rawname, normalizedname;
+  eventsname << "EventCount_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger;
   std::unique_ptr<TFile> reader(TFile::Open(fname.data(), "READ"));
   std::string dirname = reader->GetListOfKeys()->At(0)->GetName();
-  std::stringstream normalizedname;
   reader->cd(dirname.data());
   auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
   auto jetsparse = static_cast<THnSparse *>(histlist->FindObject("hJetTHnSparse"));
 
+  auto norm = static_cast<TH1 *>(histlist->FindObject("hClusterCounter"));
+  auto clusterbin = norm->GetXaxis()->FindBin(triggercluster);
+  std::cout << "Found cluster bin for norm " << clusterbin << std::endl;
+  auto eventcounter = new TH1F(eventsname.str().data(), "; trigger; number of events", 1, 0.5, 1.5);
+  eventcounter->SetDirectory(nullptr);
+  eventcounter->SetBinContent(1, norm->GetBinContent(clusterbin));
+  result[0] = eventcounter;
+
   auto projected = makeJetSparseProjection(jetsparse, triggercluster, jettype == std::string_view("FullJets"));
-  normalizedname << "JetSpectrum_" << jettype << "_R" << std::setw(2) << std::setfill('0') << int(radius * 10.) << "_" << trigger << "_" << getClusterName(triggercluster);
-  projected->SetName(normalizedname.str().data());
+  normalizedname << dirname << "_" << getClusterName(triggercluster);
+  rawname << "Raw" << normalizedname.str(); 
+  projected->SetName(rawname.str().data());
   projected->SetDirectory(nullptr);
-  if(doScale){
-    auto norm = static_cast<TH1 *>(histlist->FindObject("hClusterCounter"));
-    auto clusterbin = norm->GetXaxis()->FindBin(triggercluster);
-    projected->Scale(1./norm->GetBinContent(clusterbin));
-  }
-  return projected;
+  result[1] = projected;
+  auto normalized = static_cast<TH1 *>(projected->Clone(normalizedname.str().data()));
+  normalized->SetDirectory(nullptr);
+  result[2] = normalized;
+  normalized->Scale(1./eventcounter->GetBinContent(1));
+  return result;
 }
 
 std::string matchSpectrum(const std::vector<std::string> &files, const std::string_view jettype, double radius, const std::string_view trigger){
@@ -87,7 +99,7 @@ std::vector<std::string> getListOfFiles(const std::string_view inputdir){
   return tokenize(files, '\n');
 }
 
-void extractJetSpectrumFromSplit(const std::string_view inputdir = ".", int triggercluster = 0, bool doScale = true){
+void extractJetSpectrumFromSplit(const std::string_view inputdir = ".", int triggercluster = 0){
   const std::array<const std::string, 2> kJetTypes = {{"FullJets", "NeutralJets"}};
   const std::array<const std::string, 5> kTriggers = {{"INT7", "EG1", "EG2", "EJ1", "EJ2"}};
 
@@ -95,8 +107,7 @@ void extractJetSpectrumFromSplit(const std::string_view inputdir = ".", int trig
   
   std::stringstream outputfile;
   if(inputdir != std::string_view(".")) outputfile << inputdir << "/";
-  outputfile << "JetSpectra_" << getClusterName(triggercluster);
-  if(!doScale) outputfile << "_noscale" << ".root";
+  outputfile << "JetSpectra_" << getClusterName(triggercluster) << ".root";
   std::unique_ptr<TFile> writer(TFile::Open(outputfile.str().data(), "RECREATE"));
 
   for(const auto &jt : kJetTypes) {
@@ -114,9 +125,9 @@ void extractJetSpectrumFromSplit(const std::string_view inputdir = ".", int trig
           writer->mkdir(outdirname.str().data());
           outputdirCreated = true;
         }
-        auto spec = getNormalizedJetSpectrum(specfile, radius, jt, trg, triggercluster, doScale);
+        auto spectra = getNormalizedJetSpectrum(specfile, radius, jt, trg, triggercluster);
         writer->cd(outdirname.str().data());
-        spec->Write();
+        for(auto spec : spectra) spec->Write();
       }
     }
   }
