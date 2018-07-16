@@ -71,7 +71,7 @@ void makeComparisonFoldingRawPt(const std::string_view inputfile) {
   for(auto obsbin : ROOT::TSeqI(0, ndists)){
     compplot->cd(obsbin+1);
     TLegend *leg(nullptr);
-    (new ROOT6tools::TAxisFrame(Form("compframe_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()), conf.fObservable.data(), Form("1/N_{jet} dN/d%s", conf.fObservable.data()), distmin, distmax, 0, 0.5))->Draw("axis");
+    (new ROOT6tools::TAxisFrame(Form("compframe_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()), "p_{t} (GeV/c)", Form("1/N_{jet} dN/d%s", conf.fObservable.data()), distmin, distmax, 0, 0.5))->Draw("axis");
     if(!obsbin){
       leg = new ROOT6tools::TDefaultLegend(0.65, 0.5, 0.89, 0.89);
       leg->Draw();
@@ -102,13 +102,13 @@ void makeComparisonFoldingRawPt(const std::string_view inputfile) {
   for(auto obsbin : ROOT::TSeqI(0, ndists)){
     ratioplot->cd(obsbin+1);
     TLegend *leg(nullptr);
-    (new ROOT6tools::TAxisFrame(Form("ratioframe_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()), conf.fObservable.data(), "Re-folded/raw", distmin, distmax, 0.5, 1.5))->Draw("axis");
+    (new ROOT6tools::TAxisFrame(Form("ratioframe_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()), "p_{t} (GeV/c)", "Re-folded/raw", distmin, distmax, 0.5, 1.5))->Draw("axis");
     if(!obsbin){
       leg = new ROOT6tools::TDefaultLegend(0.65, 0.5, 0.89, 0.89);
       leg->Draw();
       (new ROOT6tools::TNDCLabel(0.15, 0.7, 0.5, 0.79, Form("%s, R=%.1f, %s", conf.fJetType.data(), conf.fR, conf.fTrigger.data())))->Draw();
     }
-    auto obsmin = hraw->GetYaxis()->GetBinLowEdge(obsbin+1), obsmax = hraw->GetYaxis()->GetBinUpEdge(obsbin+1);
+    auto obsmin = hraw->GetXaxis()->GetBinLowEdge(obsbin+1), obsmax = hraw->GetXaxis()->GetBinUpEdge(obsbin+1);
     (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.1f < %s < %.1f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
     std::unique_ptr<TH1>rawslice(makeObservableProjection(*hraw, obsbin));
     auto iiter = 0;

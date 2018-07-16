@@ -84,7 +84,7 @@ void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view fi
     }
     */
   };
-  auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure){
+  auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure){
     std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
 
@@ -117,6 +117,8 @@ void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view fi
         h2trueClosure->Fill(*zgSim, *ptsim, *weight);
       } else {
         responseClosure.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);
+        h2smearedNoClosure->Fill(*zgRec, *ptrec, *weight);
+        h2trueNoClosure->Fill(*zgSim, *ptsim, *weight);
       }
     }
   };

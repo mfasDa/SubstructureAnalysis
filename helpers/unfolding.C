@@ -15,38 +15,67 @@ TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldRespons
   int nbinsprobesmear = refolded->GetXaxis()->GetNbins(), nbinsprobetrue = unfolded->GetXaxis()->GetNbins(),
       nbinsptsmear = refolded->GetYaxis()->GetNbins(), nbinspttrue = unfolded->GetYaxis()->GetNbins();
 
-  for (auto i : ROOT::TSeqI(0, nbinsprobesmear)) {      // bins shape, reconstructed
-    for (auto j : ROOT::TSeqI(0, nbinsptsmear)) {       // bins pt, reconstructed
-      int indexmeas = i + nbinsprobesmear * j;
+  for (auto binshapesmear : ROOT::TSeqI(0, nbinsprobesmear)) {      // bins shape, reconstructed
+    for (auto binptsmear : ROOT::TSeqI(0, nbinsptsmear)) {       // bins pt, reconstructed
+      int indexmeas = binshapesmear + nbinsprobesmear * binptsmear;
       double effects = 0;
       double error = 0;
-      for (auto k : ROOT::TSeqI(0, nbinsprobetrue)) {   // bins shape, true
-        for (auto l : ROOT::TSeqI(0, nbinspttrue)) {    // bins pt, true
-          int indextrue = k + nbinsprobetrue * l;
+      for (auto binshapetrue : ROOT::TSeqI(0, nbinsprobetrue)) {   // bins shape, true
+        for (auto binpttrue : ROOT::TSeqI(0, nbinspttrue)) {    // bins pt, true
+          int indextrue = binshapetrue + nbinsprobetrue * binpttrue;
 
           //std::cerr << "indexm " << indexm << ", indext " << indext <<std::endl;
-          effects += unfolded->GetBinContent(k + 1, l + 1) * response(indexmeas, indextrue);
-          error += TMath::Power(unfolded->GetBinError(k + 1, l + 1) * response(indexmeas, indextrue), 2);
+          effects += unfolded->GetBinContent(binshapetrue + 1, binpttrue + 1) * response(indexmeas, indextrue);
+          error += TMath::Power(unfolded->GetBinError(binshapetrue + 1, binpttrue + 1) * response(indexmeas, indextrue), 2);
         }
       }
-      refolded->SetBinContent(i + 1, j + 1, effects);
-      refolded->SetBinError(i + 1, j + 1, TMath::Sqrt(error));
+      refolded->SetBinContent(binshapesmear + 1, binptsmear + 1, effects);
+      refolded->SetBinError(binshapesmear + 1, binptsmear + 1, TMath::Sqrt(error));
     }
   }
   return refolded;
 }
 
+TH2 *ProjectResponseObservable(RooUnfoldResponse &response, const char *name, const char *title, int binpttrue){
+  auto resptrue = response.Htrue(), respmeasured = response.Hmeasured();
+  auto matrix = response.Hresponse();
+  std::vector<double> binstrue = {resptrue->GetXaxis()->GetBinLowEdge(1)}, binsmeasured = {respmeasured->GetXaxis()->GetBinLowEdge(1)};
+  for(auto b : ROOT::TSeqI(0, resptrue->GetXaxis()->GetNbins())) {
+    binstrue.push_back(resptrue->GetXaxis()->GetBinUpEdge(b+1));
+  }
+  for(auto b : ROOT::TSeqI(0, respmeasured->GetXaxis()->GetNbins())) {
+    binsmeasured.push_back(respmeasured->GetXaxis()->GetBinUpEdge(b+1));
+  }
+  TH2D * hist = new TH2D(name, title, resptrue->GetXaxis()->GetNbins(), binstrue.size(), binstrue.data(), binsmeasured.size(), binsmeasured.data());
+  myptrecbin->Sumw2();
+
+  for(auto binptrec : ROOT::TSeqI(0, respmeasured->GetYaxis()->GetNbins())){      // bins pt det
+    TH2D myptrecbin(*hist);
+    myptrecbin.Reset();
+    for(auto iobstrue : ROOT::TSeqI(0, resptrue->GetNbinsX())) {
+      for(auto iobsmeas : ROOT::TSeqI(0, respmeasured->GetNbinsX())) {
+        int ibinmeas = iobsmeas + (binptrec * binsmeasured.size()-1),
+            ibintrue = iobstrue + (binpttrue * binstrue.size() -1);
+        myptrecbin->SetBinContent(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
+        myptrecbin->SetBinError(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
+      }
+    }
+    hist->Add(&myptrecbin);
+  }
+  return hist;
+}
+
 void CheckNormalized(const RooUnfoldResponse &response, int nbinsprobetrue, int nbinsprobesmear, int nbinspttrue, int nbinsptsmear){
   // outer loop - true
   // inner loop - reconstructed
-  for (auto k : ROOT::TSeqI(0,nbinsprobetrue)) {        // bins shape, true 
-    for (auto l : ROOT::TSeqI(0,nbinspttrue)) {         // bins pt, true
+  for (auto binshapetrue : ROOT::TSeqI(0,nbinsprobetrue)) {        // bins shape, true 
+    for (auto binpttrue : ROOT::TSeqI(0,nbinspttrue)) {         // bins pt, true
       double effects = 0;
-      for (auto i : ROOT::TSeqI(0,nbinsprobesmear)) {   // bins angularity, reconstructed
-        for (auto j : ROOT::TSeqI(0, nbinsptsmear)) // bins pt, reconstructed
+      for (auto binshapesmeared : ROOT::TSeqI(0,nbinsprobesmear)) {   // bins angularity, reconstructed
+        for (auto binptsmeared : ROOT::TSeqI(0, nbinsptsmear)) // bins pt, reconstructed
         {
-          int indexm = i + nbinsprobesmear * j;
-          int indext = k + nbinsprobetrue * l;
+          int indexm = binshapesmeared + nbinsprobesmear * binptsmeared;
+          int indext = binshapetrue + nbinsprobetrue * binpttrue;
           effects += response(indexm, indext);
         }
       }

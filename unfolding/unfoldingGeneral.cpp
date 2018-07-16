@@ -42,7 +42,7 @@ struct binning {
 };
 
 using datafunction = std::function<void (const std::string_view fiilename, double ptsmearmin, double ptsmearmax, TH2D *hraw)>;
-using mcfunction = std::function<void (const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &resp, RooUnfoldResponse &responsetrunc, RooUnfoldResponse &responseClosure)>;
+using mcfunction = std::function<void (const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &resp, RooUnfoldResponse &responsetrunc, RooUnfoldResponse &responseClosure)>;
 
 void unfoldingGeneral(const std::string_view observable, const std::string_view filedata, std::string_view filemc, const binning &histbinnings, datafunction dataextractor, mcfunction mcextractor){
   ROOT::EnableThreadSafety();
@@ -53,9 +53,11 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   TH2D *hraw(new TH2D("hraw", "hraw", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())),
        *h2smeared(new TH2D("smeared", "smeared", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
        *h2smearedClosure(new TH2D("smearedClosure", "smeared, for MC closure test", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
+       *h2smeareNoClosure(new TH2D("smearedNoClosure", "smeared, jets used in response matrix", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
        *h2smearednocuts(new TH2D("smearednocuts", "smearednocuts", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),  //true correlations with measured cuts
        *h2true(new TH2D("true", "true", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),   //full true correlation
        *h2trueClosure(new TH2D("trueClosure", "true, for MC closure test", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),   //full true correlation
+       *h2trueNoClosure(new TH2D("trueNoClosure", "true, jets used in response matrix", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),   //full true correlation
        *h2fulleff(new TH2D("truefull", "truefull", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data()));
 
   hraw->Sumw2();
@@ -93,7 +95,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     // TDataFrame not supported in ROOUnfold (yet) - needs TTreeTreader
     // can however be done with Reduce function
     std::cout << "MCthread: Fill histograms from simulation" << std::endl;
-    mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2smeared, h2smearedClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure);
+    mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure);
     std::cout << "MCthread: Response ready" << std::endl;
   });
   datathread.join();
@@ -114,7 +116,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     efficiencies.emplace_back(efficiency);
   }
 
-  using resultformat = std::tuple<int, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, std::vector<TH2 *>, std::vector<TH2 *>>;
+  using resultformat = std::tuple<int, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, std::vector<TH2 *>, std::vector<TH2 *>, std::vector<TH2 *>>;
   const Int_t NWORKERS = 10;
   const Int_t MAXITERATIONS = 35;
   auto workitem = [&](int workerID) {
@@ -155,14 +157,20 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
       //CheckNormalized(response, sizeof(zgbins)/sizeof(double)-1, sizeof(zgbins)/sizeof(double)-1, ptbinvec_true.size()-1, ptbinvec_smear.size()-1);
 
       TMatrixD covmat = unfold.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
-      std::vector<TH2 *> shapematrices, ptmatrices;
+      std::vector<TH2 *> shapematrices, ptmatrices, responseMatricesShape;
       for (auto k : ROOT::TSeqI(0, h2true->GetNbinsX()))
         shapematrices.emplace_back(CorrelationHistShape(covmat, Form("pearsonmatrix_iter%d_bin%s%d", niter, observable.data(), k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
 
       for (auto k : ROOT::TSeqI(0, h2true->GetNbinsY()))
         ptmatrices.emplace_back(CorrelationHistPt(covmat, Form("pearsonmatrix_iter%d_binpt%d", niter, k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
       
-      result.emplace_back(std::make_tuple(niter, hunf, hfold, hunfClosure, hunfSelfClosure, hfoldClosure, hfoldSelfClosure, shapematrices, ptmatrices));
+      for(auto k : ROOT::TSeqI(0, h2true->GetNbinsY()))
+        responseMatricesShape.emplace_back(ProjectResponseObservable(response, 
+                                  Form("responsematrix_iter%d_pt_%d_%d", niter, int(h2true->GetYaxis()->GetBinLowEdge(k+1)), int(h2true->GetYaxis()->GetBinUpEdge(k+1))), 
+                                  Form("Response matrix iteration %d %.1f GeV/c < p_{t, part} < %.1f GeV/c", niter, int(h2true->GetYaxis()->GetBinLowEdge(k+1)), int(h2true->GetYaxis()->GetBinUpEdge(k+1))),
+                                  k));
+      
+      result.emplace_back(std::make_tuple(niter, hunf, hfold, hunfClosure, hunfSelfClosure, hfoldClosure, hfoldSelfClosure, shapematrices, ptmatrices, responseMatricesShape));
       nstep++;
     }
     return result;
@@ -191,8 +199,10 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   hraw->Write();
   h2smeared->Write();
   h2smearedClosure->Write();
+  h2smeareNoClosure->Write();
   h2true->Write();
   h2trueClosure->Write();
+  h2trueNoClosure->Write();
   h2fulleff->Write();
 
   for(auto u : unfoldingresult) {
@@ -206,7 +216,8 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     std::get<4>(u)->Write();                        // Unfolded, MC self-closure
     std::get<5>(u)->Write();                        // Refolded, MC closure
     std::get<6>(u)->Write();                        // Refolded, MC self-closure
-    for(auto m : std::get<7>(u)) m->Write();        // Response shape
-    for(auto m : std::get<8>(u)) m->Write();        // Response pt
+    for(auto m : std::get<7>(u)) m->Write();        // Correlation shape
+    for(auto m : std::get<8>(u)) m->Write();        // Correlation pt
+    for(auto m : std::get<9>(u)) m->Write();        // Response shape
   }
 }
