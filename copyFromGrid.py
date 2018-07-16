@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import commands
 import getopt
+import getpass
 import hashlib
 import logging
 import md5
@@ -14,9 +15,9 @@ import time
 import threading
 import zipfile
 
-class AlienToken:
+class AlienToken(object):
     
-    def __init__self(hostname = None, port = None, port2 = None, user = None, pwd = None, nonce = None, sid = None, enc = None, expdata = None):
+    def __init__(self, hostname = None, port = None, port2 = None, user = None, pwd = None, nonce = None, sid = None, enc = None, expdate = None):
         self.__hostname = hostname
         self.__port = port
         self.__port2 = port2
@@ -25,7 +26,7 @@ class AlienToken:
         self.__nonce = nonce
         self.__sid = sid
         self.__enc = enc
-        self.__expdate = self.__convertstructtm(expdate)
+        self.__expdate = self.__convertstructtm(expdate) if expdate else None
     
     def __str__(self):
         hostnamestr = self.__hostname if self.__hostname else "None"
@@ -33,12 +34,13 @@ class AlienToken:
         port2str = "%d" %(sef.__port2) if self.__port else "None"
         userstr = self.__user if self.__user else "None"
         pwdstr = self.__pwd if self.__pwd else "None"
+        noncestr = self.__nonce if self.__nonce else "None"
         sidstr = "%d" %(self.__sid) if self.__sid else "None"
         encstr = "%d" %(self.__enc) if self.__enc else "None"
-        expstr = time.strftime("%a, %d %b %Y %H:%M:%S", self.__expdate) if self.__expdate else "None"
+        expstr = time.strftime("%a, %d %b %Y, %H:%M:%S", self.__expdate) if self.__expdate else "None"
         return "Host: %s, Port: %s, Port2: %s, User: %s, Pwd: %s, Nonce: %s, SID: %s, Enc %s, Exp. date: %s" %(hostnamestr, portstr, port2str, userstr, pwdstr, noncestr, sidstr, encstr, expstr)
 
-    def sethost(self, hosthostname):
+    def sethost(self, hostname):
         self.__hostname = hostname
 
     def gethost(self):
@@ -94,7 +96,7 @@ class AlienToken:
 
     def __convertstructtm(self, timestring):
         try:
-            return time.strptime(test, "%a %b %d %H:%M:%S %Y")
+            return time.strptime(timestring, "%a %b %d %H:%M:%S %Y")
         except ValueError as e:
             logging.error("Error parsing exp time string: %s" %e)
             return None
@@ -102,7 +104,7 @@ class AlienToken:
     def isvalid(self):
         if not self.__expdate:
             return False
-        now = time.currenttime()
+        now = time.localtime()
         tdiff = time.mktime(self.__expdate) - time.mktime(now)
         if tdiff > 0:
             return True
@@ -199,8 +201,8 @@ class AlienTool:
         for info in outstrings:
             if not ":" in info:
                 continue
-            key = info.split(":")[0].rstrip().lstrip()
-            value = info.split(":")[1].rstrip().lstrip() 
+            key = info[:info.find(":")].rstrip().lstrip()
+            value = info[info.find(":")+1:].rstrip().lstrip() 
             if not len(value):
                 continue
             if key == "Host":
@@ -222,14 +224,30 @@ class AlienTool:
             elif key == "Expires":
                 token.Expdate = value
         return token
+
+
+    def handletoken(self):
+        result = self.checktoken()
+        ntrials = 0
+        while not result:
+            if ntrials >= 5:
+                break
+            logging.info("No valid token found, trying to create a new one ... (trial %s/5)" %(ntrials+1))
+            self.renewtoken()
+            result = self.checktoken()
+            ntrials += 1
+        return result
     
     def checktoken(self):
         token = self.fetchtokeninfo()
-        logging.info("Checking token:: %s" %(str(token)))
+        logging.debug("Checking token:: %s" %(str(token)))
         if not token.isvalid():
             # Check for expired token
             return False
         return True
+
+    def renewtoken(self):
+        subprocess.call("alien-token-init %s" %(getpass.getuser(), shell=True)
 
 class Filepair:
   
@@ -451,7 +469,7 @@ class PoolFiller(threading.Thread):
 
 def transfer(sample, trainrun, outputlocation, targetfile, nstream):
     alientool = AlienTool()    
-    if not alientool.checktoken():
+    if not alientool.handletoken():
         logging.error("No valid token found. Please execute \"alien-token-init\" first")
         sys.exit(2)
     datapool = DataPool()
