@@ -37,7 +37,7 @@ struct Specname
 std::map<TString, ROOT6tools::TGraphicsStyle> trgstyle = {
     {"MB", ROOT6tools::TGraphicsStyle(kBlack, 20)},
     {"MC7", ROOT6tools::TGraphicsStyle(kRed, 24)},
-    {"G1", ROOT6tools::TGraphicsStyle(kOrange, 25)},
+    {"G1", ROOT6tools::TGraphicsStyle(kOrange+2, 25)},
     {"G2", ROOT6tools::TGraphicsStyle(kViolet, 26)},
     {"J1", ROOT6tools::TGraphicsStyle(kBlue, 27)},
     {"J2", ROOT6tools::TGraphicsStyle(kGreen, 28)}};
@@ -115,6 +115,14 @@ ROOT6tools::TSavableCanvas *MakeTurnonRatios(const std::vector<TH1 *> &data, boo
       {
         auto numtrg = t[itrg+1], dentrg = t[itrg];  
         auto numhist = Histfinder(data, d+numtrg), denhist = Histfinder(data, d+dentrg);
+        if(!numhist) {
+          std::cerr << "Not found " << d+numtrg << std::endl;
+          continue;
+        }
+        if(!denhist) {
+          std::cerr << "Not found " << d+dentrg << std::endl;
+          continue;
+        }
         auto ratio = static_cast<TH1 *>(numhist->Clone(Form("Ratio%s%s", (d+numtrg).data(), (d+dentrg).data())));
         ratio->SetDirectory(nullptr);
         if(isSubset){
@@ -175,7 +183,12 @@ ROOT6tools::TSavableCanvas *MakeTurnonPlots(const std::vector<TH1 *> &data, bool
       for (auto s : t)
       {
         std::cout << "Processing " << d+s << std::endl;
-        TH1 *trgspec = static_cast<TH1 *>(Histfinder(data, d + s)->Clone(std::string("Turnon" + d + s).data()));
+        auto spechist = Histfinder(data, d + s);
+        if(!spechist) {
+          std::cerr << "Not found " << d+s << std::endl;
+          continue;
+        }
+        TH1 *trgspec = static_cast<TH1 *>(spechist->Clone(std::string("Turnon" + d + s).data()));
         trgspec->SetDirectory(nullptr);
         if(isSubset){
           trgspec->Divide(trgspec, mbref, 1., 1., "b");
@@ -230,7 +243,12 @@ ROOT6tools::TSavableCanvas *MakeSpectraPlot(const std::vector<TH1 *> &data)
     leg->Draw();
     for (auto t : triggers)
     {
-      TH1 *spec = static_cast<TH1 *>(Histfinder(data, d + t)->Clone(std::string("Spec" + d + t).data()));
+      auto spechist = Histfinder(data, d + t);
+      if(!spechist){
+        std::cerr << "Not found " << d+t << std::endl;
+        continue;
+      }
+      TH1 *spec = static_cast<TH1 *>(spechist->Clone(std::string("Spec" + d + t).data()));
       const ROOT6tools::TGraphicsStyle &mystyle = trgstyle[t];
       mystyle.DefineHistogram(spec);
       spec->Draw("epsame");
