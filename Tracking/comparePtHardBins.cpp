@@ -9,6 +9,7 @@
 #include <TFile.h>
 #include <TH1.h>
 #include <THnSparse.h>
+#include <TKey.h>
 
 #include "TSavableCanvas.h"
 #include "TAxisFrame.h"
