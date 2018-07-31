@@ -53,7 +53,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   TH2D *hraw(new TH2D("hraw", "hraw", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())),
        *h2smeared(new TH2D("smeared", "smeared", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
        *h2smearedClosure(new TH2D("smearedClosure", "smeared, for MC closure test", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
-       *h2smeareNoClosure(new TH2D("smearedNoClosure", "smeared, jets used in response matrix", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
+       *h2smearedNoClosure(new TH2D("smearedNoClosure", "smeared, jets used in response matrix", binshapesmear.size()-1, binshapesmear.data(), binptsmear.size()-1, binptsmear.data())), //detector measured level but no cuts
        *h2smearednocuts(new TH2D("smearednocuts", "smearednocuts", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),  //true correlations with measured cuts
        *h2true(new TH2D("true", "true", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),   //full true correlation
        *h2trueClosure(new TH2D("trueClosure", "true, for MC closure test", binshapetrue.size()-1, binshapetrue.data(), binpttrue.size()-1, binpttrue.data())),   //full true correlation
@@ -199,7 +199,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   hraw->Write();
   h2smeared->Write();
   h2smearedClosure->Write();
-  h2smeareNoClosure->Write();
+  h2smearedNoClosure->Write();
   h2true->Write();
   h2trueClosure->Write();
   h2trueNoClosure->Write();
