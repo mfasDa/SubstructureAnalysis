@@ -19,15 +19,15 @@
 
 std::pair<double, double> getPtRange(std::string_view trigger){
   std::pair<double, double> result;
-  if(trigger == "INT7") result = {20., 100.};
-  else if(trigger == "EJ2") result = {60., 140.};
+  if(trigger == "INT7") result = {20., 80.};
+  else if(trigger == "EJ2") result = {60., 120.};
   else if(trigger == "EJ1") result = {80., 200.};
   return result;
 }
 
 void getEffKine(const std::string_view trigger){
   std::array<Color_t, 10> colors = {{kRed, kBlue, kGreen, kOrange, kTeal, kViolet, kGray, kAzure, kMagenta, kCyan}};
-  auto zgbinning = getZgBinningCoarse(), ptbinning = getPtBinningPart(trigger);
+  auto zgbinning = getZgBinningFine(), ptbinning = getPtBinningPart(trigger);
   auto range = getPtRange(trigger);
   std::vector<TH2*> effdata;
 

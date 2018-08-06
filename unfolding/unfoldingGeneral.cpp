@@ -167,7 +167,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
       for(auto k : ROOT::TSeqI(0, h2true->GetNbinsY()))
         responseMatricesShape.emplace_back(ProjectResponseObservable(response, 
                                   Form("responsematrix_iter%d_pt_%d_%d", niter, int(h2true->GetYaxis()->GetBinLowEdge(k+1)), int(h2true->GetYaxis()->GetBinUpEdge(k+1))), 
-                                  Form("Response matrix iteration %d %.1f GeV/c < p_{t, part} < %.1f GeV/c", niter, int(h2true->GetYaxis()->GetBinLowEdge(k+1)), int(h2true->GetYaxis()->GetBinUpEdge(k+1))),
+                                  Form("Response matrix iteration %d %.1f GeV/c < p_{t, part} < %.1f GeV/c", niter, h2true->GetYaxis()->GetBinLowEdge(k+1), h2true->GetYaxis()->GetBinUpEdge(k+1)),
                                   k));
       
       result.emplace_back(std::make_tuple(niter, hunf, hfold, hunfClosure, hunfSelfClosure, hfoldClosure, hfoldSelfClosure, shapematrices, ptmatrices, responseMatricesShape));

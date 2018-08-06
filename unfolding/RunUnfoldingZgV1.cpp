@@ -20,31 +20,24 @@
 
 #include "../helpers/string.C"
 #include "../helpers/substructuretree.C"
+#include "binnings/binningZg.C"
 #include "unfoldingGeneral.cpp"
 
-std::vector<double> MakePtBinningSmeared(std::string_view trigger) {
-  std::vector<double> binlimits;
-  if(contains(trigger, "INT7")){
-    std::cout << "Using binning for trigger INT7\n";
-    binlimits = {20, 30, 40, 50, 60, 80, 100, 120};
-  } else if(contains(trigger, "EJ2")){
-    std::cout << "Using binning for trigger EJ2\n";
-    binlimits = {60, 70, 80, 100, 120, 140, 160};
-  } else if(contains(trigger, "EJ1")){
-    std::cout << "Using binning for trigger EJ1\n";
-    binlimits = {80, 90, 100, 110, 120, 140, 160, 180, 200, 220, 240, 260};
-  }
-  return binlimits;
+std::string getTrigger(const std::string_view filedata){
+  if(contains(filedata, "INT7")) return "INT7";
+  else if(contains(filedata, "EJ2")) return "EJ2";
+  else if(contains(filedata, "EJ1")) return "EJ1";
+  return "";
 }
 
 void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view filemc, double nefcut = 0.98, double fracSmearClosure = 0.5){
-  auto ptbinvec_smear = MakePtBinningSmeared(filedata); // Smeared binnning - only in the region one trusts the data
-  std::vector<double> ptbinvec_true = {0., 20., 40., 60., 80., 100., 120., 140., 160., 180., 200., 220., 240., 280., 320., 360., 400.}, // True binning, needs overlap to over/underflow bins
-                      //zgbins = {0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5}; // zg must range from 0 to 0.5
-                      zgbins = {0., 0.1, 0.2, 0.3, 0.4, 0.5}; // zg must range from 0 to 0.5
+  auto trigger = getTrigger(filedata);
+  auto ptbinvec_smear = getPtBinningRealistic(trigger, true), 
+       ptbinvec_true = getPtBinningPart(trigger),
+       zgbins = getZgBinningFine();
   auto dataextractor = [nefcut](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw) {
     ROOT::RDataFrame recframe(GetNameJetSubstructureTree(filedata), filedata);
-    auto datahist = recframe.Filter([nefcut](double nef) {return nef < nefcut; }, {"NEFRec"} ).Filter([ptsmearmin, ptsmearmax](double pt) { return pt >= ptsmearmin && pt < ptsmearmax; }, {"PtJetRec"}).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
+    auto datahist = recframe.Filter(Form("NEFRec < %f && PtJetRec > %f && PtJetRec < %f", nefcut, ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
     *hraw = *datahist;
     /*
     std::unique_ptr<TFile> datafilereader(TFile::Open(filedata.data(), "READ"));

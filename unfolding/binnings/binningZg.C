@@ -14,7 +14,7 @@ std::vector<double> getZgBinningCoarse(){
   return result;
 }
 
-std::vector<double> getMinBiasPtBinningRealistic() {
+std::vector<double> getMinBiasPtBinningRealistic(bool cut = false) {
   std::vector<double> result;
   double current = 20;
   result.push_back(current);
@@ -26,7 +26,7 @@ std::vector<double> getMinBiasPtBinningRealistic() {
     current += 10.;
     result.push_back(current);
   }
-  while(current < 120.) {
+  while(current < (cut ? 80. : 120.)) {
     current += 20.;
     result.push_back(current);
   }
@@ -56,16 +56,16 @@ std::vector<double> getMinBiasPtBinningPart() {
   return result;
 }
 
-std::vector<double> getEJ1PtBinningRealistic(){
+std::vector<double> getEJ1PtBinningRealistic(bool cut = false){
   std::vector<double> result;
   double current = 80.;
   result.push_back(current);
-  while(current < 140) {
-    current += 10.;
+  while(current < 160.){
+    current += 20.;
     result.push_back(current);
   }
-  while(current < 220.){
-    current += 20.;
+  while(current < (cut ? 200. : 240.)){
+    current += 40.;
     result.push_back(current);
   }
   return result;
@@ -79,18 +79,18 @@ std::vector<double> getEJ1PtBinningPart(){
     current += 5.;
     result.push_back(current);
   }
-  while(current < 140) {
-    current += 10.;
+  while(current < 160.){
+    current += 20.;
     result.push_back(current);
   }
   while(current < 400.){
-    current += 20.;
+    current += 40.;
     result.push_back(current);
   }
   return result;
 }
 
-std::vector<double> getEJ2PtBinningRealistic(){
+std::vector<double> getEJ2PtBinningRealistic(bool cut = false){
   std::vector<double> result;
   double current = 60.;
   result.push_back(current);
@@ -98,7 +98,7 @@ std::vector<double> getEJ2PtBinningRealistic(){
     current += 10.;
     result.push_back(current);
   }
-  while(current < 140.) {
+  while(current < (cut ? 120. : 140.)) {
     current += 20.;
     result.push_back(current);
   }
@@ -124,13 +124,13 @@ std::vector<double> getEJ2PtBinningPart(){
   return result;
 }
 
-std::vector<double> getPtBinningRealistic(const std::string_view trigger) {
+std::vector<double> getPtBinningRealistic(const std::string_view trigger, bool cut = false) {
   if(trigger == "INT7") {
-    return getMinBiasPtBinningRealistic();
+    return getMinBiasPtBinningRealistic(cut);
   } else if(trigger == "EJ2") {
-    return getEJ2PtBinningRealistic();
+    return getEJ2PtBinningRealistic(cut);
   } else if(trigger == "EJ1") {
-    return getEJ1PtBinningRealistic();
+    return getEJ1PtBinningRealistic(cut);
   }
 }
 

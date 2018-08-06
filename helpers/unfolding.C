@@ -40,7 +40,7 @@ TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldRespons
 }
 
 TH2 *ProjectResponseObservable(RooUnfoldResponse &response, const char *name, const char *title, int binpttrue){
-  auto resptrue = response.Htrue(), respmeasured = response.Hmeasured();
+  auto resptrue = response.Htruth(), respmeasured = response.Hmeasured();
   auto matrix = response.Hresponse();
   std::vector<double> binstrue = {resptrue->GetXaxis()->GetBinLowEdge(1)}, binsmeasured = {respmeasured->GetXaxis()->GetBinLowEdge(1)};
   for(auto b : ROOT::TSeqI(0, resptrue->GetXaxis()->GetNbins())) {
@@ -49,8 +49,8 @@ TH2 *ProjectResponseObservable(RooUnfoldResponse &response, const char *name, co
   for(auto b : ROOT::TSeqI(0, respmeasured->GetXaxis()->GetNbins())) {
     binsmeasured.push_back(respmeasured->GetXaxis()->GetBinUpEdge(b+1));
   }
-  TH2D * hist = new TH2D(name, title, resptrue->GetXaxis()->GetNbins(), binstrue.size(), binstrue.data(), binsmeasured.size(), binsmeasured.data());
-  myptrecbin->Sumw2();
+  TH2D * hist = new TH2D(name, title, binstrue.size()-1, binstrue.data(), binsmeasured.size()-1, binsmeasured.data());
+  hist->Sumw2();
 
   for(auto binptrec : ROOT::TSeqI(0, respmeasured->GetYaxis()->GetNbins())){      // bins pt det
     TH2D myptrecbin(*hist);
@@ -59,8 +59,8 @@ TH2 *ProjectResponseObservable(RooUnfoldResponse &response, const char *name, co
       for(auto iobsmeas : ROOT::TSeqI(0, respmeasured->GetNbinsX())) {
         int ibinmeas = iobsmeas + (binptrec * binsmeasured.size()-1),
             ibintrue = iobstrue + (binpttrue * binstrue.size() -1);
-        myptrecbin->SetBinContent(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
-        myptrecbin->SetBinError(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
+        myptrecbin.SetBinContent(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
+        myptrecbin.SetBinError(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
       }
     }
     hist->Add(&myptrecbin);
