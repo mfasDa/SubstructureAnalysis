@@ -1,3 +1,6 @@
+#ifndef __UNFOLDING_C__
+#define __UNFOLDING_C__
+
 #ifndef __CLING__
 #include <vector>
 #include <ROOT/TSeq.hxx>
@@ -140,3 +143,4 @@ TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t
   }
   return hTruncate;
 }
+#endif

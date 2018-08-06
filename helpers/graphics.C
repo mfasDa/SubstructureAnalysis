@@ -1,3 +1,6 @@
+#ifndef __GRAPHICS_C__
+#define __GRAPHICS_C__
+
 #ifndef __CLING__
 #include <TH1.h>
 #endif
@@ -30,3 +33,4 @@ void InitWidget(t &widget) {
   widget.SetFillStyle(0);
   widget.SetTextFont(42);
 }
+#endif

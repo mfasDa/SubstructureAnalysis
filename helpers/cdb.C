@@ -1,3 +1,6 @@
+#ifndef __CDB_C__
+#define __CDB_C__
+
 int getYearForRunNumber(int runnumber){
   int year=2015;
   if(runnumber <= 247170) year = 2015;
@@ -6,3 +9,4 @@ int getYearForRunNumber(int runnumber){
   else year = 2018;
   return year;
 }
+#endif

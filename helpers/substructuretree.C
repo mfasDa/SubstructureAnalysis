@@ -1,3 +1,6 @@
+#ifndef __SUBSTRUCTURETREE_C__
+#define __SUBSTRUCTURETREE_C__
+
 #ifndef __CLING__
 #include <memory>
 #include <string>
@@ -37,3 +40,4 @@ std::string GetNameJetSubstructureTree(const std::string_view filename){
   std::cout << "Found tree with name " << result << std::endl;
   return result;
 }
+#endif

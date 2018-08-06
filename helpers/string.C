@@ -1,3 +1,6 @@
+#ifndef __STRING_C__
+#define __STRING_C__
+
 #ifndef __CLING__
 #include <algorithm>
 #include <cctype>
@@ -29,3 +32,4 @@ bool is_number(const std::string& s)
 bool contains(const std::string_view base, const std::string_view tokens){
   return base.find(tokens) != std::string::npos;
 }
+#endif

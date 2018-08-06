@@ -1,3 +1,6 @@
+#ifndef __ROOT_C__
+#define __ROOT_C__
+
 #ifndef __CLING__
 #include <vector>
 #include <TCollection.h>
@@ -49,3 +52,4 @@ TH1 *histcopy(const TH1 *inputhist){
   }
   return nullptr;
 }
+#endif

@@ -1,3 +1,6 @@
+#ifndef __MATH_C__
+#define __MATH_C__
+
 #ifndef __CLING__
 #include <ROOT/TSeq.hxx>
 #include <TH1.h>
@@ -30,3 +33,4 @@ void invert(TH1 *hist){
     }
   }
 }
+#endif
