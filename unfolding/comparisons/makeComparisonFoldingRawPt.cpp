@@ -78,7 +78,7 @@ void makeComparisonFoldingRawPt(const std::string_view inputfile) {
       (new ROOT6tools::TNDCLabel(0.15, 0.7, 0.5, 0.79, Form("%s, R=%.1f, %s", conf.fJetType.data(), conf.fR, conf.fTrigger.data())))->Draw();
     }
     auto obsmin = hraw->GetYaxis()->GetBinLowEdge(obsbin+1), obsmax = hraw->GetYaxis()->GetBinUpEdge(obsbin+1);
-    (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.1f < %s < %.1f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
+    (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.2f < %s < %.2f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
     auto rawslice = makeObservableProjection(*hraw, obsbin);
     rawstyle.SetStyle<decltype(*rawslice)>(*rawslice);
     rawslice->Draw("epsame");
@@ -109,7 +109,7 @@ void makeComparisonFoldingRawPt(const std::string_view inputfile) {
       (new ROOT6tools::TNDCLabel(0.15, 0.7, 0.5, 0.79, Form("%s, R=%.1f, %s", conf.fJetType.data(), conf.fR, conf.fTrigger.data())))->Draw();
     }
     auto obsmin = hraw->GetXaxis()->GetBinLowEdge(obsbin+1), obsmax = hraw->GetXaxis()->GetBinUpEdge(obsbin+1);
-    (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.1f < %s < %.1f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
+    (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.2f < %s < %.2f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
     std::unique_ptr<TH1>rawslice(makeObservableProjection(*hraw, obsbin));
     auto iiter = 0;
     for(const auto &fold : hfold) {
