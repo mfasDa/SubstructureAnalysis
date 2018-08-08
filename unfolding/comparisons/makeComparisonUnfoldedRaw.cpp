@@ -30,7 +30,8 @@ unfoldconfig extractFileTokens(const std::string_view filename){
   return {tokens[1], double(std::stoi(tokens[2].substr(1,2)))/10., tokens[3], tokens[5]};
 }
 
-TH1 *makePtProjection(const TH2 &inputhist, int ptbin) {
+TH1 *makePtProjection(const TH2 &inputhist, double ptcent) {
+  int ptbin = inputhist.GetYaxis()->FindBin(ptcent);
   double ptmin = inputhist.GetYaxis()->GetBinLowEdge(ptbin+1),
          ptmax = inputhist.GetYaxis()->GetBinUpEdge(ptbin+1);
   auto result = inputhist.ProjectionX(Form("%s_%d_%d", inputhist.GetName(), int(ptmin), int(ptmax)), ptbin+1, ptbin+1);
@@ -79,12 +80,12 @@ void makeComparisonUnfoldedRaw(const std::string_view inputfile) {
     }
     auto ptmin = hraw->GetYaxis()->GetBinLowEdge(ptbin+1), ptmax = hraw->GetYaxis()->GetBinUpEdge(ptbin+1);
     (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.1f GeV/c < p_{t,j,d} < %.1f GeV/c", ptmin, ptmax)))->Draw();
-    auto rawslice = makePtProjection(*hraw, ptbin);
+    auto rawslice = makePtProjection(*hraw, ptbin); // match bin via center of the bin
     rawstyle.SetStyle<decltype(*rawslice)>(*rawslice);
     rawslice->Draw("epsame");
     auto iiter = 0;
     for(const auto &fold : hfold) {
-      auto foldslice = makePtProjection(*fold.second, ptbin);
+      auto foldslice = makePtProjection(*fold.second, hraw->GetYaxis()->GetBinCenter(ptbin+1));
       iterstyles[iiter++].SetStyle<decltype(*foldslice)>(*foldslice);
       foldslice->Draw("epsame");
       if(leg) leg->AddEntry(foldslice, Form("unfolded, iteration %d", fold.first), "lep");
@@ -113,7 +114,7 @@ void makeComparisonUnfoldedRaw(const std::string_view inputfile) {
     std::unique_ptr<TH1>rawslice(makePtProjection(*hraw, ptbin));
     auto iiter = 0;
     for(const auto &fold : hfold) {
-      auto foldslice = makePtProjection(*fold.second, ptbin);
+      auto foldslice = makePtProjection(*fold.second, hraw->GetYaxis()->GetBinCenter(ptbin+1));
       foldslice->SetName(Form("RatioFoldRaw_%s", foldslice->GetName()));
       foldslice->Divide(rawslice.get());
       iterstyles[iiter++].SetStyle<decltype(*foldslice)>(*foldslice);
