@@ -4,13 +4,15 @@
 
 std::vector<double> getZgBinningFine(){
   std::vector<double> result;
-  for(double d = 0.; d <= 0.5; d += 0.05) result.push_back(d);
+  result.push_back(0.);
+  for(double d = 0.1; d <= 0.5; d += 0.05) result.push_back(d);
   return result;
 }
 
 std::vector<double> getZgBinningCoarse(){
   std::vector<double> result;
-  for(double d = 0.; d <= 0.5; d += 0.1) result.push_back(d);
+  result.push_back(0.);
+  for(double d = 0.1; d <= 0.5; d += 0.1) result.push_back(d);
   return result;
 }
 
