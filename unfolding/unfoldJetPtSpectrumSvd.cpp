@@ -169,17 +169,27 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
     }
   }
 
-  // Normalize response matrices
-  Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);  
-
   // Calculate kinematic efficiency
   auto effKine = histcopy(htrue);
   effKine->SetDirectory(nullptr);
   effKine->SetName("effKine");
   effKine->Divide(effKine, htrueFull, 1., 1., "b");
 
+  // Normalize the prior spectrum
+  auto testbin = htrueFull->GetXaxis()->FindBin(41.);
+  double oneovercFull = htrueFull->GetBinContent(testbin) / TMath::Power(htrueFull->GetBinError(testbin), 2),
+         oneovercFullClosure = htrueFullClosure->GetBinContent(testbin) / TMath::Power(htrueFullClosure->GetBinError(testbin), 2);
+  auto priorsFull = histcopy(htrueFull), priorsClosure = histcopy(htrueFullClosure);
+  priorsFull->Scale(oneovercFull);
+  priorsFull->SetName("priorsFull");
+  priorsClosure->Scale(oneovercFullClosure);
+  priorsClosure->SetName("priorsClosure");
+
+  // Normalize response matrices
+  Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);  
+
   // Build response
-  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix, "response"), responseClosure(nullptr, htrueFullClosure, responseMatrixClosure, "responseClosure");
+  RooUnfoldResponse response(nullptr, priorsFull, responseMatrix, "response"), responseClosure(nullptr, priorsClosure, responseMatrixClosure, "responseClosure");
 
   std::unique_ptr<TFile> writer(TFile::Open(outfilename.data(), "RECREATE"));
   htrueFull->Write();
@@ -191,6 +201,8 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   responseMatrixClosure->Write();
   hraw->Write();
   effKine->Write();
+  priorsFull->Write();
+  priorsClosure->Write();
 
   RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;//ariance;
   for(auto reg : ROOT::TSeqI(0, hraw->GetXaxis()->GetNbins())){
