@@ -67,6 +67,7 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
   double ZgTrue, RgTrue, MgTrue, PtgTrue, MugTrue, DeltaRgTrue;
   int NDroppedTrue;
   double OneSubjettinessMeasured, TwoSubjettinessMeasured, OneSubjettinessTrue, TwoSubjettinessTrue, AngularityMeasured, PtDMeasured, AngularityTrue, PtDTrue, PythiaWeight;
+  int pthardbin;
 
   std::unique_ptr<TFile> output(TFile::Open(Form("%s_merged.root", treename.data()), "RECREATE"));
   auto outtree = new TTree("jetSubstructure", "Jet substructure tree");
@@ -119,6 +120,7 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
   outtree->Branch("AngularityTrue", &AngularityTrue, "AngularityTrue/D");
   outtree->Branch("PtDTrue", &PtDTrue, "PtDTrue/D");
   outtree->Branch("PythiaWeight", &PythiaWeight, "PythiaWeight/D");
+  outtree->Branch("PtHardBin", &pthardbin, "PtHardBin/I");
 
   for(auto b : pthardbins){
     // Read in weights
@@ -131,6 +133,7 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
     auto nTrials = static_cast<TH1 *>(histos->FindObject("fHistTrials"))->GetBinContent(databin);
     auto nEvents = static_cast<TH1 *>(histos->FindObject("fHistEvents"))->GetBinContent(databin);
     PythiaWeight = xsection / nTrials;
+    pthardbin = b;
     Printf("weight: %e, xsec: %f mb, Events / trials: %f bin: %d", PythiaWeight, xsection, nEvents/nTrials, b);
 
     // Read tree, reweight
