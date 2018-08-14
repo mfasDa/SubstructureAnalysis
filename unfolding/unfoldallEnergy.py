@@ -44,7 +44,8 @@ def getrepo():
 if __name__ == "__main__":
     JETTYPE = "FullJets"
     REPO = getrepo()
-    SCRIPTS = ["unfoldJetPtSpectrumBayes.cpp", "unfoldJetPtSpectrumSvd.cpp"] 
+    #   SCRIPTS = ["unfoldJetPtSpectrumBayes.cpp", "unfoldJetPtSpectrumSvd.cpp"] 
+    SCRIPTS = ["unfoldJetPtSpectrumBayes.cpp"]
     WORKQUEUE = workpool()
     for TRIGGER in ["INT7"]:
         for RADIUS in range(2, 6):

@@ -155,7 +155,7 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
   }
 
   // Normalize response matrix
-  Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);
+  //Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);      // probably not for bayesian unfolding
   RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, htrueFullClosure, responseMatrixClosure);
 
   // Calculate kinematic efficiency
