@@ -247,7 +247,7 @@ class AlienTool:
         return True
 
     def renewtoken(self):
-        subprocess.call("alien-token-init %s" %(getpass.getuser(), shell=True)
+        subprocess.call("alien-token-init %s" %(getpass.getuser()), shell=True)
 
 class Filepair:
   
