@@ -9,29 +9,26 @@
 #include <TRandom.h>
 
 #include "RooUnfoldResponse.h"
-#include "RooUnfoldSvd.h"
+#include "RooUnfoldBayes.h"
 #include "TSVDUnfold_local.h"
 #endif
 
-#include "../helpers/string.C"
+#include "../helpers/filesystem.C"
 #include "../helpers/math.C"
+#include "../helpers/root.C"
+#include "../helpers/string.C"
+#include "../helpers/unfolding.C"
 
 std::vector<double> getJetPtBinningNonLin(double ptmin = 0., double ptmax = 1000.){
   std::vector<double> result;
   double current = 0.;
   if(current >= ptmin && current <= ptmax) result.push_back(current);
   while(current < 20.){
-    current += 1.;
+    current += 10.;
     if(current < ptmin) continue;
     if(current > ptmax) continue;
     result.push_back(current);
   }
-  while(current < 30) {
-    current += 2.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  } 
   while(current < 40.) {
     current += 5.;
     if(current < ptmin) continue;
@@ -44,7 +41,7 @@ std::vector<double> getJetPtBinningNonLin(double ptmin = 0., double ptmax = 1000
     if(current > ptmax) continue;
     result.push_back(current);
   }
-  while(current < 200){
+  while(current < 400){
     current += 20;
     if(current < ptmin) continue;
     if(current > ptmax) continue;
@@ -58,7 +55,7 @@ std::vector<double> getJetPtBinningLin(double ptmin = 0., double ptmax = 1000.){
   double current = 0.;
   if(current >= ptmin && current <= ptmax) result.push_back(current);
   while(current < 200.){
-    current += 5.;
+    current += 10.;
     if(current < ptmin) continue;
     if(current > ptmax) continue;
     result.push_back(current);
@@ -67,59 +64,9 @@ std::vector<double> getJetPtBinningLin(double ptmin = 0., double ptmax = 1000.){
 }
 
 std::vector<double> getJetPtBinning(double ptmin = 0., double ptmax = 1000.){
-  return getJetPtBinningLin(ptmin, ptmax);
+  return getJetPtBinningNonLin(ptmin, ptmax);
 }
 
-void SetAllBins(TH2 *&histo, Double_t val, Bool_t over)
-{
-  Int_t i = 1;
-  Int_t maxi = histo->GetNbinsX();
-  Int_t j = 1;
-  Int_t maxj = histo->GetNbinsY();
-
-  if (over) {
-    i--;
-    maxi++; 
-    j--;
-    maxj++; 
-  }
-
-  for (; i <= maxi; i++) {
-    for (; j <= maxj; j++) {
-      histo->SetBinContent(i, j, val);
-    }
-  }
-}
-
-TH2* GetNormalizedResponseMatrix(const TH1* norm, const TH2* oldrm)
-{
-  // Normalize the y slices (truth) of response matrix using the given 1D histogram
-
-  if (!oldrm)
-    return 0;
-
-  TH2* rm = static_cast<TH2*>(oldrm->Clone("rm"));
-  SetAllBins(rm, 0, kTRUE);
-
-  Info("GetNormalizedResponseMatrix", "Now normalizing response matrix...");
-
-  for (Int_t y = 1; y <= rm->GetNbinsY(); y++) {
-    Double_t integral = oldrm->Integral(1, rm->GetNbinsX(), y, y);
-    if (integral == 0)
-      continue;
-    Double_t scaleFactor = 1;
-    if (norm) scaleFactor *= norm->GetBinContent(y);
-    scaleFactor /= integral;
-    if (scaleFactor == 0)
-      continue;
-    Info( "GetNormalizedResponseMatrix", "y= %d, integral = %f, scaleFactor = %f", y, integral, scaleFactor);
-    for (Int_t x = 1; x <= rm->GetNbinsX(); x++) {
-      rm->SetBinContent(x, y, oldrm->GetBinContent(x, y) * scaleFactor);
-    }
-  }
-
-  return rm;
-}
 std::string GetNameJetSubstructureTree(const std::string_view filename){
   std::string result;
   std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
@@ -148,9 +95,18 @@ TTree *GetDataTree(TFile &reader) {
   return result;
 }
 
-void unfoldJetPtSpectrum(const std::string_view filedata, const std::string_view filemc, int reg){
-  double ptmin = 20., ptmax = 60.;
-  auto binningdet = getJetPtBinning(ptmin, ptmax), binningpart = getJetPtBinning(ptmin, ptmax);
+std::string getFileTag(const std::string_view inputfile) {
+  std::string tag = basename(inputfile);
+  std::cout << "Tag: " << tag << std::endl;
+  tag.erase(tag.find(".root"), 5);
+  tag.erase(tag.find("JetSubstructureTree_"), strlen("JetSubstructureTree_"));
+  return tag;
+}
+
+void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string_view filemc){
+  double ptmin = 20., ptmax = 100.;
+  auto binningdet = getJetPtBinning(ptmin, ptmax), binningpart = getJetPtBinning();
+  std::string outfilename = Form("unfoldedEnergyBayes_%s.root", getFileTag(filedata).data());
 
   // read data
   ROOT::RDataFrame df(GetNameJetSubstructureTree(filedata), filedata);
@@ -162,10 +118,12 @@ void unfoldJetPtSpectrum(const std::string_view filedata, const std::string_view
       *hsmeared = new TH1D("hsmeared", "det mc", binningdet.size()-1, binningdet.data()), 
       *hsmearedClosure = new TH1D("hsmearedClosure", "det mc (for closure test)", binningdet.size() - 1, binningdet.data()),
       *htrueClosure = new TH1D("htrueClosure", "true spectrum (for closure test)", binningdet.size() - 1, binningdet.data()),
-      *htrueFull = new TH1D("htrueFull", "true spectrum (for closure test)", binningpart.size() - 1, binningpart.data());
+      *htrueFull = new TH1D("htrueFull", "non-truncated true spectrum", binningpart.size() - 1, binningpart.data()),
+      *htrueFullClosure = new TH1D("htrueFullClosure", "non-truncated true spectrum (for closure test)", binningpart.size() - 1, binningpart.data());
   TH2 *responseMatrix = new TH2D("responseMatrix", "response matrix", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data()),
       *responseMatrixClosure = new TH2D("responseMatrixClosure", "response matrix (for closure test)", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data());
 
+  
   {
     TRandom closuresplit;
     std::unique_ptr<TFile> fread(TFile::Open(filemc.data(), "READ"));
@@ -174,16 +132,19 @@ void unfoldJetPtSpectrum(const std::string_view filedata, const std::string_view
                               ptsim(mcreader, "PtJetSim"), 
                               nefrec(mcreader, "NEFRec"),
                               weight(mcreader, "PythiaWeight");
+    bool closureUseSpectrum;
     for(auto en : mcreader){
       if(*nefrec > 0.98) continue;
+      double rdm = closuresplit.Uniform();
+      closureUseSpectrum = (rdm < 0.2);
       htrueFull->Fill(*ptsim, *weight);
+      if(closureUseSpectrum) htrueFullClosure->Fill(*ptsim, *weight);
       if(*ptrec > ptmin && *ptrec < ptmax){
         htrue->Fill(*ptsim, *weight);
         hsmeared->Fill(*ptrec, *weight);
         responseMatrix->Fill(*ptrec, *ptsim, *weight);
 
-        double rdm = closuresplit.Uniform();
-        if(rdm < 0.2) {
+        if(closureUseSpectrum) {
           hsmearedClosure->Fill(*ptrec, *weight);
           htrueClosure->Fill(*ptsim, *weight);
         } else {
@@ -192,29 +153,18 @@ void unfoldJetPtSpectrum(const std::string_view filedata, const std::string_view
       }
     }
   }
-  auto respnorm = GetNormalizedResponseMatrix(nullptr, responseMatrix), respnormClosure = GetNormalizedResponseMatrix(nullptr, responseMatrixClosure);
-  RooUnfoldResponse response(hraw, htrue, respnorm), responseClosure(hsmearedClosure, htrueClosure, respnormClosure);
 
-  std::cout << "Running unfolding" << std::endl;
-  RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovariance;
-  RooUnfoldSvd unfolder(&response, hraw, reg);
-  auto unfolded = unfolder.Hreco(errorTreatment);
-  unfolded->SetName("unfolded");
-  TH1 *dvec(nullptr);
-  if(auto imp = unfolder.Impl()){
-    dvec = imp->GetD();
-    dvec->SetName("dvector");
-  }
-  std::cout << "Running MC closure test" << std::endl;
-  RooUnfoldSvd unfolderClosure(&responseClosure, hsmearedClosure, reg, 1000, "unfolderClosure", "unfolderClosure");
-  auto unfoldedClosure = unfolderClosure.Hreco(errorTreatment);
-  unfoldedClosure->SetName("unfoldedClosure");
-  TH1 * dvecClosure(nullptr);
-  if(auto imp = unfolderClosure.Impl()){
-    dvecClosure = imp->GetD();
-    dvecClosure->SetName("dvectorClosure");
-  }
-  std::unique_ptr<TFile> writer(TFile::Open("unfolded1D.root", "RECREATE"));
+  // Normalize response matrix
+  Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);
+  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, htrueFullClosure, responseMatrixClosure);
+
+  // Calculate kinematic efficiency
+  auto effKine = histcopy(htrue);
+  effKine->SetDirectory(nullptr);
+  effKine->SetName("effKine");
+  effKine->Divide(effKine, htrueFull, 1., 1., "b");
+
+  std::unique_ptr<TFile> writer(TFile::Open(outfilename.data(), "RECREATE"));
   htrueFull->Write();
   htrue->Write();
   hsmeared->Write();
@@ -222,8 +172,22 @@ void unfoldJetPtSpectrum(const std::string_view filedata, const std::string_view
   responseMatrix->Write();
   responseMatrixClosure->Write();
   hraw->Write();
-  unfolded->Write();
-  if(dvec) dvec->Write();
-  unfoldedClosure->Write();
-  if(dvecClosure) dvecClosure->Write();
+  effKine->Write();
+
+  std::cout << "Running unfolding" << std::endl;
+  for(auto iter : ROOT::TSeqI(1, 36)){
+    RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovariance;
+    RooUnfoldBayes unfolder(&response, hraw, iter);
+    auto unfolded = unfolder.Hreco(errorTreatment);
+    unfolded->SetName(Form("unfolded_iter%d", iter));
+    std::cout << "Running MC closure test" << std::endl;
+    RooUnfoldBayes unfolderClosure(&responseClosure, hsmearedClosure);
+    auto unfoldedClosure = unfolderClosure.Hreco(errorTreatment);
+    unfoldedClosure->SetName(Form("unfoldedClosure_iter%d", iter));
+
+    writer->mkdir(Form("iteration%d", iter));
+    writer->cd(Form("iteration%d", iter));
+    unfolded->Write();
+    unfoldedClosure->Write();
+  }
 }
