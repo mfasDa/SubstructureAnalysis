@@ -1,3 +1,15 @@
+#ifndef __CLING__
+#include <memory>
+#include <string>
+#include <RStringView.h>
+#include <TFile.h>
+#include <TH1.h>
+
+#include <TAxisFrame.h>
+#include <TDefaultLegend.h>
+#include <TSavableCanvas.h>
+#endif
+
 #include "../helpers/filesystem.C"
 #include "../helpers/graphics.C"
 #include "../helpers/math.C"
