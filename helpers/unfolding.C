@@ -9,10 +9,12 @@
 #include "RooUnfoldResponse.h"
 #endif
 
+#include "root.C"
+
 TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldResponse &response) {
   // outer loop - reconstructed
   // inner loop - true
-  auto refolded = static_cast<TH2 *>(histtemplate->Clone());
+  auto refolded = static_cast<TH2 *>(histcopy(histtemplate));
   refolded->Sumw2();
 
   int nbinsprobesmear = refolded->GetXaxis()->GetNbins(), nbinsprobetrue = unfolded->GetXaxis()->GetNbins(),
@@ -35,6 +37,23 @@ TH2 *Refold(const TH2 *histtemplate, const TH2 *unfolded, const RooUnfoldRespons
       refolded->SetBinContent(binshapesmear + 1, binptsmear + 1, effects);
       refolded->SetBinError(binshapesmear + 1, binptsmear + 1, TMath::Sqrt(error));
     }
+  }
+  return refolded;
+}
+
+TH1 *MakeRefolded1D(const TH1 *histtemplate, const TH1 *unfolded, const RooUnfoldResponse &response){
+  auto refolded = histcopy(histtemplate);
+  refolded->Sumw2();
+  refolded->Reset();
+  
+  for(auto binptsmear : ROOT::TSeqI(0, refolded->GetXaxis()->GetNbins())) {
+    double effect = 0, error = 0;
+    for(auto binpttrue : ROOT::TSeqI(0, unfolded->GetXaxis()->GetNbins())) {
+      effect += unfolded->GetBinContent(binpttrue+1) * response(binptsmear, binpttrue);
+      error += TMath::Power(unfolded->GetBinError(binpttrue+1) * response(binptsmear, binpttrue), 2);
+    }
+    refolded->SetBinContent(binptsmear + 1, effect);
+    refolded->SetBinError(binptsmear +1, TMath::Sqrt(error));
   }
   return refolded;
 }

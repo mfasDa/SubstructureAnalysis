@@ -17,95 +17,15 @@
 #include "../helpers/math.C"
 #include "../helpers/root.C"
 #include "../helpers/string.C"
+#include "../helpers/substructuretree.C"
 #include "../helpers/unfolding.C"
 
-std::vector<double> getJetPtBinningNonLin(double ptmin = 0., double ptmax = 1000.){
-  std::vector<double> result;
-  double current = 0.;
-  if(current >= ptmin && current <= ptmax) result.push_back(current);
-  while(current < 20.){
-    current += 10.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 40.) {
-    current += 5.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 10;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 400){
-    current += 20;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  return result;
-}
-
-std::vector<double> getJetPtBinningLin(double ptmin = 0., double ptmax = 1000.){
-  std::vector<double> result;
-  double current = 0.;
-  if(current >= ptmin && current <= ptmax) result.push_back(current);
-  while(current < 200.){
-    current += 10.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  return result;
-}
-
-std::vector<double> getJetPtBinning(double ptmin = 0., double ptmax = 1000.){
-  return getJetPtBinningNonLin(ptmin, ptmax);
-}
-
-std::string GetNameJetSubstructureTree(const std::string_view filename){
-  std::string result;
-  std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-  for(auto k : TRangeDynCast<TKey>(reader->GetListOfKeys())){
-    if(!k) continue;
-    if((contains(k->GetName(), "JetSubstructure") || contains(k->GetName(), "jetSubstructure")) 
-       && (k->ReadObj()->IsA() == TTree::Class())) {
-      result = k->GetName(); 
-      break;
-    }
-  }
-  std::cout << "Found tree with name " << result << std::endl;
-  return result;
-}
-
-TTree *GetDataTree(TFile &reader) {
-  TTree *result(nullptr);
-  for(auto k : TRangeDynCast<TKey>(reader.GetListOfKeys())){
-    if(!k) continue;
-    if((contains(k->GetName(), "JetSubstructure") || contains(k->GetName(), "jetSubstructure")) 
-       && (k->ReadObj()->IsA() == TTree::Class())) {
-      result = dynamic_cast<TTree *>(k->ReadObj());
-    }
-  }
-  std::cout << "Found tree with name " << result->GetName() << std::endl;
-  return result;
-}
-
-std::string getFileTag(const std::string_view inputfile) {
-  std::string tag = basename(inputfile);
-  std::cout << "Tag: " << tag << std::endl;
-  tag.erase(tag.find(".root"), 5);
-  tag.erase(tag.find("JetSubstructureTree_"), strlen("JetSubstructureTree_"));
-  return tag;
-}
+#include "binnings/binningPt1D.C"
 
 void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string_view filemc){
-  double ptmin = 20., ptmax = 100.;
-  auto binningdet = getJetPtBinning(ptmin, ptmax), binningpart = getJetPtBinning();
+  ROOT::EnableImplicitMT(8);
+  double ptmin = 20., ptmax = 120.;
+  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue();
   std::string outfilename = Form("unfoldedEnergyBayes_%s.root", getFileTag(filedata).data());
 
   // read data
@@ -185,9 +105,17 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
     auto unfoldedClosure = unfolderClosure.Hreco(errorTreatment);
     unfoldedClosure->SetName(Form("unfoldedClosure_iter%d", iter));
 
+    // back-folding test
+    auto backfolded = MakeRefolded1D(hraw, unfolded, response);
+    backfolded->SetName(Form("backfolded_iter%d", iter));
+    auto backfoldedClosure = MakeRefolded1D(hsmearedClosure, unfoldedClosure, responseClosure);
+    backfoldedClosure->SetName(Form("backfoldedClosure_iter%d", iter));
+
     writer->mkdir(Form("iteration%d", iter));
     writer->cd(Form("iteration%d", iter));
     unfolded->Write();
+    backfolded->Write();
     unfoldedClosure->Write();
+    backfoldedClosure->Write();
   }
 }

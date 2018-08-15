@@ -19,110 +19,14 @@
 #include "../helpers/root.C"
 #include "../helpers/string.C"
 #include "../helpers/unfolding.C"
+#include "../helpers/substructuretree.C"
 
-std::vector<double> getJetPtBinningNonLin(double ptmin = 0., double ptmax = 1000.){
-  std::vector<double> result;
-  double current = 0.;
-  if(current >= ptmin && current <= ptmax) result.push_back(current);
-  while(current < 20.){
-    current += 10.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 40.) {
-    current += 5.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 10;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 400){
-    current += 20;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  return result;
-}
-
-std::vector<double> getJetPtBinningNonLinTrue(double ptmin = 0., double ptmax = 1000.){
-  std::vector<double> result;
-  double current = 0.;
-  if(current >= ptmin && current <= ptmax) result.push_back(current);
-  while(current < 20.){
-    current += 10.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 40.) {
-    current += 10.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 20;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  while(current < 400){
-    current += 40.;
-    if(current < ptmin) continue;
-    if(current > ptmax) continue;
-    result.push_back(current);
-  }
-  return result;
-}
-
-
-std::string GetNameJetSubstructureTree(const std::string_view filename){
-  std::string result;
-  std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-  for(auto k : TRangeDynCast<TKey>(reader->GetListOfKeys())){
-    if(!k) continue;
-    if((contains(k->GetName(), "JetSubstructure") || contains(k->GetName(), "jetSubstructure")) 
-       && (k->ReadObj()->IsA() == TTree::Class())) {
-      result = k->GetName(); 
-      break;
-    }
-  }
-  std::cout << "Found tree with name " << result << std::endl;
-  return result;
-}
-
-TTree *GetDataTree(TFile &reader) {
-  TTree *result(nullptr);
-  for(auto k : TRangeDynCast<TKey>(reader.GetListOfKeys())){
-    if(!k) continue;
-    if((contains(k->GetName(), "JetSubstructure") || contains(k->GetName(), "jetSubstructure")) 
-       && (k->ReadObj()->IsA() == TTree::Class())) {
-      result = dynamic_cast<TTree *>(k->ReadObj());
-    }
-  }
-  std::cout << "Found tree with name " << result->GetName() << std::endl;
-  return result;
-}
-
-std::string getFileTag(const std::string_view inputfile) {
-  std::string tag = basename(inputfile);
-  std::cout << "Tag: " << tag << std::endl;
-  tag.erase(tag.find(".root"), 5);
-  tag.erase(tag.find("JetSubstructureTree_"), strlen("JetSubstructureTree_"));
-  return tag;
-}
+#include "binnings/binningPt1D.C"
 
 void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_view filemc){
   ROOT::EnableImplicitMT(8);
-  double ptmin = 20., ptmax = 100.;
-  auto binningdet = getJetPtBinningNonLin(ptmin, ptmax), binningpart = getJetPtBinningNonLinTrue();
+  double ptmin = 20., ptmax = 120.;
+  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue();
   std::string outfilename = Form("unfoldedEnergySvd_%s.root", getFileTag(filedata).data());
 
   // read data
@@ -175,21 +79,11 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   effKine->SetName("effKine");
   effKine->Divide(effKine, htrueFull, 1., 1., "b");
 
-  // Normalize the prior spectrum
-  auto testbin = htrueFull->GetXaxis()->FindBin(41.);
-  double oneovercFull = htrueFull->GetBinContent(testbin) / TMath::Power(htrueFull->GetBinError(testbin), 2),
-         oneovercFullClosure = htrueFullClosure->GetBinContent(testbin) / TMath::Power(htrueFullClosure->GetBinError(testbin), 2);
-  auto priorsFull = histcopy(htrueFull), priorsClosure = histcopy(htrueFullClosure);
-  priorsFull->Scale(oneovercFull);
-  priorsFull->SetName("priorsFull");
-  priorsClosure->Scale(oneovercFullClosure);
-  priorsClosure->SetName("priorsClosure");
-
   // Normalize response matrices
-  Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);  
+  //Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);  
 
   // Build response
-  RooUnfoldResponse response(nullptr, priorsFull, responseMatrix, "response"), responseClosure(nullptr, priorsClosure, responseMatrixClosure, "responseClosure");
+  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix, "response"), responseClosure(nullptr, htrueFullClosure, responseMatrixClosure, "responseClosure");
 
   std::unique_ptr<TFile> writer(TFile::Open(outfilename.data(), "RECREATE"));
   htrueFull->Write();
@@ -201,11 +95,9 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   responseMatrixClosure->Write();
   hraw->Write();
   effKine->Write();
-  priorsFull->Write();
-  priorsClosure->Write();
 
   RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;//ariance;
-  for(auto reg : ROOT::TSeqI(0, hraw->GetXaxis()->GetNbins())){
+  for(auto reg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())){
     std::cout << "Regularization " << reg << "\n================================================================\n";
     std::cout << "Running unfolding" << std::endl;
     RooUnfoldSvd unfolder(&response, hraw, reg);
@@ -226,6 +118,8 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
       dvecClosure = imp->GetD();
       dvecClosure->SetName(Form("dvectorClosureReg%d", reg));
     }
+
+
     writer->mkdir(Form("regularization%d", reg));
     writer->cd(Form("regularization%d", reg));
     unfolded->Write();

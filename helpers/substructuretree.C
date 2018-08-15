@@ -40,4 +40,13 @@ std::string GetNameJetSubstructureTree(const std::string_view filename){
   std::cout << "Found tree with name " << result << std::endl;
   return result;
 }
+
+std::string getFileTag(const std::string_view inputfile) {
+  std::string tag = basename(inputfile);
+  std::cout << "Tag: " << tag << std::endl;
+  tag.erase(tag.find(".root"), 5);
+  tag.erase(tag.find("JetSubstructureTree_"), strlen("JetSubstructureTree_"));
+  return tag;
+}
+ 
 #endif
