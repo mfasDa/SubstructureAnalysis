@@ -89,6 +89,7 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   htrueFull->Write();
   htrueFullClosure->Write();
   htrue->Write();
+  htrueClosure->Write();
   hsmeared->Write();
   hsmearedClosure->Write();
   responseMatrix->Write();
@@ -119,6 +120,11 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
       dvecClosure->SetName(Form("dvectorClosureReg%d", reg));
     }
 
+    // back-folding test
+    auto backfolded = MakeRefolded1D(hraw, unfolded, response);
+    backfolded->SetName(Form("backfolded_reg%d", reg));
+    auto backfoldedClosure = MakeRefolded1D(hsmearedClosure, unfoldedClosure, responseClosure);
+    backfoldedClosure->SetName(Form("backfoldedClosure_reg%d", reg));
 
     writer->mkdir(Form("regularization%d", reg));
     writer->cd(Form("regularization%d", reg));
@@ -126,5 +132,7 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
     if(dvec) dvec->Write();
     unfoldedClosure->Write();
     if(dvecClosure) dvecClosure->Write();
+    backfolded->Write();
+    backfoldedClosure->Write();
   }
 }

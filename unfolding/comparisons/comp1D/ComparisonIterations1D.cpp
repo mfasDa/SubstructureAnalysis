@@ -13,10 +13,17 @@
 #include <TSavableCanvas.h>
 #endif
 
-#include "../helpers/filesystem.C"
-#include "../helpers/graphics.C"
-#include "../helpers/math.C"
-#include "../helpers/root.C"
+#include "../../../helpers/filesystem.C"
+#include "../../../helpers/graphics.C"
+#include "../../../helpers/math.C"
+#include "../../../helpers/root.C"
+#include "../../../helpers/string.C"
+
+struct JetDef {
+  std::string fJetType;
+  double fJetRadius;
+  std::string fTrigger;
+};
 
 std::string getFileTag(const std::string_view infile){
   const char *tagremove = "unfoldedEnergyBayes_";
@@ -26,13 +33,21 @@ std::string getFileTag(const std::string_view infile){
   return filetag;
 }
 
-void makeComparisonIterations1D(const std::string_view inputfile){
-  auto canvas = new ROOT6tools::TSavableCanvas(Form("comparisonIterationsEnergyBayes_%s", getFileTag(inputfile).data()), "Comparison iterations bayesian unfolding", 1200, 600);
+JetDef getJetType(const std::string_view filetag) {
+  auto tokens = tokenize(std::string(filetag), '_');
+  return {tokens[0], double(std::stoi(tokens[1].substr(1)))/10., tokens[2]};
+}
+
+void ComparisonIterations1D(const std::string_view inputfile){
+  auto tag = getFileTag(inputfile);
+  auto jd = getJetType(tag);
+  auto canvas = new ROOT6tools::TSavableCanvas(Form("comparisonIterationsEnergyBayes_%s", tag.data()), "Comparison iterations bayesian unfolding", 1200, 600);
   canvas->Divide(2,1);
 
   canvas->cd(1);
   gPad->SetLogy();
   (new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/c)", "dN/dp_{t} (GeV/c)", 0., 200., 1e-1, 1e7))->Draw("axis");
+  (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.45, 0.89, Form("%s, R=%.1f, %s", jd.fJetType.data(), jd.fJetRadius, jd.fTrigger.data())))->Draw();
   auto leg = new ROOT6tools::TDefaultLegend(0.65, 0.6, 0.89, 0.89);
   leg->Draw();
 
@@ -67,5 +82,6 @@ void makeComparisonIterations1D(const std::string_view inputfile){
     ratio->Draw("epsame");
   }
   canvas->cd();
+  canvas->Update();
   canvas->SaveCanvas(canvas->GetName());
 }

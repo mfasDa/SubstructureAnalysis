@@ -86,7 +86,9 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
 
   std::unique_ptr<TFile> writer(TFile::Open(outfilename.data(), "RECREATE"));
   htrueFull->Write();
+  htrueFullClosure->Write();
   htrue->Write();
+  htrueClosure->Write();
   hsmeared->Write();
   hsmearedClosure->Write();
   responseMatrix->Write();
