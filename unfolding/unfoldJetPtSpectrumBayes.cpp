@@ -39,7 +39,8 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
       *hsmearedClosure = new TH1D("hsmearedClosure", "det mc (for closure test)", binningdet.size() - 1, binningdet.data()),
       *htrueClosure = new TH1D("htrueClosure", "true spectrum (for closure test)", binningdet.size() - 1, binningdet.data()),
       *htrueFull = new TH1D("htrueFull", "non-truncated true spectrum", binningpart.size() - 1, binningpart.data()),
-      *htrueFullClosure = new TH1D("htrueFullClosure", "non-truncated true spectrum (for closure test)", binningpart.size() - 1, binningpart.data());
+      *htrueFullClosure = new TH1D("htrueFullClosure", "non-truncated true spectrum (for closure test)", binningpart.size() - 1, binningpart.data()),
+      *hpriorsClosure = new TH1D("hpriorsClosure", "non-truncated true spectrum (for closure test, same jets as repsonse matrix)", binningpart.size() - 1, binningpart.data());
   TH2 *responseMatrix = new TH2D("responseMatrix", "response matrix", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data()),
       *responseMatrixClosure = new TH2D("responseMatrixClosure", "response matrix (for closure test)", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data());
 
@@ -59,6 +60,7 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
       closureUseSpectrum = (rdm < 0.2);
       htrueFull->Fill(*ptsim, *weight);
       if(closureUseSpectrum) htrueFullClosure->Fill(*ptsim, *weight);
+      else hpriorsClosure->Fill(*ptsim, *weight);
       if(*ptrec > ptmin && *ptrec < ptmax){
         htrue->Fill(*ptsim, *weight);
         hsmeared->Fill(*ptrec, *weight);
@@ -76,7 +78,7 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
 
   // Normalize response matrix
   //Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);      // probably not for bayesian unfolding
-  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, htrueFullClosure, responseMatrixClosure);
+  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, hpriorsClosure, responseMatrixClosure);
 
   // Calculate kinematic efficiency
   auto effKine = histcopy(htrue);
@@ -89,6 +91,7 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
   htrueFullClosure->Write();
   htrue->Write();
   htrueClosure->Write();
+  hpriorsClosure->Write();
   hsmeared->Write();
   hsmearedClosure->Write();
   responseMatrix->Write();
