@@ -115,7 +115,7 @@ void MCClosureTest1D(const std::string_view filename){
   (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.45, 0.22, Form("%s, R=%.1f, %s", jd.fJetType.data(), jd.fJetRadius, jd.fTrigger.data())))->Draw();
 
   plot->cd(2);
-  (new ROOT6tools::TAxisFrame("ratframe", "p_{t} (GeV/c)", "folded/raw", 0., 200., 0., 2.))->Draw("axis");
+  (new ROOT6tools::TAxisFrame("ratframe", "p_{t} (GeV/c)", "unfolded/truth", 0., 200., 0., 2.))->Draw("axis");
 
   std::array<Color_t, 10> colors = {{kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kAzure, kGray, kMagenta, kCyan}};
   std::array<Style_t, 10> markers = {{24, 25, 26, 27, 28, 29, 30, 31, 32, 33}};
@@ -123,7 +123,7 @@ void MCClosureTest1D(const std::string_view filename){
   Style{kBlack, 20}.SetStyle<TH1>(*htruth);
   plot->cd(1);
   htruth->Draw("epsame");
-  leg->AddEntry(htruth, "Truth", "lep");
+  leg->AddEntry(htruth, "truth", "lep");
 
   for(auto ireg : ROOT::TSeqI(1, 11)){
     auto hist = unfolded[ireg];
