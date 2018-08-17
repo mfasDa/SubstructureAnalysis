@@ -15,6 +15,7 @@
 #endif
 
 #include "../../helpers/graphics.C"
+#include "../../helpers/math.C"
 #include "../../helpers/root.C"
 #include "../../helpers/string.C"
 
@@ -36,6 +37,7 @@ TH1 *makeObservableProjection(const TH2 &inputhist, int obsbin) {
   auto result = inputhist.ProjectionY(Form("%s_%d_%d", inputhist.GetName(), int(obsmin), int(obsmax)), obsbin+1, obsbin+1);
   result->SetDirectory(nullptr);
   result->Scale(1./result->Integral());   // Transform to per-jet yield
+  normalizeBinWidth(result);
   return result;
 }
 
@@ -56,8 +58,8 @@ void makeComparisonFoldingRawPt(const std::string_view inputfile) {
       hfold[i] = std::unique_ptr<TH2>(foldhist);
     } 
   }
-  int ndists = hraw->GetXaxis()->GetNbins();
-  auto distmin = hraw->GetYaxis()->GetBinLowEdge(1), distmax = hraw->GetYaxis()->GetBinLowEdge(hraw->GetYaxis()->GetNbins());
+  int ndists = hfold[1]->GetXaxis()->GetNbins();
+  auto distmin = hfold[1]->GetYaxis()->GetBinLowEdge(1), distmax = hfold[1]->GetYaxis()->GetBinLowEdge(hraw->GetYaxis()->GetNbins());
   auto conf = extractFileTokens(inputfile);
 
   auto compplot = new ROOT6tools::TSavableCanvas(Form("CompFoldRawPt_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()),

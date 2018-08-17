@@ -16,30 +16,11 @@ std::vector<double> getZgBinningCoarse(){
   return result;
 }
 
-std::vector<double> getMinBiasPtBinningRealistic(bool cut = false) {
+std::vector<double> getMinBiasPtBinningRealistic() {
   std::vector<double> result;
   double current = 20;
   result.push_back(current);
-  while(current < 40.) {
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 60.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < (cut ? 80. : 120.)) {
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
-}
-
-std::vector<double> getMinBiasPtBinningPart() {
-  std::vector<double> result;
-  double current = 0;
-  result.push_back(current);
-  while(current < 20.) {
+  while(current < 30.) {
     current += 2.;
     result.push_back(current);
   }
@@ -51,22 +32,61 @@ std::vector<double> getMinBiasPtBinningPart() {
     current += 10.;
     result.push_back(current);
   }
-  while(current < 200.) {
+  while(current < 80.) {
     current += 20.;
+    result.push_back(current);
+  }
+  while(current < 120.) {
+    current += 40.;
     result.push_back(current);
   }
   return result;
 }
 
-std::vector<double> getEJ1PtBinningRealistic(bool cut = false){
+std::vector<double> getMinBiasPtBinningPart() {
+  std::vector<double> result;
+  double current = 0;
+  result.push_back(current);
+  while(current < 20.) {
+    current += 20.;
+    result.push_back(current);
+  }
+  while(current < 40.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 80.) {
+    current += 20.;
+    result.push_back(current);
+  }
+  while(current < 160.) {
+    current += 40.;
+    result.push_back(current);
+  }
+  while(current < 240.) {
+    current += 80.;
+    result.push_back(current);
+  }
+  return result;
+}
+
+std::vector<double> getEJ1PtBinningRealistic(){
   std::vector<double> result;
   double current = 80.;
   result.push_back(current);
+  while(current < 100.){
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 120.){
+    current += 10.;
+    result.push_back(current);
+  }
   while(current < 160.){
     current += 20.;
     result.push_back(current);
   }
-  while(current < (cut ? 200. : 240.)){
+  while(current < 200.){
     current += 40.;
     result.push_back(current);
   }
@@ -77,31 +97,40 @@ std::vector<double> getEJ1PtBinningPart(){
   std::vector<double> result;
   double current = 0.;
   result.push_back(current);
-  while(current < 60) {
-    current += 5.;
+  while(current < 80) {
+    current += 80.;
     result.push_back(current);
   }
   while(current < 160.){
     current += 20.;
     result.push_back(current);
   }
-  while(current < 400.){
+  while(current < 200.){
     current += 40.;
     result.push_back(current);
   }
+  result.emplace_back(400.);
   return result;
 }
 
-std::vector<double> getEJ2PtBinningRealistic(bool cut = false){
+std::vector<double> getEJ2PtBinningRealistic(){
   std::vector<double> result;
   double current = 60.;
   result.push_back(current);
+  while(current < 70.){
+    current += 5.;
+    result.push_back(current);
+  }
   while(current < 100.){
     current += 10.;
     result.push_back(current);
   }
-  while(current < (cut ? 120. : 140.)) {
+  while(current < 120.) {
     current += 20.;
+    result.push_back(current);
+  }
+  while(current < 160.) {
+    current += 40.;
     result.push_back(current);
   }
   return result;
@@ -111,28 +140,32 @@ std::vector<double> getEJ2PtBinningPart(){
   std::vector<double> result;
   double current = 0.;
   result.push_back(current);
-  while(current < 40.){
-    current += 5.;
+  while(current < 60.){
+    current += 60.;
     result.push_back(current);
   }
-  while(current < 100.){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200.) {
+  while(current < 120.){
     current += 20.;
+    result.push_back(current);
+  }
+  while(current < 160.) {
+    current += 40.;
+    result.push_back(current);
+  }
+  while(current < 280.) {
+    current += 120.;
     result.push_back(current);
   }
   return result;
 }
 
-std::vector<double> getPtBinningRealistic(const std::string_view trigger, bool cut = false) {
+std::vector<double> getPtBinningRealistic(const std::string_view trigger) {
   if(trigger == "INT7") {
-    return getMinBiasPtBinningRealistic(cut);
+    return getMinBiasPtBinningRealistic();
   } else if(trigger == "EJ2") {
-    return getEJ2PtBinningRealistic(cut);
+    return getEJ2PtBinningRealistic();
   } else if(trigger == "EJ1") {
-    return getEJ1PtBinningRealistic(cut);
+    return getEJ1PtBinningRealistic();
   }
 }
 

@@ -15,6 +15,7 @@
 #endif
 
 #include "../../helpers/graphics.C"
+#include "../../helpers/math.C"
 #include "../../helpers/root.C"
 #include "../../helpers/string.C"
 
@@ -30,13 +31,13 @@ unfoldconfig extractFileTokens(const std::string_view filename){
   return {tokens[1], double(std::stoi(tokens[2].substr(1,2)))/10., tokens[3], tokens[5]};
 }
 
-TH1 *makeObservableProjection(const TH2 &inputhist, double obscent) {
-  int obsbin = inputhist.GetXaxis()->FindBin(obscent);
-  double obsmin = inputhist.GetXaxis()->GetBinLowEdge(obsbin),
-         obsmax = inputhist.GetXaxis()->GetBinUpEdge(obsbin);
-  auto result = inputhist.ProjectionY(Form("%s_%d_%d", inputhist.GetName(), int(obsmin), int(obsmax)), obsbin, obsbin);
+TH1 *makeObservableProjection(const TH2 &inputhist, int obsbin) {
+  double obsmin = inputhist.GetYaxis()->GetBinLowEdge(obsbin+1),
+         obsmax = inputhist.GetYaxis()->GetBinUpEdge(obsbin+1);
+  auto result = inputhist.ProjectionY(Form("%s_%d_%d", inputhist.GetName(), int(obsmin), int(obsmax)), obsbin+1, obsbin+1);
   result->SetDirectory(nullptr);
   result->Scale(1./result->Integral());   // Transform to per-jet yield
+  normalizeBinWidth(result);
   return result;
 }
 
@@ -59,8 +60,8 @@ void makeSelfClosureTestPt(const std::string_view inputfile){
       hfold[i] = std::unique_ptr<TH2>(foldhist);
     } 
   }
-  int ndists = hsmeared->GetXaxis()->GetNbins();
-  auto distmin = hsmeared->GetYaxis()->GetBinLowEdge(1), distmax = hsmeared->GetYaxis()->GetBinUpEdge(hsmeared->GetYaxis()->GetNbins()+1);
+  int ndists = hfold[1]->GetXaxis()->GetNbins();
+  auto distmin = hfold[1]->GetYaxis()->GetBinLowEdge(1), distmax = hfold[1]->GetYaxis()->GetBinUpEdge(hsmeared->GetYaxis()->GetNbins()+1);
   auto conf = extractFileTokens(inputfile);
 
   auto compplot = new ROOT6tools::TSavableCanvas(Form("MCSelfClosurePtComp_%s_R%02d_%s_%s", conf.fJetType.data(), int(conf.fR * 10.), conf.fTrigger.data(), conf.fObservable.data()),
@@ -80,14 +81,14 @@ void makeSelfClosureTestPt(const std::string_view inputfile){
       leg->Draw();
       (new ROOT6tools::TNDCLabel(0.15, 0.7, 0.5, 0.79, Form("%s, R=%.1f, %s", conf.fJetType.data(), conf.fR, conf.fTrigger.data())))->Draw();
     }
-    auto obsmin = hsmeared->GetXaxis()->GetBinLowEdge(obsbin+1), obsmax = hsmeared->GetXaxis()->GetBinUpEdge(obsbin+1), obscent = hsmeared->GetXaxis()->GetBinCenter(obsbin+1); 
+    auto obsmin = hfold[1]->GetXaxis()->GetBinLowEdge(obsbin+1), obsmax = hfold[1]->GetXaxis()->GetBinUpEdge(obsbin+1);
     (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.2f < %s < %.2f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
-    auto rawslice = makeObservableProjection(*htrue, obscent);
+    auto rawslice = makeObservableProjection(*htrue, obsbin);
     rawstyle.SetStyle<decltype(*rawslice)>(*rawslice);
     rawslice->Draw("epsame");
     auto iiter = 0;
     for(const auto &fold : hfold) {
-      auto foldslice = makeObservableProjection(*fold.second, obscent);
+      auto foldslice = makeObservableProjection(*fold.second, obsbin);
       iterstyles[iiter++].SetStyle<decltype(*foldslice)>(*foldslice);
       foldslice->Draw("epsame");
       if(leg) leg->AddEntry(foldslice, Form("iteration %d", fold.first), "lep");
@@ -111,12 +112,12 @@ void makeSelfClosureTestPt(const std::string_view inputfile){
       leg->Draw();
       (new ROOT6tools::TNDCLabel(0.15, 0.7, 0.5, 0.79, Form("%s, R=%.1f, %s", conf.fJetType.data(), conf.fR, conf.fTrigger.data())))->Draw();
     }
-    auto obsmin = hsmeared->GetXaxis()->GetBinLowEdge(obsbin+1), obsmax = hsmeared->GetXaxis()->GetBinUpEdge(obsbin+1), obscent = hsmeared->GetXaxis()->GetBinCenter(obsbin+1);
+    auto obsmin = hfold[1]->GetXaxis()->GetBinLowEdge(obsbin+1), obsmax = hfold[1]->GetXaxis()->GetBinUpEdge(obsbin+1);
     (new ROOT6tools::TNDCLabel(0.15, 0.8, 0.5, 0.89, Form("%.2f < %s < %.2f", obsmin, conf.fObservable.data(), obsmax)))->Draw();
-    std::unique_ptr<TH1>rawslice(makeObservableProjection(*htrue, obscent));
+    std::unique_ptr<TH1>rawslice(makeObservableProjection(*htrue, obsbin));
     auto iiter = 0;
     for(const auto &fold : hfold) {
-      auto foldslice = makeObservableProjection(*fold.second, obscent);
+      auto foldslice = makeObservableProjection(*fold.second, obsbin);
       foldslice->SetName(Form("RatioUnfoldTrue_%s", foldslice->GetName()));
       foldslice->Divide(rawslice.get());
       iterstyles[iiter++].SetStyle<decltype(*foldslice)>(*foldslice);

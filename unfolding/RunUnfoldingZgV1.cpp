@@ -32,9 +32,10 @@ std::string getTrigger(const std::string_view filedata){
 
 void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view filemc, double nefcut = 0.98, double fracSmearClosure = 0.5){
   auto trigger = getTrigger(filedata);
-  auto ptbinvec_smear = getPtBinningRealistic(trigger, true), 
+  auto ptbinvec_smear = getPtBinningRealistic(trigger), 
        ptbinvec_true = getPtBinningPart(trigger),
-       zgbins = getZgBinningFine();
+       zgbins_smear = getZgBinningFine(),
+       zgbins_true = getZgBinningFine(); //getZgBinningCoarse();
   auto dataextractor = [nefcut](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw) {
     ROOT::RDataFrame recframe(GetNameJetSubstructureTree(filedata), filedata);
     auto datahist = recframe.Filter(Form("NEFRec < %f && PtJetRec > %f && PtJetRec < %f", nefcut, ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
@@ -89,5 +90,5 @@ void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view fi
     }
   };
 
-  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins, ptbinvec_smear, zgbins}, dataextractor, mcextractor);
+  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor);
 }
