@@ -11,6 +11,7 @@
 #include <TTree.h>
 #endif
 
+#include "filesystem.C"
 #include "string.C"
 
 TTree *GetDataTree(TFile &reader) {
