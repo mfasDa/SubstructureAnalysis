@@ -18,6 +18,7 @@
 #include "RooUnfoldResponse.h"
 #endif
 
+#include "../helpers/pthard.C"
 #include "../helpers/string.C"
 #include "../helpers/substructuretree.C"
 #include "binnings/binningZg.C"
@@ -61,16 +62,18 @@ void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view fi
                               zgRec(mcreader, "ZgMeasured"), 
                               zgSim(mcreader, "ZgTrue"),
                               weight(mcreader, "PythiaWeight");
+    TTreeReaderValue<int>     pthardbin(mcreader, "PtHardBin");
     TRandom samplesplitter;
     for(auto en : mcreader){
       //if(*ptsim > 200.) continue;
+      if(*nefrec >= nefcut) continue;
+      if(IsOutlier(*ptsim, *pthardbin, 10.)) continue;
       h2fulleff->Fill(*zgSim, *ptsim, *weight);
       h2smearednocuts->Fill(*zgRec, *ptrec, *weight);
       responsenotrunc.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);
 
       // apply reconstruction level cuts
       if(*ptrec > ptsmearmax || *ptrec < ptsmearmin) continue;
-      if(*nefrec >= nefcut) continue;
       h2smeared->Fill(*zgRec, *ptrec, *weight);
       h2true->Fill(*zgSim, *ptsim, *weight);
       response.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);
