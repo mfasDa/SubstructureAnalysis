@@ -162,4 +162,16 @@ TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t
   }
   return hTruncate;
 }
+
+TH2 *TruncateResponse(TH2 *inputhist, TH2 *responsetemplate, const char *name , const char *title){
+  auto truncated = static_cast<TH2 *>(histcopy(responsetemplate));
+  truncated->SetNameTitle(name, title);
+  for(auto binx : ROOT::TSeqI(0, truncated->GetXaxis()->GetNbins())){
+    int binxNonTrunc = inputhist->GetXaxis()->FindBin(truncated->GetXaxis()->GetBinCenter(binx+1));
+    for(auto biny : ROOT::TSeqI(0, truncated->GetYaxis()->GetNbins())){
+      truncated->SetBinContent(binx+1, biny+1, inputhist->GetBinContent(binxNonTrunc, biny+1));
+    }
+  }
+  return truncated;
+}
 #endif
