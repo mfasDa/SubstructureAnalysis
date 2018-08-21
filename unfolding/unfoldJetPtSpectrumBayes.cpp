@@ -25,7 +25,7 @@
 void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string_view filemc){
   ROOT::EnableImplicitMT(8);
   double ptmin = 20., ptmax = 120.;
-  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue();
+  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue(), binningdetfull = getJetPtBinningNonLinSmearFull();
   std::string outfilename = Form("unfoldedEnergyBayes_%s.root", getFileTag(filedata).data());
 
   // read data
@@ -37,13 +37,12 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
   TH1 *htrue = new TH1D("htrue", "true spectrum", binningpart.size()-1, binningpart.data()),
       *hsmeared = new TH1D("hsmeared", "det mc", binningdet.size()-1, binningdet.data()), 
       *hsmearedClosure = new TH1D("hsmearedClosure", "det mc (for closure test)", binningdet.size() - 1, binningdet.data()),
-      *htrueClosure = new TH1D("htrueClosure", "true spectrum (for closure test)", binningdet.size() - 1, binningdet.data()),
+      *htrueClosure = new TH1D("htrueClosure", "true spectrum (for closure test)", binningpart.size() - 1, binningpart.data()),
       *htrueFull = new TH1D("htrueFull", "non-truncated true spectrum", binningpart.size() - 1, binningpart.data()),
       *htrueFullClosure = new TH1D("htrueFullClosure", "non-truncated true spectrum (for closure test)", binningpart.size() - 1, binningpart.data()),
       *hpriorsClosure = new TH1D("hpriorsClosure", "non-truncated true spectrum (for closure test, same jets as repsonse matrix)", binningpart.size() - 1, binningpart.data());
   TH2 *responseMatrix = new TH2D("responseMatrix", "response matrix", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data()),
       *responseMatrixClosure = new TH2D("responseMatrixClosure", "response matrix (for closure test)", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data());
-
   
   {
     TRandom closuresplit;
@@ -76,15 +75,21 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
     }
   }
 
-  // Normalize response matrix
-  //Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);      // probably not for bayesian unfolding
-  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, hpriorsClosure, responseMatrixClosure);
-
   // Calculate kinematic efficiency
+  std::cout << "[Bayes unfolding] Make kinematic efficiecny for raw unfolding ..." << std::endl;
   auto effKine = histcopy(htrue);
   effKine->SetDirectory(nullptr);
   effKine->SetName("effKine");
   effKine->Divide(effKine, htrueFull, 1., 1., "b");
+
+  std::cout << "[Bayes unfolding] ... and for closure test" << std::endl;
+  auto effKineClosure = histcopy(htrueClosure);
+  effKineClosure->SetDirectory(nullptr);
+  effKineClosure->SetName("effKineClosure");
+  effKineClosure->Divide(htrueFullClosure);
+
+  std::cout << "[Bayes unfolding] Building RooUnfold response" << std::endl;
+  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, hpriorsClosure, responseMatrixClosure);
 
   std::unique_ptr<TFile> writer(TFile::Open(outfilename.data(), "RECREATE"));
   htrueFull->Write();
@@ -98,14 +103,17 @@ void unfoldJetPtSpectrumBayes(const std::string_view filedata, const std::string
   responseMatrixClosure->Write();
   hraw->Write();
   effKine->Write();
+  effKineClosure->Write();
 
   std::cout << "Running unfolding" << std::endl;
   for(auto iter : ROOT::TSeqI(1, 36)){
+    std::cout << "[Bayes unfolding] Doing iteration " << iter << "\n================================================================\n";
+    std::cout << "[Bayes unfolding] Running unfolding" << std::endl;
     RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovariance;
     RooUnfoldBayes unfolder(&response, hraw, iter);
     auto unfolded = unfolder.Hreco(errorTreatment);
     unfolded->SetName(Form("unfolded_iter%d", iter));
-    std::cout << "Running MC closure test" << std::endl;
+    std::cout << "[Bayes unfolding] Running MC closure test" << std::endl;
     RooUnfoldBayes unfolderClosure(&responseClosure, hsmearedClosure);
     auto unfoldedClosure = unfolderClosure.Hreco(errorTreatment);
     unfoldedClosure->SetName(Form("unfoldedClosure_iter%d", iter));

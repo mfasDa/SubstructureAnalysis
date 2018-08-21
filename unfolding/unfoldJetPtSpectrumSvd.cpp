@@ -26,7 +26,7 @@
 void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_view filemc){
   ROOT::EnableImplicitMT(8);
   double ptmin = 20., ptmax = 120.;
-  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue();
+  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue(), binningdetfull = getJetPtBinningNonLinSmearFull();
   std::string outfilename = Form("unfoldedEnergySvd_%s.root", getFileTag(filedata).data());
 
   // read data
@@ -38,7 +38,7 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   TH1 *htrue = new TH1D("htrue", "true spectrum", binningpart.size()-1, binningpart.data()),
       *hsmeared = new TH1D("hsmeared", "det mc", binningdet.size()-1, binningdet.data()), 
       *hsmearedClosure = new TH1D("hsmearedClosure", "det mc (for closure test)", binningdet.size() - 1, binningdet.data()),
-      *htrueClosure = new TH1D("htrueClosure", "true spectrum (for closure test)", binningdet.size() - 1, binningdet.data()),
+      *htrueClosure = new TH1D("htrueClosure", "true spectrum (for closure test)", binningpart.size() - 1, binningpart.data()),
       *htrueFull = new TH1D("htrueFull", "non-truncated true spectrum", binningpart.size() - 1, binningpart.data()),
       *htrueFullClosure = new TH1D("htrueFullClosure", "non-truncated true spectrum (for closure test)", binningpart.size() - 1, binningpart.data()),
       *hpriorsClosure = new TH1D("hpriorsClosure", "non-truncated true spectrum (for closure test, same jets as repsonse matrix)", binningpart.size() - 1, binningpart.data());
@@ -76,16 +76,21 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   }
 
   // Calculate kinematic efficiency
+  std::cout << "[SVD unfolding] Make kinematic efficiecny for raw unfolding ..." << std::endl;
   auto effKine = histcopy(htrue);
   effKine->SetDirectory(nullptr);
   effKine->SetName("effKine");
   effKine->Divide(effKine, htrueFull, 1., 1., "b");
 
-  // Normalize response matrices
-  //Normalize2D(responseMatrix); Normalize2D(responseMatrixClosure);  
+  std::cout << "[SVD unfolding] ... and for closure test" << std::endl;
+  auto effKineClosure = histcopy(htrueClosure);
+  effKineClosure->SetDirectory(nullptr);
+  effKineClosure->SetName("effKineClosure");
+  effKineClosure->Divide(effKineClosure, htrueFullClosure, 1., 1., "b");
 
-  // Build response
-  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix, "response"), responseClosure(nullptr, hpriorsClosure, responseMatrixClosure, "responseClosure");
+  // otherwise
+  std::cout << "[SVD unfolding] Building RooUnfold response" << std::endl;
+  RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, hpriorsClosure, responseMatrixClosure);
 
   std::unique_ptr<TFile> writer(TFile::Open(outfilename.data(), "RECREATE"));
   htrueFull->Write();
@@ -99,11 +104,12 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
   responseMatrixClosure->Write();
   hraw->Write();
   effKine->Write();
+  effKineClosure->Write();
 
   RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;//ariance;
   for(auto reg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())){
-    std::cout << "Regularization " << reg << "\n================================================================\n";
-    std::cout << "Running unfolding" << std::endl;
+    std::cout << "[SVD unfolding] Regularization " << reg << "\n================================================================\n";
+    std::cout << "[SVD unfolding] Running unfolding" << std::endl;
     RooUnfoldSvd unfolder(&response, hraw, reg);
     auto unfolded = unfolder.Hreco(errorTreatment);
     unfolded->SetName(Form("unfoldedReg%d", reg));
@@ -113,7 +119,7 @@ void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_v
       dvec->SetName(Form("dvectorReg%d", reg));
     }
     std::cout << "----------------------------------------------------------------------\n";
-    std::cout << "Running MC closure test" << std::endl;
+    std::cout << "[SVD unfolding] Running MC closure test" << std::endl;
     RooUnfoldSvd unfolderClosure(&responseClosure, hsmearedClosure, reg, 1000, "unfolderClosure", "unfolderClosure");
     auto unfoldedClosure = unfolderClosure.Hreco(errorTreatment);
     unfoldedClosure->SetName(Form("unfoldedClosureReg%d", reg));
