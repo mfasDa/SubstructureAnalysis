@@ -26,7 +26,7 @@
 void unfoldJetPtSpectrumSvd(const std::string_view filedata, const std::string_view filemc){
   ROOT::EnableImplicitMT(8);
   double ptmin = 20., ptmax = 120.;
-  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue(), binningdetfull = getJetPtBinningNonLinSmearFull();
+  auto binningdet = getJetPtBinningNonLinSmear(), binningpart = getJetPtBinningNonLinTrue();
   std::string outfilename = Form("unfoldedEnergySvd_%s.root", getFileTag(filedata).data());
 
   // read data
