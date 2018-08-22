@@ -25,6 +25,7 @@
 #include "TFile.h"
 #include "TH2D.h"
 #include "TROOT.h"
+#include "TStopwatch.h"
 
 #include "RooUnfoldResponse.h"
 #include "RooUnfoldBayes.h"
@@ -44,8 +45,14 @@ struct binning {
 using datafunction = std::function<void (const std::string_view fiilename, double ptsmearmin, double ptsmearmax, TH2D *hraw)>;
 using mcfunction = std::function<void (const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &resp, RooUnfoldResponse &responsetrunc, RooUnfoldResponse &responseClosure)>;
 
-void unfoldingGeneral(const std::string_view observable, const std::string_view filedata, std::string_view filemc, const binning &histbinnings, datafunction dataextractor, mcfunction mcextractor){
+void unfoldingGeneral(const std::string_view observable, const std::string_view filedata, std::string_view filemc, const binning &histbinnings, datafunction dataextractor, mcfunction mcextractor, Bool_t enableImplicitMT = false){
   ROOT::EnableThreadSafety();
+  if(enableImplicitMT){
+    std::cout << "Using implicit MT" << std::endl;
+    ROOT::EnableImplicitMT(10);
+  } else {
+    std::cout << "Using explicit MT" << std::endl;
+  }
   ///////////////////parameter setting
   RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovariance;
 
@@ -77,36 +84,59 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   auto smearptmin = *(std::min_element(binptsmear.begin(), binptsmear.end()));
   auto smearptmax = *(std::max_element(binptsmear.begin(), binptsmear.end()));
 
+  if(enableImplicitMT) {
+    // Read data an MC single-threaded as they are paralellized implicitly
 
-  /****
-   * Reading data and MC in parallel
-   * Usign one thread for data processing and one thread for MC processing
-   */
-
-  //////////GET THE DATA////////////
-  std::thread datathread([&]() {
-    std::cout << "Datathread: Fill histograms from data" << std::endl;
+    //////////GET THE DATA////////////
+    std::cout << "Data reader: Fill histograms from data" << std::endl;
+    TStopwatch timerData;
+    timerData.Start();
     dataextractor(filedata, smearptmin, smearptmax, hraw);
-    std::cout << "Datathread: Data ready" << std::endl;
-  });
+    timerData.Stop();
+    std::cout << "Data reader: Data ready, duration " << timerData.RealTime() << std::endl;
 
-  ////Get the MC////////////////////////
-  std::thread mcthread([&](){
-    // TDataFrame not supported in ROOUnfold (yet) - needs TTreeTreader
-    // can however be done with Reduce function
+    ////Get the MC////////////////////////
     std::cout << "MCthread: Fill histograms from simulation" << std::endl;
+    TStopwatch timerMC;
+    timerMC.Start();
     mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure);
-    std::cout << "MCthread: Response ready" << std::endl;
-  });
-  datathread.join();
-  mcthread.join();
+    timerMC.Stop();
+    std::cout << "MCthread: Response ready, duration " << timerMC.RealTime() << std::endl;
+  } else {
+    /****
+     * Explicit multithreading
+     * Reading data and MC in parallel
+     * Usign one thread for data processing and one thread for MC processing
+     */
+
+    //////////GET THE DATA////////////
+    std::thread datathread([&]() {
+      std::cout << "Datathread: Fill histograms from data" << std::endl;
+      TStopwatch timer;
+      timer.Start();
+      dataextractor(filedata, smearptmin, smearptmax, hraw);
+      timer.Stop();
+      std::cout << "Datathread: Data ready, duration " << timer.RealTime() << std::endl;
+    });
+
+    ////Get the MC////////////////////////
+    std::thread mcthread([&](){
+      std::cout << "MCthread: Fill histograms from simulation" << std::endl;
+      TStopwatch timer;
+      timer.Start();
+      mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure);
+      timer.Stop();
+      std::cout << "MCthread: Response ready, duration " << timer.RealTime() << std::endl;
+    });
+    datathread.join();
+    mcthread.join();
+  }
 
   /////////COMPUTE KINEMATIC EFFICIENCIES////////////////////
-
   std::vector<TH1 *> efficiencies;
   for(auto b : ROOT::TSeqI(1, h2true->GetYaxis()->GetNbins()+1)){
     // ignore bins which are outside the kinematic range of the measurement
-    if(h2true->GetYaxis()->GetBinUpEdge(b) < smearptmin || h2true->GetYaxis()->GetBinLowEdge(b) > smearptmax) continue;
+    // if(h2true->GetYaxis()->GetBinUpEdge(b) < smearptmin || h2true->GetYaxis()->GetBinLowEdge(b) > smearptmax) continue;
     std::unique_ptr<TH1> truncated(h2true->ProjectionX("truncated", b, b)), 
                          full(h2fulleff->ProjectionX("full", b, b));
     TH1 *efficiency = static_cast<TH1 *>(truncated->Clone(Form("efficiency_%d_%d", int(h2true->GetYaxis()->GetBinLowEdge(b)), int(h2true->GetYaxis()->GetBinUpEdge(b)))));
