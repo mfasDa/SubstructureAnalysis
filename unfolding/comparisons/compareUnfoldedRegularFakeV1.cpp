@@ -21,18 +21,11 @@
 #include "../../helpers/string.C"
 #include "../../helpers/substructuretree.C"
 
-TH1 *convertFakeToRegular(const TH1 *fakehist, const TH1 *histtemplate) {
-  auto target = histcopy(histtemplate);
-  target->SetNameTitle(Form("%s_convertedRegular", fakehist->GetName()), fakehist->GetTitle());
-  target->Reset();
-  for(auto b : ROOT::TSeqI(0, fakehist->GetNbinsX())){
-    auto bc = fakehist->GetXaxis()->GetBinCenter(b+1);
-    bc = (bc > 0.5) ? 0.05 : bc;
-    auto targetbin = target->GetXaxis()->FindBin(bc);
-    target->SetBinContent(targetbin, fakehist->GetBinContent(b+1));
-    target->SetBinError(targetbin, fakehist->GetBinError(b+1));
-  }
-  return target;
+const double fakeweight = 30.;
+
+void convertFakeToRegular(TH1 *fakehist) {
+  fakehist->SetBinContent(1, fakehist->GetBinContent(1) / fakeweight);
+  fakehist->SetBinError(1, fakehist->GetBinError(1) / fakeweight);
 }
 
 std::map<int, TH2 *> readIterations(const std::string_view inputfile){
@@ -55,7 +48,7 @@ std::map<int, TH2 *> readIterations(const std::string_view inputfile){
   return result;
 }
 
-void compareUnfoldedRegularFake(const std::string_view regularfile, const std::string_view fakefile){
+void compareUnfoldedRegularFakeV1(const std::string_view regularfile, const std::string_view fakefile){
   auto histos_regular = readIterations(regularfile),
        histos_fake = readIterations(fakefile);
 
@@ -70,10 +63,10 @@ void compareUnfoldedRegularFake(const std::string_view regularfile, const std::s
        nbins = lastbin - firstbin + 1;
 
   auto tag = getFileTag(regularfile);
-  auto plotspec = new ROOT6tools::TSavableCanvas(Form("compRegularFakeV2_%s", tag.data()), "Comparison normal fake", 1200, 1000);
+  auto plotspec = new ROOT6tools::TSavableCanvas(Form("compRegularFakeV1_%s", tag.data()), "Comparison normal fake", 1200, 1000);
   plotspec->DivideSquare(nbins);
 
-  auto plotratio = new ROOT6tools::TSavableCanvas(Form("ratioRegularFakeV2_%s", tag.data()), "Ratio normal fake", 1200, 1000);
+  auto plotratio = new ROOT6tools::TSavableCanvas(Form("ratioRegularFakeV1_%s", tag.data()), "Ratio normal fake", 1200, 1000);
   plotratio->DivideSquare(nbins);
 
   const std::map<int, Color_t> colors = {{1, kRed}, {4, kBlue}, {10, kGreen}, {25, kMagenta}};
@@ -84,7 +77,7 @@ void compareUnfoldedRegularFake(const std::string_view regularfile, const std::s
     plotspec->cd(currentpad);
     (new ROOT6tools::TAxisFrame(Form("specframe_%d", ptbin), "z_{g}", "1/N_{jet} dN/dz_{g}", 0., 0.6, 0., 0.5))->Draw("axis");
     (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.7, 0.22, Form("%.1f GeV/c < p_{t} < %.1f GeV/c", iter1->GetYaxis()->GetBinLowEdge(ptbin), iter1->GetYaxis()->GetBinUpEdge(ptbin))))->Draw();
-    TLegend *leg(nullptr);
+    TLegend *leg(nullptr), *legratio(nullptr);
     if(currentpad == 1) {
       leg = new ROOT6tools::TDefaultLegend(0.65, 0.5, 0.89, 0.89);
       leg->Draw();
@@ -92,19 +85,24 @@ void compareUnfoldedRegularFake(const std::string_view regularfile, const std::s
     plotratio->cd(currentpad);
     (new ROOT6tools::TAxisFrame(Form("ratioframe_%d", ptbin), "z_{g}", "Fake/Regular", 0., 0.6, 0.5, 1.5))->Draw("axis");
     (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.7, 0.22, Form("%.1f GeV/c < p_{t} < %.1f GeV/c", iter1->GetYaxis()->GetBinLowEdge(ptbin), iter1->GetYaxis()->GetBinUpEdge(ptbin))))->Draw();
+    if(currentpad == 1){
+      legratio = new ROOT6tools::TDefaultLegend(0.15, 0.7, 0.89, 0.89);
+      legratio->SetNColumns(2);
+      legratio->Draw();
+    }
     for(auto iter : colors) {
       auto h2regular = histos_regular.find(iter.first)->second,
            h2fake = histos_fake.find(iter.first)->second;
       auto hproreg = h2regular->ProjectionX(Form("regular_iter%d_ptbin%d", iter.first, ptbin), ptbin, ptbin);
       hproreg->SetDirectory(nullptr);
       hproreg->Scale(1./hproreg->Integral());
-      std::unique_ptr<TH1> hprofaketmp(h2fake->ProjectionX(Form("fake_iter%d_ptbin%d", iter.first, ptbin), ptbin, ptbin));
-      auto hprofake = convertFakeToRegular(hprofaketmp.get(), hproreg);
+      auto hprofake = h2fake->ProjectionX(Form("fake_iter%d_ptbin%d", iter.first, ptbin), ptbin, ptbin);
+      convertFakeToRegular(hprofake);
       hprofake->SetDirectory(nullptr);
       hprofake->Scale(1./hprofake->Integral());
 
       Style{iter.second, markers.find("regular")->second}.SetStyle<TH1>(*hproreg);
-      Style{iter.second, markers.find("fake")->second}.SetStyle<TH1>(*hproreg);
+      Style{iter.second, markers.find("fake")->second}.SetStyle<TH1>(*hprofake);
 
       auto ratio = histcopy(hprofake);
       ratio->SetName(Form("ratio__%s__%s", hprofake->GetName(), hproreg->GetName()));
@@ -122,6 +120,7 @@ void compareUnfoldedRegularFake(const std::string_view regularfile, const std::s
 
       plotratio->cd(currentpad);
       ratio->Draw("epsame");
+      if(legratio) legratio->AddEntry(ratio, Form("iter = %d", iter.first), "lep");
     }
     currentpad++;
   }

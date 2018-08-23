@@ -31,16 +31,22 @@ std::string getTrigger(const std::string_view filedata){
   return "";
 }
 
-const double fakeweight = 30.;
-const bool doFakeResponseMatrix = false;
+const bool doFakeResponseMatrix = true;
 
-void RunUnfoldingZgV1_fakebin0_V1(const std::string_view filedata, const std::string_view filemc, double nefcut = 0.98, double fracSmearClosure = 0.5){
+void RunUnfoldingZgV1_fakebin0_V1_fakeresponse(const std::string_view filedata, const std::string_view filemc, double nefcut = 0.98, double fracSmearClosure = 0.5){
+  double fakeweight = 30.;
+  auto jetdef = getJetType(getFileTag(filedata));
+  if(jetdef.fJetRadius == 0.3) fakeweight = 45;
+  if(jetdef.fJetRadius == 0.4) fakeweight = 60.;
+  if(jetdef.fJetRadius == 0.5) fakeweight = 100.;
+  std::cout << "using fake weight " << fakeweight << std::endl;
+
   auto trigger = getTrigger(filedata);
   auto ptbinvec_smear = getPtBinningRealistic(trigger), 
        ptbinvec_true = getPtBinningPart(trigger),
        zgbins_smear = getZgBinningFine(),
        zgbins_true = getZgBinningFine(); //getZgBinningCoarse();
-  auto dataextractor = [nefcut](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw) {
+  auto dataextractor = [nefcut, fakeweight](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw) {
     ROOT::RDataFrame recframe(GetNameJetSubstructureTree(filedata), filedata);
     auto datahist = recframe.Filter(Form("NEFRec < %f && PtJetRec > %f && PtJetRec < %f", nefcut, ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
     *hraw = *datahist;
@@ -50,7 +56,7 @@ void RunUnfoldingZgV1_fakebin0_V1(const std::string_view filedata, const std::st
       hraw->SetBinError(1, o+1, hraw->GetBinError(1, o+1) * fakeweight); 
     }
   };
-  auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure){
+  auto mcextractor = [fracSmearClosure, nefcut, fakeweight](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure){
     std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
 
@@ -108,5 +114,5 @@ void RunUnfoldingZgV1_fakebin0_V1(const std::string_view filedata, const std::st
     } 
   };
 
-  unfoldingGeneral("zg_fakebin0_V1", filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor);
+  unfoldingGeneral(Form("zg_fakebin0_V1_%s", doFakeResponseMatrix ? "fakeresponse" : "nofakeresponse"), filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor);
 }
