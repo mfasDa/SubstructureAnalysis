@@ -2,6 +2,7 @@
 #define __SUBSTRUCTURETREE_C__
 
 #ifndef __CLING__
+#include <iostream>
 #include <memory>
 #include <string>
 
@@ -13,6 +14,17 @@
 
 #include "filesystem.C"
 #include "string.C"
+
+struct JetDef {
+  std::string fJetType;
+  double fJetRadius;
+  std::string fTrigger;
+};
+
+JetDef getJetType(const std::string_view filetag) {
+  auto tokens = tokenize(std::string(filetag), '_');
+  return {tokens[0], double(std::stoi(tokens[1].substr(1)))/10., tokens[2]};
+}
 
 TTree *GetDataTree(TFile &reader) {
   TTree *result(nullptr);

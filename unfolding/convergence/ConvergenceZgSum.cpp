@@ -15,6 +15,10 @@
 #include "TSavableCanvas.h"
 #endif
 
+#include "../../helpers/root.C"
+#include "../../helpers/string.C"
+#include "../../helpers/substructuretree.C"
+
 TGraphErrors *getConvergence(std::map<int, TH2 *> &data, int zgbin) {
   TGraphErrors *result = new TGraphErrors(35);
   std::mutex fillmutex;
@@ -34,11 +38,15 @@ TGraphErrors *getConvergence(std::map<int, TH2 *> &data, int zgbin) {
 std::map<int, TH2 *> readIterations(const std::string_view infile){
   std::map<int, TH2 *> result;
   std::unique_ptr<TFile> reader(TFile::Open(infile.data(), "READ"));
-  for(auto iter : ROOT::TSeqI(1, 36)){
-    reader->cd(Form("iteration%d", iter));
-    auto h2d = static_cast<TH2 *>(gDirectory->Get(Form("zg_unfolded_iter%d", iter)));
+  for(auto iter : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())){
+    if(!contains(iter->GetName(), "iteration")) continue;
+    auto iterID  = std::stoi(std::string(iter->GetName()).substr(9));
+    std::cout << "Found iteration " << iterID << " ..." << std::endl;
+    reader->cd(iter->GetName());
+    auto iterdata = CollectionToSTL<TKey>(gDirectory->GetListOfKeys());
+    auto h2d = (*std::find_if(iterdata.begin(), iterdata.end(), [](const TKey *k) { return contains(k->GetName(), "unfolded_iter"); }))->ReadObject<TH2>(); 
     h2d->SetDirectory(nullptr);
-    result[iter] = h2d;
+    result[iterID] = h2d;
   }
   return result;
 }
@@ -56,10 +64,10 @@ std::pair<double, double> getValueRange(const TGraphErrors *graph) {
 void ConvergenceZgSum(const std::string_view infile) {
   auto data = readIterations(infile);
   int nbinszg = data[1]->GetXaxis()->GetNbins();
-  auto filebase = infile.substr(0, infile.find(".root"));
+  auto filebase = getFileTag(infile);
 
   std::stringstream canvasname;
-  canvasname << filebase << "_convsum";
+  canvasname << "convsum_" << filebase;
 
   auto plot = new ROOT6tools::TSavableCanvas(canvasname.str().data(), Form("zg-convergence (pt-integrated)"), 1200, 1000);
   plot->DivideSquare(nbinszg);
