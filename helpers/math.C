@@ -2,6 +2,7 @@
 #define __MATH_C__
 
 #ifndef __CLING__
+#include <vector>
 #include <ROOT/TSeq.hxx>
 #include <TH1.h>
 #include <TMath.h>
@@ -22,6 +23,13 @@ void normalizeBinWidth(TH1 *hist) {
     hist->SetBinContent(b+1, hist->GetBinContent(b+1)/bw);
     hist->SetBinError(b+1, hist->GetBinError(b+1)/bw);
   }
+}
+
+std::vector<double> makeLinearBinning(int nbins, double ptmin, double ptmax) {
+  std::vector<double> result;
+  double bw = (ptmax-ptmin)/static_cast<double>(nbins);
+  for(auto step = ptmin; step < ptmax; step += bw) result.push_back(step);
+  return result;
 }
 
 void invert(TH1 *hist){
