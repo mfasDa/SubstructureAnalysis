@@ -9,10 +9,60 @@
 #include <TSavableCanvas.h>
 #endif
 
-#include "../binnings/binningZg.C"
 #include "../../helpers/graphics.C"
 #include "../../helpers/math.C"
 #include "../../helpers/substructuretree.C"
+
+std::vector<double> getZgBinningFine(){
+  std::vector<double> result;
+  result.push_back(0.);
+  for(double d = 0.1; d <= 0.5; d += 0.05) result.push_back(d);
+  return result;
+}
+
+std::vector<double> getMinBiasPtBinningRealistic() {
+  std::vector<double> result;
+  double current = 20;
+  result.push_back(current);
+  while(current < 30.) {
+    current += 2.;
+    result.push_back(current);
+  }
+  while(current < 40.) {
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 60.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  std::cout << "Using binning for zg0 test" << std::endl;
+  while(current < 120.) {
+    current += 10.;
+    result.push_back(current);
+  }
+
+  return result;
+}
+
+std::vector<double> getMinBiasPtBinningPart() {
+  std::vector<double> result;
+  double current = 0;
+  result.push_back(current);
+  while(current < 20.) {
+    current += 20.;
+    result.push_back(current);
+  }
+  while(current < 40.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 240.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  return result;
+}
 
 void InspectZgBin0(const std::string_view filename, const std::string_view trigger = "INT7"){
   ROOT::EnableImplicitMT(8);
