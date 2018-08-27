@@ -49,6 +49,7 @@ TH1 *makePtProjectionRaw(const TH2 &inputhist, double ptmin, double ptmax){
   else std::cout << "Pt ranges don't match" << std::endl;
   auto result = inputhist.ProjectionX(Form("%s_%d_%d", inputhist.GetName(), int(ptmin), int(ptmax)), ptbmin, ptbmax);
   result->SetDirectory(nullptr);
+  normalizeBinWidth(result);
   result->Scale(1./result->Integral());   // Transform to per-jet yield
   return result;
 }
