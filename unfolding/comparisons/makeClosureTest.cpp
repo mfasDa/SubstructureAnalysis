@@ -14,9 +14,7 @@
 #include <TSavableCanvas.h>
 #endif
 
-#include "../../helpers/graphics.C"
-#include "../../helpers/root.C"
-#include "../../helpers/string.C"
+#include "../../helpers/msl.C"
 
 struct unfoldconfig {
   std::string fJetType;

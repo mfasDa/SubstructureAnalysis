@@ -14,9 +14,7 @@
 #include <TSavableCanvas.h>
 #endif
 
-#include "../../helpers/graphics.C"
-#include "../../helpers/root.C"
-#include "../../helpers/string.C"
+#include "../../helpers/msl.C"
 
 struct unfoldconfig {
   std::string fJetType;
@@ -35,6 +33,7 @@ TH1 *makePtProjection(const TH2 &inputhist, int ptbin) {
          ptmax = inputhist.GetYaxis()->GetBinUpEdge(ptbin+1);
   auto result = inputhist.ProjectionX(Form("%s_%d_%d", inputhist.GetName(), int(ptmin), int(ptmax)), ptbin+1, ptbin+1);
   result->SetDirectory(nullptr);
+  normalizeBinWidth(result);
   result->Scale(1./result->Integral());   // Transform to per-jet yield
   return result;
 }
