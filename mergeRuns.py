@@ -2,6 +2,7 @@
 from __future__ import print_function
 import getopt
 import logging
+import multiprocessing
 import os 
 import threading
 import sys
@@ -99,7 +100,7 @@ class Merger(threading.Thread):
         logging.info("Worker %d: Finished work", self.__workerID)
 
 
-def DoMerge(inputpath, filename, runlist = None):
+def DoMerge(inputpath, filename, runlist = None, nworkers = 10):
     mergedir = "%s/merged" %(inputpath)
     if not os.path.exists(mergedir):
         os.makedirs(mergedir, 0755)
@@ -138,8 +139,10 @@ def DoMerge(inputpath, filename, runlist = None):
         queue.push_back(os.path.join(outputdir, filename), GetFilelist(os.path.join(inputpath, pthard), filename, runlistlist))
     
     # start workers
+    nworkersused = max(min(nworkers, multiprocessing.cpu_count()-2), 1);
+    logging.info("Using %d parallel mergers" %nworkersused)
     workers = []
-    for wid in range(0, 10):
+    for wid in range(0, nworkersused):
         myworker = Merger(wid, queue)
         myworker.start()
     
@@ -157,6 +160,7 @@ def usage():
     print("Options:")
     print(" -f/--file=:     Name of the file to be merged")
     print(" -r/--runlist=:  Use runlist for merging")
+    print(" -n/--nworkers=: Number of parallel mergers (default: number of CPU - 2, max: Number of CPU - 2")
     print(" -h/--help:      Printing usage instructions")
 
 if __name__ == "__main__":
@@ -168,14 +172,17 @@ if __name__ == "__main__":
     inputpath = sys.argv[1]
     rootfile = "AnalysisResults.root"
     runlist = None
+    nworkers = None
     if len(sys.argv) > 2:
         try:
-            opt,arg = getopt.getopt(sys.argv[2:], "f:r:h", ["file=", "runlist=", "help"])
+            opt,arg = getopt.getopt(sys.argv[2:], "f:n:r:h", ["file=", "nworkers=", "runlist=", "help"])
             for o,a in opt:
                 if o in ("-f", "--file"):
                     rootfile = a
                 elif o in ("-r", "--runlist"):
                     runlist = a
+                elif o in ("-n", "--nworkers"):
+                    nworkers =  int(a)
                 elif o in ("-h", "--help"):
                     usage()
                     sys.exit(1)
@@ -183,4 +190,7 @@ if __name__ == "__main__":
             logging.error("Invalid option: %s" %e)
             usage()
             sys.exit(1)
-    DoMerge(inputpath, rootfile, runlist)
+    if nworkers:
+        DoMerge(inputpath, rootfile, runlist, nworkers)
+    else:
+        DoMerge(inputpath, rootfile, runlist)
