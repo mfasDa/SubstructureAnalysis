@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 from __future__ import print_function
+import getopt
 import logging
 import os 
 import threading
@@ -13,13 +14,24 @@ def ExecMerge(outputfile, filelist):
         mergecommand += " %s" %(gridfile)
     os.system(mergecommand)
 
-def GetFilelist(inputpath, filename):
+def GetFilelist(inputpath, filename, runlist = None):
     logging.debug("walking %s" %inputpath)
     result = []
     for root, dirs, files in os.walk(inputpath):
         for f in files:
-            if filename in f:
-                result.append(os.path.join(root, f))
+            if filename in f:  
+                fullfilename = os.path.join(root, f)
+                isSelectedRun = True
+                if runlist:
+                    isSelectedRun = False
+                    for r in runlist:
+                        if str(r) in fullfilename:
+                            logging.info("Selected %s for run %d" %(fullfilename, r))
+                            isSelectedRun = True
+                    if not isSelectedRun:
+                        logging.info("No matching run found for %s" %fullfilename)
+                if isSelectedRun:
+                    result.append(os.path.join(root, fullfilename))
     return result
 
 class Workqueue:
@@ -87,32 +99,88 @@ class Merger(threading.Thread):
         logging.info("Worker %d: Finished work", self.__workerID)
 
 
-def DoMerge(inputpath, filename):
+def DoMerge(inputpath, filename, runlist = None):
     mergedir = "%s/merged" %(inputpath)
     if not os.path.exists(mergedir):
         os.makedirs(mergedir, 0755)
 
+    # prepare runlist (in case selected)
+    runlistlist = None
+    if runlist:
+        runlistlist = []
+        with open("%s/runlists_EMCAL/%s" %(os.path.dirname(os.path.abspath(sys.argv[0])), runlist)) as reader:
+            for line in reader:
+                line = line.rstrip().lstrip()
+                tokens = line.split(",")
+                for t in tokens:
+                    if not len(t):
+                        continue
+                    runlistlist.append(int(t))
+        logging.info("Using runlist %s:" %runlist)
+        logging.info("==========================")
+        logstr = str()
+        first = True
+        for r in runlistlist:
+            if not first:
+                logstr += ", "
+            else:
+                first = False
+            logstr += str(r)
+        logging.info(logstr)
+
+    # Put merge files in queue
     queue = Workqueue()
     for pthard in sorted(os.listdir(inputpath)):
         if not pthard.isdigit():
             continue
         logging.info("Merging all file from pt-hard bin %s" %(pthard))
         outputdir = os.path.join(mergedir, pthard)
-        queue.push_back(os.path.join(outputdir, filename), GetFilelist(os.path.join(inputpath, pthard), filename))
+        queue.push_back(os.path.join(outputdir, filename), GetFilelist(os.path.join(inputpath, pthard), filename, runlistlist))
     
+    # start workers
     workers = []
     for wid in range(0, 10):
         myworker = Merger(wid, queue)
         myworker.start()
     
+    # wait for done
     for worker in workers:
         worker.join()
     logging.info("Done")
 
+def usage():
+    print("usage: ./mergeRuns.py OUTPUTDIR [OPTIONS]")
+    print("")
+    print("Merging all runs for a certain pt-hard bin,")
+    print("looping over all pt-hard bins.")
+    print("")
+    print("Options:")
+    print(" -f/--file=:     Name of the file to be merged")
+    print(" -r/--runlist=:  Use runlist for merging")
+    print(" -h/--help:      Printing usage instructions")
+
 if __name__ == "__main__":
     logging.basicConfig(format="[%(levelname)s] %(message)s", level = logging.INFO)
+    if(len(sys.argv) < 2):
+        logging.error("Too few arguments")
+        usage()
+        sys.exit(1)
     inputpath = sys.argv[1]
     rootfile = "AnalysisResults.root"
+    runlist = None
     if len(sys.argv) > 2:
-        rootfile = sys.argv[2]
-    DoMerge(inputpath, rootfile)
+        try:
+            opt,arg = getopt.getopt(sys.argv[2:], "f:r:h", ["file=", "runlist=", "help"])
+            for o,a in opt:
+                if o in ("-f", "--file"):
+                    rootfile = a
+                elif o in ("-r", "--runlist"):
+                    runlist = a
+                elif o in ("-h", "--help"):
+                    usage()
+                    sys.exit(1)
+        except getopt.GetoptError as e:
+            logging.error("Invalid option: %s" %e)
+            usage()
+            sys.exit(1)
+    DoMerge(inputpath, rootfile, runlist)
