@@ -1,6 +1,7 @@
 #ifndef __CLING__
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -68,7 +69,7 @@ void makePlotPearsonZgTemp(std::string_view filename){
         pearsonmatrix->Draw("colz");
 
         std::stringstream labeltext;
-        labeltext.setf(ios::fixed, ios::floatfield);
+        labeltext.setf(std::ios::fixed, std::ios::floatfield);
         labeltext << std::setprecision(1) << ptbin.fMin << " GeV/c < p_{t,part} < " << ptbin.fMax << " GeV/c";
         (new ROOT6tools::TNDCLabel(0.35, 0.91, 0.89, 0.96, labeltext.str().data()))->Draw();
 

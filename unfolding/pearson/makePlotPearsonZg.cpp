@@ -1,5 +1,6 @@
 #ifndef __CLING__
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -85,7 +86,7 @@ void makePlotPearsonZg(std::string_view filename){
         label->SetFillStyle(0);
         label->SetTextFont(42);
         std::stringstream labeltext;
-        labeltext.setf(ios::fixed, ios::floatfield);
+        labeltext.setf(std::ios::fixed, std::ios::floatfield);
         labeltext << std::setprecision(1) << ptbin.fMin << " GeV/c < p_{t,part} < " << ptbin.fMax << " GeV/c";
         label->AddText(labeltext.str().data());
         label->Draw();
