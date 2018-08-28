@@ -2,6 +2,7 @@
 #define __UNFOLDING_C__
 
 #ifndef __CLING__
+#include <iostream>
 #include <vector>
 #include <ROOT/TSeq.hxx>
 #include <TH2.h>
@@ -58,33 +59,86 @@ TH1 *MakeRefolded1D(const TH1 *histtemplate, const TH1 *unfolded, const RooUnfol
   return refolded;
 }
 
-TH2 *ProjectResponseObservable(RooUnfoldResponse &response, const char *name, const char *title, int binpttrue){
-  auto resptrue = response.Htruth(), respmeasured = response.Hmeasured();
-  auto matrix = response.Hresponse();
-  std::vector<double> binstrue = {resptrue->GetXaxis()->GetBinLowEdge(1)}, binsmeasured = {respmeasured->GetXaxis()->GetBinLowEdge(1)};
-  for(auto b : ROOT::TSeqI(0, resptrue->GetXaxis()->GetNbins())) {
-    binstrue.push_back(resptrue->GetXaxis()->GetBinUpEdge(b+1));
-  }
-  for(auto b : ROOT::TSeqI(0, respmeasured->GetXaxis()->GetNbins())) {
-    binsmeasured.push_back(respmeasured->GetXaxis()->GetBinUpEdge(b+1));
-  }
-  TH2D * hist = new TH2D(name, title, binstrue.size()-1, binstrue.data(), binsmeasured.size()-1, binsmeasured.data());
-  hist->Sumw2();
+TH2 *sliceResponseObservableBase(TH2 *responsematrix, TH2 *truth, TH2 *smeared, const char *nameObservable, int binpttrue = -1, int binptsmear = -1) {
+  const int nbinspttrue = truth->GetYaxis()->GetNbins(),
+            nbinsptsmear = smeared->GetYaxis()->GetNbins(),
+            nbinsobstrue = truth->GetXaxis()->GetNbins(),
+            nbinsobssmear = smeared->GetXaxis()->GetNbins();
 
-  for(auto binptrec : ROOT::TSeqI(0, respmeasured->GetYaxis()->GetNbins())){      // bins pt det
-    TH2D myptrecbin(*hist);
-    myptrecbin.Reset();
-    for(auto iobstrue : ROOT::TSeqI(0, resptrue->GetNbinsX())) {
-      for(auto iobsmeas : ROOT::TSeqI(0, respmeasured->GetNbinsX())) {
-        int ibinmeas = iobsmeas + (binptrec * binsmeasured.size()-1),
-            ibintrue = iobstrue + (binpttrue * binstrue.size() -1);
-        myptrecbin.SetBinContent(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
-        myptrecbin.SetBinError(iobstrue+1, iobsmeas+1, matrix->GetBinContent(matrix->GetXaxis()->FindBin(ibinmeas + 0.5), matrix->GetYaxis()->FindBin(ibintrue + 0.5)));
+  if(binpttrue > nbinspttrue) return nullptr;
+  if(binptsmear > nbinsptsmear) return nullptr;
+
+  int binpttruemin = binpttrue < 0 ? 0 : binpttrue, binpttruemax = binpttrue < 0 ? nbinspttrue : binpttrue+1,
+      binptsmearmin = binptsmear < 0 ? 0 : binptsmear, binptsmearmax = binptsmear < 0 ? nbinsptsmear : binptsmear+1;
+
+  auto result = new TH2D(Form("responsematrix_slice%s_ptrue_%d_%d_ptsmear_%d_%d", nameObservable, binpttruemin, binpttruemax, binptsmearmin, binptsmearmax),
+                         Form("Response matrix sliced in %s for %.1f GeV/c < p_{t,true} < %.1f GeV/c and %.1f GeV/c < p_{t,meas} < %.1f GeV/c", nameObservable, 
+                                                    truth->GetYaxis()->GetBinLowEdge(binpttruemin+1), truth->GetYaxis()->GetBinLowEdge(binpttruemax+1), 
+                                                    smeared->GetYaxis()->GetBinLowEdge(binptsmearmin+1), smeared->GetYaxis()->GetBinLowEdge(binptsmearmax+1)),
+                         nbinsobssmear, smeared->GetXaxis()->GetXbins()->GetArray(), nbinsobstrue, smeared->GetXaxis()->GetXbins()->GetArray());
+  TH2D work(*result);
+  for(int mypttruebin : ROOT::TSeqI(binpttruemin, binpttruemax)){
+    std::cout << "adding true pt bin " << mypttruebin << " (" << truth->GetYaxis()->GetBinLowEdge(mypttruebin+1) << " ... " << truth->GetYaxis()->GetBinUpEdge(mypttruebin+1) << ")" << std::endl;
+    for(int mypttsmearbin : ROOT::TSeqI(binptsmearmin, binptsmearmax)){
+      std::cout << "adding measured pt bin " << mypttsmearbin << " (" << smeared->GetYaxis()->GetBinLowEdge(mypttsmearbin+1) << " ... " << smeared->GetYaxis()->GetBinUpEdge(mypttsmearbin+1) << ")" << std::endl;
+      work.Reset();
+      for(auto binshapesmear : ROOT::TSeqI(0, nbinsobssmear)){
+        int indexsmear = mypttsmearbin * nbinsobssmear + binshapesmear;
+        for(auto binshapetrue : ROOT::TSeqI(0, nbinsobstrue)){
+          int indextrue = mypttruebin * nbinsobstrue + binshapetrue;
+          work.SetBinContent(binshapesmear+1, binshapetrue+1, responsematrix->GetBinContent(indexsmear+1, indextrue+1));
+          work.SetBinError(binshapesmear+1, binshapetrue+1, responsematrix->GetBinError(indexsmear+1, indextrue+1));
+        }
       }
+      result->Add(&work);
     }
-    hist->Add(&myptrecbin);
   }
-  return hist;
+  return result;
+}
+
+TH2 *sliceResponsePtBase(TH2 *responsematrix, TH2 *truth, TH2 *smeared, const char *nameObservable, int binobstrue = -1, int binobssmear = -1){
+  const int nbinspttrue = truth->GetYaxis()->GetNbins(),
+            nbinsptsmear = smeared->GetYaxis()->GetNbins(),
+            nbinsobstrue = truth->GetXaxis()->GetNbins(),
+            nbinsobssmear = smeared->GetXaxis()->GetNbins();
+
+  if(binobstrue > nbinsobstrue) return nullptr;
+  if(binobssmear > nbinsobssmear) return nullptr;
+
+  int binobstruemin = binobstrue < 0 ? 0 : binobstrue, binobstruemax = binobstrue < 0 ? nbinsobstrue : binobstrue+1,
+      binobssmearmin = binobssmear < 0 ? 0 : binobssmear, binobssmearmax = binobssmear < 0 ? nbinsobssmear : binobssmear+1;
+
+  auto result = new TH2D(Form("responsematrix_slicept_%strue_%d_%d_%ssmear_%d_%d", nameObservable, binobstruemin, binobstruemax, nameObservable, binobssmearmin, binobssmearmax),
+                         Form("Response matrix sliced in p_{t} for %.1f < %s_{true} < %.2f  and %.2f < %s_{meas} < %.2f", 
+                                                    truth->GetXaxis()->GetBinLowEdge(binobstruemin+1), nameObservable, truth->GetXaxis()->GetBinLowEdge(binobstruemax+1),
+                                                    smeared->GetXaxis()->GetBinLowEdge(binobssmearmin+1), nameObservable, smeared->GetXaxis()->GetBinLowEdge(binobssmearmax+1)),
+                         nbinsptsmear, smeared->GetYaxis()->GetXbins()->GetArray(), nbinspttrue, truth->GetYaxis()->GetXbins()->GetArray());
+  TH2D work(*result);
+  for(auto binshapetrue : ROOT::TSeqI(binobstruemin, binobstruemax)){
+    std::cout << "adding true shape bin " << binshapetrue << " (" << truth->GetXaxis()->GetBinLowEdge(binshapetrue+1) << " ... " << truth->GetXaxis()->GetBinUpEdge(binshapetrue+1) << ")" << std::endl;
+    for(auto binshapesmear : ROOT::TSeqI(binobssmearmin, binobssmearmax)){
+      std::cout << "adding measured shape bin " << binshapesmear << " (" << smeared->GetXaxis()->GetBinLowEdge(binshapesmear+1) << " ... " << smeared->GetXaxis()->GetBinUpEdge(binshapesmear+1) << ")" << std::endl;
+      work.Reset();
+      for(int mypttsmearbin : ROOT::TSeqI(0, nbinsptsmear)){
+        int indexsmear = mypttsmearbin * nbinsobssmear + binshapesmear;
+        for(int mypttruebin : ROOT::TSeqI(0, nbinspttrue)){
+          int indextrue = mypttruebin * nbinsobstrue + binshapetrue;
+          work.SetBinContent(mypttsmearbin+1, mypttruebin+1, responsematrix->GetBinContent(indexsmear+1, indextrue+1));
+          work.SetBinError(mypttsmearbin+1, mypttruebin+1, responsematrix->GetBinError(indexsmear+1, indextrue+1));
+        }
+      }
+      result->Add(&work);
+    }
+  }
+  return result;
+}
+
+TH2 *sliceRepsonseObservable(RooUnfoldResponse &response, const char *nameObservable, int binpttrue = -1, int binptsmear = -1) {
+  return sliceResponseObservableBase(response.Hresponse(), static_cast<TH2 *>(response.Htruth()), static_cast<TH2 *>(response.Hmeasured()), nameObservable,  binpttrue, binptsmear);
+}
+
+TH2 *sliceRepsonsePt(RooUnfoldResponse &response, const char *nameObservable, int binobstrue = -1, int binobssmear = -1) {
+  return sliceResponsePtBase(response.Hresponse(), static_cast<TH2 *>(response.Htruth()), static_cast<TH2 *>(response.Hmeasured()), nameObservable, binobstrue, binobssmear);
 }
 
 void CheckNormalized(const RooUnfoldResponse &response, int nbinsprobetrue, int nbinsprobesmear, int nbinspttrue, int nbinsptsmear){
@@ -105,7 +159,7 @@ void CheckNormalized(const RooUnfoldResponse &response, int nbinsprobetrue, int 
   }
 }
 
-TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *title,
+TH2D *CorrelationHistPt(const TMatrixD &cov, const char *name, const char *title,
                            Int_t nBinsShape, Int_t nBinsPt, Int_t kBinShapeTrue) { 
   auto pearson = new TH2D(name, title, nBinsPt, 0, nBinsPt, nBinsPt, 0, nBinsPt);
   for (auto x : ROOT::TSeqI(0, nBinsPt)) {
@@ -119,7 +173,7 @@ TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *ti
   return pearson;
 }
 
-TH2D *CorrelationHistPt(const TMatrixD &cov, const char *name, const char *title,
+TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *title,
                         Int_t nbinsShapeTrue, Int_t nbinsPtTrue, Int_t kBinPtTrue) {
   auto pearson = new TH2D(name, title, nbinsShapeTrue, 0, nbinsShapeTrue, nbinsShapeTrue, 0, nbinsShapeTrue);
   for (auto x : ROOT::TSeqI(0, nbinsShapeTrue)) {

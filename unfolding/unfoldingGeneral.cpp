@@ -146,7 +146,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     efficiencies.emplace_back(efficiency);
   }
 
-  using resultformat = std::tuple<int, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, std::vector<TH2 *>, std::vector<TH2 *>, std::vector<TH2 *>>;
+  using resultformat = std::tuple<int, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, TH2 *, std::vector<TH2 *>, std::vector<TH2 *>>;
   const Int_t NWORKERS = 10;
   const Int_t MAXITERATIONS = 35;
   auto workitem = [&](int workerID) {
@@ -189,18 +189,12 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
       TMatrixD covmat = unfold.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
       std::vector<TH2 *> shapematrices, ptmatrices, responseMatricesShape;
       for (auto k : ROOT::TSeqI(0, h2true->GetNbinsX()))
-        shapematrices.emplace_back(CorrelationHistShape(covmat, Form("pearsonmatrix_iter%d_bin%s%d", niter, observable.data(), k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
+        ptmatrices.emplace_back(CorrelationHistPt(covmat, Form("pearsonmatrix_iter%d_bin%s%d", niter, observable.data(), k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
 
       for (auto k : ROOT::TSeqI(0, h2true->GetNbinsY()))
-        ptmatrices.emplace_back(CorrelationHistPt(covmat, Form("pearsonmatrix_iter%d_binpt%d", niter, k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
+        shapematrices.emplace_back(CorrelationHistShape(covmat, Form("pearsonmatrix_iter%d_binpt%d", niter, k), "Covariance matrix", h2true->GetNbinsX(), h2true->GetNbinsY(), k));
       
-      for(auto k : ROOT::TSeqI(0, h2true->GetNbinsY()))
-        responseMatricesShape.emplace_back(ProjectResponseObservable(response, 
-                                  Form("responsematrix_iter%d_pt_%d_%d", niter, int(h2true->GetYaxis()->GetBinLowEdge(k+1)), int(h2true->GetYaxis()->GetBinUpEdge(k+1))), 
-                                  Form("Response matrix iteration %d %.1f GeV/c < p_{t, part} < %.1f GeV/c", niter, h2true->GetYaxis()->GetBinLowEdge(k+1), h2true->GetYaxis()->GetBinUpEdge(k+1)),
-                                  k));
-      
-      result.emplace_back(std::make_tuple(niter, hunf, hfold, hunfClosure, hunfSelfClosure, hfoldClosure, hfoldSelfClosure, shapematrices, ptmatrices, responseMatricesShape));
+      result.emplace_back(std::make_tuple(niter, hunf, hfold, hunfClosure, hunfSelfClosure, hfoldClosure, hfoldSelfClosure, shapematrices, ptmatrices));
       nstep++;
     }
     return result;
@@ -235,6 +229,24 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   h2trueNoClosure->Write();
   h2fulleff->Write();
 
+  auto responseMatrix2D = response.Hresponse();
+  responseMatrix2D->SetName("ResponseMatrix2D");
+  responseMatrix2D->Write();
+
+  // project response matrices
+  fout->mkdir("sliceresponse");
+  fout->cd("sliceresponse");
+  for(auto binpttrue : ROOT::TSeqI(0, h2true->GetYaxis()->GetNbins())){
+    for(auto binptsmear : ROOT::TSeqI(0, h2smeared->GetYaxis()->GetNbins())){
+      sliceRepsonseObservable(response, observable.data(), binpttrue, binptsmear)->Write();
+    }
+  }
+  for(auto binshapetrue : ROOT::TSeqI(0, h2true->GetXaxis()->GetNbins())){
+    for(auto binshapesmear : ROOT::TSeqI(0, h2smeared->GetXaxis()->GetNbins())){
+      sliceRepsonsePt(response, observable.data(), binshapetrue, binshapesmear)->Write();
+    }
+  }
+
   for(auto u : unfoldingresult) {
     std::string dirname(Form("iteration%d", std::get<0>(u)));
     fout->mkdir(dirname.data());
@@ -248,6 +260,5 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     std::get<6>(u)->Write();                        // Refolded, MC self-closure
     for(auto m : std::get<7>(u)) m->Write();        // Correlation shape
     for(auto m : std::get<8>(u)) m->Write();        // Correlation pt
-    for(auto m : std::get<9>(u)) m->Write();        // Response shape
   }
 }
