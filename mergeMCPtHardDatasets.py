@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 from __future__ import print_function
-import getopt
+import argparse
 import logging
 import multiprocessing
 import os
@@ -140,20 +140,10 @@ def mergemcptharddatasets(inputdir, basename, mergedir, nworkrequest):
 
 if __name__ == "__main__":
     logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
-    mergefile = "AnalysisResults.root"
-    mergdir = "merged"
-    nworkers = multiprocessing.cpu_count()
-    if len(sys.argv) > 2:
-        try:
-            opt, arg = getopt.getopt(sys.argv[2:], "f:m:n:", ["file=", "nworkers=", "mergedir="])
-            for o, a in opt:
-                if o in ("-f" , "--file"):
-                    mergefile = a
-                elif o in ("-n", "--nworkers"):
-                    nworkers = int(a)
-                elif o in ("-m", "--mergedir"):
-                    mergedir = a
-        except getopt.GetoptError as e:
-            logging.error("Invalid option: %s" %e)
-            sys.exit(1)
-    mergemcptharddatasets(sys.argv[1], mergefile, mergedir, nworkers)
+    parser = argparse.ArgumentParser(prog = "./mergeMCPtHardDatasets.py", description = "Merging pt-hard bins from multiple pt-hard datasets")
+    parser.add_argument("basedir", meta = "BASEDIR", help = "Directory where to find the productions")
+    parser.add_argument("-f" , "--file", type = str, default = "AnalysisResults.root", help = "ROOT file to be merged (default: AnalysisResults.root)")
+    parser.add_argument("-m", "--mergedir", type = str, default = "merged", help = "Directory of the period-merged output (default: merged)")
+    parser.add_argument("-n", "--nworkers", type = int, default = multiprocessing.cpu_count(), help = "Number of parallel workers")
+    args = parser.parse_args()
+    mergemcptharddatasets(args.basedir, args.file, args.mergedir, args.nworkers)
