@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 from __future__ import print_function
-import getopt
+import argparse
 import logging
 import multiprocessing
 import os 
@@ -100,10 +100,11 @@ class Merger(threading.Thread):
         logging.info("Worker %d: Finished work", self.__workerID)
 
 
-def DoMerge(inputpath, filename, runlist = None, nworkers = 10):
-    mergedir = "%s/merged" %(inputpath)
+def DoMerge(inputpath, filename, runlist, nworkers, outmergedir):
+    mergedir = os.path.join(inputpath, outmergedir)
     if not os.path.exists(mergedir):
         os.makedirs(mergedir, 0755)
+    logging.info("Merging runs in pt-hard bins from %s to %s" %(inputpath, mergedir))
 
     # prepare runlist (in case selected)
     runlistlist = None
@@ -151,46 +152,13 @@ def DoMerge(inputpath, filename, runlist = None, nworkers = 10):
         worker.join()
     logging.info("Done")
 
-def usage():
-    print("usage: ./mergeRuns.py OUTPUTDIR [OPTIONS]")
-    print("")
-    print("Merging all runs for a certain pt-hard bin,")
-    print("looping over all pt-hard bins.")
-    print("")
-    print("Options:")
-    print(" -f/--file=:     Name of the file to be merged")
-    print(" -r/--runlist=:  Use runlist for merging")
-    print(" -n/--nworkers=: Number of parallel mergers (default: number of CPU - 2, max: Number of CPU - 2")
-    print(" -h/--help:      Printing usage instructions")
-
 if __name__ == "__main__":
     logging.basicConfig(format="[%(levelname)s] %(message)s", level = logging.INFO)
-    if(len(sys.argv) < 2):
-        logging.error("Too few arguments")
-        usage()
-        sys.exit(1)
-    inputpath = sys.argv[1]
-    rootfile = "AnalysisResults.root"
-    runlist = None
-    nworkers = None
-    if len(sys.argv) > 2:
-        try:
-            opt,arg = getopt.getopt(sys.argv[2:], "f:n:r:h", ["file=", "nworkers=", "runlist=", "help"])
-            for o,a in opt:
-                if o in ("-f", "--file"):
-                    rootfile = a
-                elif o in ("-r", "--runlist"):
-                    runlist = a
-                elif o in ("-n", "--nworkers"):
-                    nworkers =  int(a)
-                elif o in ("-h", "--help"):
-                    usage()
-                    sys.exit(1)
-        except getopt.GetoptError as e:
-            logging.error("Invalid option: %s" %e)
-            usage()
-            sys.exit(1)
-    if nworkers:
-        DoMerge(inputpath, rootfile, runlist, nworkers)
-    else:
-        DoMerge(inputpath, rootfile, runlist)
+    parser = argparse.ArgumentParser(prog="mergeRuns.py", description="Merging all runs for a certain pt-hard bin, looping over all pt-hard bins.")
+    parser.add_argument("inputpath", metavar="INPUTPATH", type=str, help="Base directory")
+    parser.add_argument("-f", "--filename", help="Name of the file to be merged", default="AnalysisResults.root")
+    parser.add_argument("-r", "--runlist", help="Use runlist for merging")
+    parser.add_argument("-m", "--mergedir", type=str, default = "merged", help="Output directory for merged files")
+    parser.add_argument("-n", "--nworkers", type=int, default = multiprocessing.cpu_count() - 2, help = "Number of parallel mergers (default: number of CPU - 2, max: Number of CPU - 2")
+    args = parser.parse_args()
+    DoMerge(inputpath = args.inputpath, filename = args.filename, runlist = args.runlist, nworkers = args.nworkers, outmergedir = args.mergedir)
