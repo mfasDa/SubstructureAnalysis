@@ -196,34 +196,38 @@ class AlienTool:
             return result
 
     def fetchtokeninfo(self):
-        outstrings = subprocess.check_output("alien-token-info").split("\n")
-        token = AlienToken()
-        for info in outstrings:
-            if not ":" in info:
-                continue
-            key = info[:info.find(":")].rstrip().lstrip()
-            value = info[info.find(":")+1:].rstrip().lstrip() 
-            if not len(value):
-                continue
-            if key == "Host":
-                token.Hostname = value
-            elif key == "Port":
-                token.Port = int(value)
-            elif key == "Port2":
-                token.Port2 = int(value)
-            elif key == "User":
-                token.User = value
-            elif key == "Pwd":
-                token.Pwd = value
-            elif key == "Nonce":
-                token.Nonce = value
-            elif key == "SID":
-                token.Sid = int(value)
-            elif key == "Enc.Rep":
-                token.Enc = int(value)
-            elif key == "Expires":
-                token.Expdate = value
-        return token
+        try:
+            outstrings = subprocess.check_output("alien-token-info").split("\n")
+            token = AlienToken()
+            for info in outstrings:
+                if not ":" in info:
+                    continue
+                key = info[:info.find(":")].rstrip().lstrip()
+                value = info[info.find(":")+1:].rstrip().lstrip() 
+                if not len(value):
+                    continue
+                if key == "Host":
+                    token.Hostname = value
+                elif key == "Port":
+                    token.Port = int(value)
+                elif key == "Port2":
+                    token.Port2 = int(value)
+                elif key == "User":
+                    token.User = value
+                elif key == "Pwd":
+                    token.Pwd = value
+                elif key == "Nonce":
+                    token.Nonce = value
+                elif key == "SID":
+                    token.Sid = int(value)
+                elif key == "Enc.Rep":
+                    token.Enc = int(value)
+                elif key == "Expires":
+                    token.Expdate = value
+            return token
+        except subprocess.CalledProcessError as e:
+            logging.error("Failed getting token info: %s" %e)
+            return None
 
 
     def handletoken(self):
@@ -240,6 +244,8 @@ class AlienTool:
     
     def checktoken(self):
         token = self.fetchtokeninfo()
+        if not token:
+            return False
         logging.debug("Checking token:: %s" %(str(token)))
         if not token.isvalid():
             # Check for expired token
@@ -292,6 +298,17 @@ class DataPool :
         return result
 
 class CopyHandler(threading.Thread):
+
+    class UnzipExcpetion(Exception):
+
+        def __init__(self, filename):
+            self.__filename = filename
+        
+        def getFilename(filename):
+            return self.__filename
+
+        def __str__(self):
+            return "Failure in unzipping %s" %self.__filename
   
     def __init__(self):
         threading.Thread.__init__(self)
@@ -316,11 +333,15 @@ class CopyHandler(threading.Thread):
         if not ".zip" in filename or not os.path.exists(filename):
             return
         cwd = os.getcwd()
-        os.chdir(os.path.dirname(filename))
-        #unzip
-        myarchive = zipfile.ZipFile(os.path.basename(filename))
-        myarchive.extractall()
-        os.chdir(cwd)
+        try:
+            os.chdir(os.path.dirname(filename))
+            #unzip
+            myarchive = zipfile.ZipFile(os.path.basename(filename))
+            myarchive.extractall()
+        except Exception:
+            raise UnzipException(filename)
+        finally:
+            os.chdir(cwd)
 
     def __waitforwork(self):
         if self.__datapool.getpoolsize():
@@ -352,7 +373,23 @@ class CopyHandler(threading.Thread):
                         self.__datapool.insert_pool(nextfile)
                 else:
                     # Copy successfull - extract the zipfile (if it is a zipfile)
-                    self.__extractZipfile(nextfile.target())
+                    try:
+                        self.__extractZipfile(nextfile.target())
+                    except UnzipException as e:
+                        # Failed unzipping
+                        logging.error(e)
+                        # remove target
+                        try:
+                            os.remove(nextfile.target)
+                        except Exception:
+                            pass
+                        trials += 1
+                        if trials >= self.__maxtrials:
+                            logging.error("File %s failed copying in %d trials - giving up", nextfile.source(), self.__maxtrials)
+                        else:
+                            logging.error("File %s failed copying (%d/%d) - re-inserting into the pool ...", nextfile.source(), trials, self.__maxtrials)
+                            nextfile.setntrials(trials)
+                            self.__datapool.insert_pool(nextfile)
             if not self.__poolfiller.isactive():
                 # if pool is empty exit, else keep thread alive for remaining files
                 if not self.__datapool.getpoolsize():
