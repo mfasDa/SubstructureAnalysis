@@ -2,8 +2,8 @@
 
 from __future__ import print_function
 
+import argparse
 import commands
-import getopt
 import getpass
 import hashlib
 import logging
@@ -30,8 +30,8 @@ class AlienToken(object):
     
     def __str__(self):
         hostnamestr = self.__hostname if self.__hostname else "None"
-        portstr = "%d" %(sef.__port) if self.__port else "None"
-        port2str = "%d" %(sef.__port2) if self.__port else "None"
+        portstr = "%d" %(self.__port) if self.__port else "None"
+        port2str = "%d" %(self.__port2) if self.__port else "None"
         userstr = self.__user if self.__user else "None"
         pwdstr = self.__pwd if self.__pwd else "None"
         noncestr = self.__nonce if self.__nonce else "None"
@@ -531,43 +531,17 @@ def transfer(sample, trainrun, outputlocation, targetfile, nstream):
     for worker in copyworkers:
         worker.join()
 
-
-def usage():
-    print("Usage: ./copyFromGrid.py SAMPLE TRAINRUN OUTPUTPATH [OPTIONS]")
-    print("")
-    print("Arguments:")
-    print("  SAMPLE:     Path in alien to the sample base directory")
-    print("  TRAINRUN:   Full name of the train run (i. e. PWGJE/Jets_EMC_pp_MC/xxxx)")
-    print("  OUTPUTPATH: Local directory where to write the output to")
-    print("")
-    print("Options:")
-    print("  -f/--file=:    Name of the file to be transferred (default: root_archive.zip)")
-    print("  -d/--debug:    Run with increased debug level")
-    print("  -n/--nstream=: Number of parallel streams (default: 4)")
-
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        usage()
-        sys.exit(1)
-    sample = sys.argv[1]
-    trainrun = sys.argv[2]
-    outputpath = str(sys.argv[3])
-    outputfile = "root_archive.zip"
-    debugging = False
-    nstream = 4
-    try:
-        opt, arg = getopt.getopt(sys.argv[4:], "f:dn:", ["file=", "debug", "nstream="])
-        for o, a in opt:
-            if o in ("-d", "--debug"):
-                debugging = True
-            if o in ("-f", "--file"):
-                outputfile = a
-            if o in ("-n", "--nstream"):
-                nstream = int(a)
-    except getopt.getopterror as e:
-        sys.exit(1)
+    parser = argparse.ArgumentParser(prog = "copyFromGrid.py", "Copy files from pt-hard production run-by-run")
+    parser.add_argument("sample", metavar = "SAMPLE", help="Path in alien to the sample base directory")
+    parser.add_argument("trainrun", metavar = "TRAINRUN", help = "Full name of the train run (i. e. PWGJE/Jets_EMC_pp_MC/xxxx)")
+    parser.add_argument("outputpath", metavar = "OUTPUTPATH", help = "Local directory where to write the output to")
+    parser.add_argument("-d", "--debug", action = "store_true",  help = "Run with increased debug level")
+    parser.add_argument("-f", "--file", type = str, default = "root_archive.zip", help = "Name of the file to be transferred (default: root_archive.zip)")
+    parser.add_argument("-n", "--nstream", type = int, default = 4, help = "Number of parallel streams (default: 4)")
+    args = parser.parse_args()
     loglevel=logging.INFO
-    if debugging:
+    if args.debug:
         loglevel = logging.DEBUG
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=loglevel)
-    transfer(sample, trainrun, outputpath, outputfile, nstream)
+    transfer(args.sample, args.trainrun, args.outputpath, args.file, args.nstream)
