@@ -61,7 +61,7 @@ std::pair<double, double> getValueRange(const TGraphErrors *graph) {
   return {min, max};
 }
 
-void ConvergenceZgSum(const std::string_view infile) {
+void ConvergenceSumPt_zg(const std::string_view infile) {
   auto data = readIterations(infile);
   int nbinszg = data[1]->GetXaxis()->GetNbins();
   auto filebase = getFileTag(infile);

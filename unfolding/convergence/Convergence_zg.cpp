@@ -1,4 +1,7 @@
 #ifndef __CLING__
+#include <cstdlib>
+#include <climits>
+#include <cfloat>
 #include <map>
 #include <memory.h>
 #include <mutex>
@@ -14,6 +17,8 @@
 #include "TNDCLabel.h"
 #include "TSavableCanvas.h"
 #endif
+
+#include "../../helpers/msl.C"
 
 TGraphErrors *getConvergence(std::map<int, TH2 *> &data, int ptbin, int zgbin) {
   TGraphErrors *result = new TGraphErrors(35);
@@ -53,10 +58,10 @@ std::pair<double, double> getValueRange(const TGraphErrors *graph) {
   return {min, max};
 }
 
-void ConvergenceZg(const std::string_view infile, double ptmincut = -1., double ptmaxcut = 10000.) {
+void Convergence_zg(const std::string_view infile, double ptmincut = -1., double ptmaxcut = 10000.) {
   auto data = readIterations(infile);
   int nbinszg = data[1]->GetXaxis()->GetNbins();
-  auto filebase = infile.substr(0, infile.find(".root"));
+  auto filebase = getFileTag(infile);
   for(auto ptbin : ROOT::TSeqI(0, data[1]->GetYaxis()->GetNbins())){
     auto ptmin = data[1]->GetYaxis()->GetBinLowEdge(ptbin+1), ptmax = data[1]->GetYaxis()->GetBinUpEdge(ptbin+1); 
     if(ptmin < ptmincut) continue;
