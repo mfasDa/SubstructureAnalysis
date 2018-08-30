@@ -16,7 +16,7 @@ import threading
 import zipfile
 
 class AlienToken(object):
-    
+
     def __init__(self, hostname = None, port = None, port2 = None, user = None, pwd = None, nonce = None, sid = None, enc = None, expdate = None):
         self.__hostname = hostname
         self.__port = port
@@ -27,7 +27,7 @@ class AlienToken(object):
         self.__sid = sid
         self.__enc = enc
         self.__expdate = self.__convertstructtm(expdate) if expdate else None
-    
+
     def __str__(self):
         hostnamestr = self.__hostname if self.__hostname else "None"
         portstr = "%d" %(self.__port) if self.__port else "None"
@@ -113,7 +113,7 @@ class AlienToken(object):
     Hostname = property(gethost, sethost)
     Port = property(getport, setport)
     Port2 = property(getport2, setport2)
-    User = property(getuser, setuser)    
+    User = property(getuser, setuser)
     Pwd = property(getpwd, setpwd)
     Nonce = property(getnonce, setnonce)
     Sid = property(getsid, setsid)
@@ -177,7 +177,7 @@ class AlienTool:
 
     def listdir(self, inputdir):
         # Function must be robust agianst error states which
-        # it can only get from the stdout. As long as the 
+        # it can only get from the stdout. As long as the
         # request ends in error state it should retry
         errorstate = True
         while errorstate:
@@ -203,7 +203,7 @@ class AlienTool:
                 if not ":" in info:
                     continue
                 key = info[:info.find(":")].rstrip().lstrip()
-                value = info[info.find(":")+1:].rstrip().lstrip() 
+                value = info[info.find(":")+1:].rstrip().lstrip()
                 if not len(value):
                     continue
                 if key == "Host":
@@ -436,7 +436,7 @@ class PoolFiller(threading.Thread):
         return int(idstring.split("_")[0])
 
     def __get_legotrain(self):
-        return self.__trainrun[0:self.__trainrun.rfind("/")] 
+        return self.__trainrun[0:self.__trainrun.rfind("/")]
 
     def __extract_trainid(self, directory):
         return int(directory.split("_")[0])
@@ -485,7 +485,7 @@ class PoolFiller(threading.Thread):
                 legotrainsdir = os.path.join(tmppathtwo, legotrain)
                 mylegotrain = ""
                 for t in self.__alientool.listdir(legotrainsdir):
-                    logging.debug("traindir %s", t) 
+                    logging.debug("traindir %s", t)
                     if self.__extract_trainid(t) == trainid:
                         mylegotrain = t
                         break
@@ -505,7 +505,7 @@ class PoolFiller(threading.Thread):
                         self.__wait()
 
 def transfer(sample, trainrun, outputlocation, targetfile, nstream):
-    alientool = AlienTool()    
+    alientool = AlienTool()
     if not alientool.handletoken():
         logging.error("No valid token found. Please execute \"alien-token-init\" first")
         sys.exit(2)
