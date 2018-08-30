@@ -532,7 +532,7 @@ def transfer(sample, trainrun, outputlocation, targetfile, nstream):
         worker.join()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog = "copyFromGrid.py", "Copy files from pt-hard production run-by-run")
+    parser = argparse.ArgumentParser(prog = "copyFromGrid.py", description = "Copy files from pt-hard production run-by-run")
     parser.add_argument("sample", metavar = "SAMPLE", help="Path in alien to the sample base directory")
     parser.add_argument("trainrun", metavar = "TRAINRUN", help = "Full name of the train run (i. e. PWGJE/Jets_EMC_pp_MC/xxxx)")
     parser.add_argument("outputpath", metavar = "OUTPUTPATH", help = "Local directory where to write the output to")
