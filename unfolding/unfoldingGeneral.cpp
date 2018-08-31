@@ -44,8 +44,9 @@ struct binning {
 
 using datafunction = std::function<void (const std::string_view fiilename, double ptsmearmin, double ptsmearmax, TH2D *hraw)>;
 using mcfunction = std::function<void (const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &resp, RooUnfoldResponse &responsetrunc, RooUnfoldResponse &responseClosure)>;
+using reweightfunction = std::function<void (const TH2 *datafunction, TH2 *smeared, TH2 *smearedclosure)>;
 
-void unfoldingGeneral(const std::string_view observable, const std::string_view filedata, std::string_view filemc, const binning &histbinnings, datafunction dataextractor, mcfunction mcextractor, Bool_t enableImplicitMT = false){
+void unfoldingGeneral(const std::string_view observable, const std::string_view filedata, std::string_view filemc, const binning &histbinnings, datafunction dataextractor, mcfunction mcextractor, reweightfunction reweighter = nullptr, Bool_t enableImplicitMT = false){
   ROOT::EnableThreadSafety();
   if(enableImplicitMT){
     std::cout << "Using implicit MT" << std::endl;
@@ -130,6 +131,11 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     });
     datathread.join();
     mcthread.join();
+  }
+
+  // reweight
+  if(reweighter){
+    reweighter(hraw, h2smeared, h2smearedClosure);
   }
 
   /////////COMPUTE KINEMATIC EFFICIENCIES////////////////////
