@@ -24,6 +24,7 @@
 #include "RStringView.h"
 #include "TFile.h"
 #include "TH2D.h"
+#include "TList.h"
 #include "TROOT.h"
 #include "TStopwatch.h"
 
@@ -42,8 +43,8 @@ struct binning {
   std::vector<double> binshapesmear;
 };
 
-using datafunction = std::function<void (const std::string_view fiilename, double ptsmearmin, double ptsmearmax, TH2D *hraw)>;
-using mcfunction = std::function<void (const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &resp, RooUnfoldResponse &responsetrunc, RooUnfoldResponse &responseClosure)>;
+using datafunction = std::function<void (const std::string_view fiilename, double ptsmearmin, double ptsmearmax, TH2D *hraw, TList *optionals)>;
+using mcfunction = std::function<void (const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &resp, RooUnfoldResponse &responsetrunc, RooUnfoldResponse &responseClosure, TList *optionals)>;
 using reweightfunction = std::function<void (const TH2 *datafunction, TH2 *smeared, TH2 *smearedclosure)>;
 
 void unfoldingGeneral(const std::string_view observable, const std::string_view filedata, std::string_view filemc, const binning &histbinnings, datafunction dataextractor, mcfunction mcextractor, reweightfunction reweighter = nullptr, Bool_t enableImplicitMT = false){
@@ -85,6 +86,9 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   auto smearptmin = *(std::min_element(binptsmear.begin(), binptsmear.end()));
   auto smearptmax = *(std::max_element(binptsmear.begin(), binptsmear.end()));
 
+  // for optional histograms
+  TList optionals;
+
   if(enableImplicitMT) {
     // Read data an MC single-threaded as they are paralellized implicitly
 
@@ -92,7 +96,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     std::cout << "Data reader: Fill histograms from data" << std::endl;
     TStopwatch timerData;
     timerData.Start();
-    dataextractor(filedata, smearptmin, smearptmax, hraw);
+    dataextractor(filedata, smearptmin, smearptmax, hraw, &optionals);
     timerData.Stop();
     std::cout << "Data reader: Data ready, duration " << timerData.RealTime() << std::endl;
 
@@ -100,7 +104,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
     std::cout << "MCthread: Fill histograms from simulation" << std::endl;
     TStopwatch timerMC;
     timerMC.Start();
-    mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure);
+    mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure, &optionals);
     timerMC.Stop();
     std::cout << "MCthread: Response ready, duration " << timerMC.RealTime() << std::endl;
   } else {
@@ -115,7 +119,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
       std::cout << "Datathread: Fill histograms from data" << std::endl;
       TStopwatch timer;
       timer.Start();
-      dataextractor(filedata, smearptmin, smearptmax, hraw);
+      dataextractor(filedata, smearptmin, smearptmax, hraw, &optionals);
       timer.Stop();
       std::cout << "Datathread: Data ready, duration " << timer.RealTime() << std::endl;
     });
@@ -125,7 +129,7 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
       std::cout << "MCthread: Fill histograms from simulation" << std::endl;
       TStopwatch timer;
       timer.Start();
-      mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure);
+      mcextractor(filemc, smearptmin, smearptmax, h2true, h2trueClosure, h2trueNoClosure, h2smeared, h2smearedClosure, h2smearedNoClosure, h2smearednocuts, h2fulleff, response, responsenotrunc, responseMCclosure, &optionals);
       timer.Stop();
       std::cout << "MCthread: Response ready, duration " << timer.RealTime() << std::endl;
     });
@@ -234,6 +238,8 @@ void unfoldingGeneral(const std::string_view observable, const std::string_view 
   h2trueClosure->Write();
   h2trueNoClosure->Write();
   h2fulleff->Write();
+
+  for(auto o : optionals) o->Write();
 
   auto responseMatrix2D = response.Hresponse();
   responseMatrix2D->SetName("ResponseMatrix2D");

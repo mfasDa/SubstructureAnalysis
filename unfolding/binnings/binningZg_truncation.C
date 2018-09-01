@@ -1,36 +1,7 @@
 #ifndef __CLING__
 #include <vector>
+#include <RStringView.h>
 #endif
-
-std::vector<double> getZgBinningFine(){
-  std::vector<double> result;
-  result.push_back(0.);
-  for(double d = 0.1; d <= 0.5; d += 0.05) result.push_back(d);
-  return result;
-}
-
-std::vector<double> getZgBinningFineV1(){
-  std::vector<double> result;
-  result.push_back(0.);
-  for(double d = 0.1; d <= 0.3; d += 0.05) result.push_back(d);
-  for(double d = 0.4; d <= 0.5; d += 0.1) result.push_back(d);
-  return result;
-}
-
-std::vector<double> getZgBinningFineV1Part(){
-  std::vector<double> result;
-  result.push_back(0.);
-  for(double d = 0.1; d <= 0.3; d += 0.05) result.push_back(d);
-  result.push_back(0.5);
-  return result;
-}
-
-std::vector<double> getZgBinningFineFake(){
-  std::vector<double> result;
-  for(double d = 0.1; d <= 0.5; d += 0.05) result.push_back(d);
-  result.push_back(0.6);
-  return result;
-}
 
 std::vector<double> getZgBinningCoarse(){
   std::vector<double> result;
@@ -39,14 +10,10 @@ std::vector<double> getZgBinningCoarse(){
   return result;
 }
 
-std::vector<double> getMinBiasPtBinningRealisticOld() {
+std::vector<double> getMinBiasPtBinningDetLoose() {
   std::vector<double> result;
-  double current = 20;
+  double current = 10;
   result.push_back(current);
-  while(current < 30.) {
-    current += 2.;
-    result.push_back(current);
-  }
   while(current < 40.) {
     current += 5.;
     result.push_back(current);
@@ -66,9 +33,9 @@ std::vector<double> getMinBiasPtBinningRealisticOld() {
   return result;
 }
 
-std::vector<double> getMinBiasPtBinningRealistic() {
+std::vector<double> getMinBiasPtBinningDetStrong() {
   std::vector<double> result;
-  double current = 20;
+  double current = 25;
   result.push_back(current);
   while(current < 40.) {
     current += 5.;
@@ -110,36 +77,32 @@ std::vector<double> getMinBiasPtBinningPart() {
   return result;
 }
 
-std::vector<double> getMinBiasPtBinningPartOld() {
+std::vector<double> getEJ1PtBinningDetLoose(){
   std::vector<double> result;
-  double current = 0;
+  double current = 75.;
   result.push_back(current);
-  while(current < 20.) {
-    current += 20.;
+  while(current < 100.){
+    current += 5.;
     result.push_back(current);
   }
-  while(current < 40.) {
+  while(current < 120.){
     current += 10.;
     result.push_back(current);
   }
-  while(current < 80.) {
+  while(current < 160.){
     current += 20.;
     result.push_back(current);
   }
-  while(current < 160.) {
+  while(current < 200.){
     current += 40.;
-    result.push_back(current);
-  }
-  while(current < 240.) {
-    current += 80.;
     result.push_back(current);
   }
   return result;
 }
 
-std::vector<double> getEJ1PtBinningRealistic(){
+std::vector<double> getEJ1PtBinningDetStrong(){
   std::vector<double> result;
-  double current = 80.;
+  double current = 85.;
   result.push_back(current);
   while(current < 100.){
     current += 5.;
@@ -180,9 +143,32 @@ std::vector<double> getEJ1PtBinningPart(){
   return result;
 }
 
-std::vector<double> getEJ2PtBinningRealistic(){
+std::vector<double> getEJ2PtBinningDetLoose(){
   std::vector<double> result;
-  double current = 60.;
+  double current = 55.;
+  result.push_back(current);
+  while(current < 70.){
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 100.){
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 120.) {
+    current += 20.;
+    result.push_back(current);
+  }
+  while(current < 160.) {
+    current += 40.;
+    result.push_back(current);
+  }
+  return result;
+}
+
+std::vector<double> getEJ2PtBinningDetStrong(){
+  std::vector<double> result;
+  double current = 65.;
   result.push_back(current);
   while(current < 70.){
     current += 5.;
@@ -226,20 +212,18 @@ std::vector<double> getEJ2PtBinningPart(){
   return result;
 }
 
-std::vector<double> getPtBinningRealistic(const std::string_view trigger) {
+std::vector<double> getPtBinningRealistic(const std::string_view trigger, bool loose) {
   if(trigger == "INT7") {
-    //return getMinBiasPtBinningRealistic();
-    return getMinBiasPtBinningRealistic();
+    return loose ? getMinBiasPtBinningDetLoose() : getMinBiasPtBinningDetStrong();
   } else if(trigger == "EJ2") {
-    return getEJ2PtBinningRealistic();
+    return loose ? getEJ2PtBinningDetLoose() : getEJ2PtBinningDetStrong();
   } else if(trigger == "EJ1") {
-    return getEJ1PtBinningRealistic();
+    return loose ? getEJ1PtBinningDetLoose() : getEJ1PtBinningDetStrong();
   }
 }
 
 std::vector<double> getPtBinningPart(const std::string_view trigger) {
   if(trigger == "INT7") {
-    //return getMinBiasPtBinningPart();
     return getMinBiasPtBinningPart();
   } else if(trigger == "EJ2") {
     return getEJ2PtBinningPart();
@@ -247,18 +231,3 @@ std::vector<double> getPtBinningPart(const std::string_view trigger) {
     return getEJ1PtBinningPart();
   }
 }
-
-std::vector<double> getPtBinningFine(const std::string_view trigger) {
-  double ptmin, ptmax;
-  if(trigger == "INT7") {
-    ptmin = 20.; ptmax = 120.; 
-  } else if(trigger == "EJ2") {
-    ptmin = 60.; ptmax = 200.; 
-  } else if(trigger == "EJ1") {
-    ptmin = 80.; ptmax = 200.; 
-  }
-  std::vector<double> result;
-  for(auto mypt = ptmin; mypt <= ptmax; mypt+=5) result.push_back(mypt);
-  return result;
-}
-

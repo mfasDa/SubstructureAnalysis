@@ -1,4 +1,3 @@
-
 #ifndef __CLING__
 #include <iostream>
 #include <memory>
@@ -32,12 +31,12 @@ std::string getTrigger(const std::string_view filedata){
   return "";
 }
 
-void RunUnfoldingZg_weightedClosure(const std::string_view filedata, const std::string_view filemc, const std::string_view sysoption, double nefcut = 0.02, double fracSmearClosure = 0.5){
+void RunUnfoldingZgSys_priors(const std::string_view filedata, const std::string_view filemc, const std::string_view systematic, double nefcut = 0.02, double fracSmearClosure = 0.5){
   auto trigger = getTrigger(filedata);
   auto ptbinvec_smear = getPtBinningRealistic(trigger), 
        ptbinvec_true = getPtBinningPart(trigger),
-       zgbins_smear = getZgBinningCoarse(), //FineV1(),
-       zgbins_true = getZgBinningCoarse(); //FineV1Part(); //getZgBinningCoarse();
+       zgbins_smear = getZgBinningCoarse(),
+       zgbins_true = getZgBinningCoarse();
   auto dataextractor = [nefcut](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw, TList *optionals) {
     ROOT::RDataFrame recframe(GetNameJetSubstructureTree(filedata), filedata);
     //auto datahist = recframe.Filter(Form("NEFRec < 1-%f && NEFRec > %f && PtJetRec > %f && PtJetRec < %f", nefcut, nefcut, ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
@@ -45,6 +44,34 @@ void RunUnfoldingZg_weightedClosure(const std::string_view filedata, const std::
     *hraw = *datahist;
   };
   auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure, TList *optionals){
+    TH2 *weighthist(nullptr);
+    {
+      std::string repo = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/";
+      std::string weightfile = repo + "/" + basename(filename);
+      std::unique_ptr<TFile> weightreader(TFile::Open(weightfile.data(), "READ"));
+      TH2 *truehistPrior = static_cast<TH2 *>(weightreader->Get("true"));
+      truehistPrior->SetDirectory(nullptr);
+      weightreader->cd("iteration4");
+      TH2 *unfoldedhistPrior = static_cast<TH2 *>(gDirectory->Get("zg_unfolded_iter4"));
+      unfoldedhistPrior->SetDirectory(nullptr);
+
+      std::unique_ptr<TH1> integralsTrue(truehistPrior->ProjectionY("integralsTrue")),
+                           integralsUnfolded(unfoldedhistPrior->ProjectionY("integralsUnfolded"));
+      // renormalize by integral
+      for(auto b : ROOT::TSeqI(0, truehistPrior->GetYaxis()->GetNbins())){
+        auto scaletrue = integralsTrue->GetBinContent(b+1),
+             scaleunfolded = integralsUnfolded->GetBinContent(b+1);
+        for(auto c : ROOT::TSeqI(0, truehistPrior->GetXaxis()->GetNbins())) {
+          truehistPrior->SetBinContent(c+1, b+1, truehistPrior->GetBinContent(c+1, b+1) / scaletrue);
+          truehistPrior->SetBinError(c+1, b+1, truehistPrior->GetBinContent(c+1, b+1) / scaletrue);
+          unfoldedhistPrior->SetBinContent(c+1, b+1, unfoldedhistPrior->GetBinContent(c+1, b+1) / scaleunfolded);
+          unfoldedhistPrior->SetBinError(c+1, b+1, unfoldedhistPrior->GetBinContent(c+1, b+1) / scaleunfolded);
+        }
+      }
+      weighthist = static_cast<TH2 *>(histcopy(unfoldedhistPrior));
+      weighthist->SetName("priorweights");
+      weighthist->Divide(truehistPrior);
+    }
     std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
 
@@ -61,15 +88,16 @@ void RunUnfoldingZg_weightedClosure(const std::string_view filedata, const std::
       //if(*nefrec >= 1- nefcut) continue;
       //if(*nefrec < nefcut) continue;
       if(IsOutlier(*ptsim, *pthardbin, 10.)) continue;
-      h2fulleff->Fill(*zgSim, *ptsim, *weight);
+      auto priorweight = weighthist->GetBinContent(weighthist->GetXaxis()->FindBin(*zgSim), weighthist->GetYaxis()->FindBin(*ptsim));
+      h2fulleff->Fill(*zgSim, *ptsim, *weight * priorweight);
       h2smearednocuts->Fill(*zgRec, *ptrec, *weight);
-      responsenotrunc.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);
+      responsenotrunc.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight * priorweight);
 
       // apply reconstruction level cuts
       if(*ptrec > ptsmearmax || *ptrec < ptsmearmin) continue;
       h2smeared->Fill(*zgRec, *ptrec, *weight);
-      h2true->Fill(*zgSim, *ptsim, *weight);
-      response.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);
+      h2true->Fill(*zgSim, *ptsim, *weight * priorweight);
+      response.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight * priorweight);
 
       // split sample for closure test
       // test sample and response must be statistically independent
@@ -77,39 +105,15 @@ void RunUnfoldingZg_weightedClosure(const std::string_view filedata, const std::
       auto test = samplesplitter.Uniform();
       if(test < fracSmearClosure) {
         h2smearedClosure->Fill(*zgRec, *ptrec, *weight);
-        h2trueClosure->Fill(*zgSim, *ptsim, *weight);
+        h2trueClosure->Fill(*zgSim, *ptsim, *weight * priorweight);
       } else {
-        responseClosure.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);
+        responseClosure.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight * priorweight);
         h2smearedNoClosure->Fill(*zgRec, *ptrec, *weight);
-        h2trueNoClosure->Fill(*zgSim, *ptsim, *weight);
+        h2trueNoClosure->Fill(*zgSim, *ptsim, *weight * priorweight);
       }
     }
+    optionals->Add(weighthist);
   };
 
-  auto reweighter = [&sysoption](const TH2 *hdata, TH2 *hsmeared, TH2 *hsmearedclosure) {
-      // calculate weight: data / smear per slice pt
-      TRandom smearer;
-      auto issmeared = contains(sysoption, "smeared");
-      for(auto bpt : ROOT::TSeqI(0, hdata->GetYaxis()->GetNbins())){
-            std::unique_ptr<TH1> slicedata(hdata->ProjectionX("slicedata", bpt+1, bpt+1)),
-                               slicesmear(hsmeared->ProjectionX("slicesmear", bpt+1, bpt+1)),
-                               slicesmearclosure(hsmearedclosure->ProjectionX("slicesmearclosure", bpt+1, bpt+1));
-            slicedata->Scale(1./slicedata->Integral());
-            slicesmear->Scale(1./slicesmear->Integral());
-            slicesmearclosure->Scale(1./slicesmearclosure->Integral());
-            std::unique_ptr<TH1> weightsmear(histcopy(slicedata.get())), weightsmearclosure(histcopy(slicedata.get()));
-            weightsmear->Divide(slicesmear.get());
-            weightsmearclosure->Divide(slicesmearclosure.get());
-            for(auto bzg : ROOT::TSeqI(0, hsmeared->GetXaxis()->GetNbins())){
-                auto weight_standard = issmeared ? smearer.Gaus(weightsmear->GetBinContent(bzg+1), weightsmear->GetBinError(bzg+1)) : weightsmear->GetBinContent(bzg+1);
-                auto weight_closure = issmeared ? smearer.Gaus(weightsmearclosure->GetBinContent(bzg+1), weightsmearclosure->GetBinError(bzg+1)) : weightsmearclosure->GetBinContent(bzg+1);
-                hsmeared->SetBinContent(bzg+1, bpt+1, hsmeared->GetBinContent(bzg+1, bpt+1) * weight_standard);
-                hsmeared->SetBinError(bzg+1, bpt+1, hsmeared->GetBinError(bzg+1, bpt+1) * weight_standard);
-                hsmearedclosure->SetBinContent(bzg+1, bpt+1, hsmearedclosure->GetBinContent(bzg+1, bpt+1) * weight_closure);
-                hsmearedclosure->SetBinError(bzg+1, bpt+1, hsmearedclosure->GetBinError(bzg+1, bpt+1) * weight_closure);
-            }
-        }
-  };
-
-  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor, reweighter);
+  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor);
 }

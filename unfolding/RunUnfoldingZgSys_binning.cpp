@@ -1,4 +1,3 @@
-
 #ifndef __CLING__
 #include <iostream>
 #include <memory>
@@ -22,7 +21,7 @@
 #include "../helpers/pthard.C"
 #include "../helpers/string.C"
 #include "../helpers/substructuretree.C"
-#include "binnings/binningZg.C"
+#include "binnings/binningZg_bv.C"
 #include "unfoldingGeneral.cpp"
 
 std::string getTrigger(const std::string_view filedata){
@@ -32,12 +31,12 @@ std::string getTrigger(const std::string_view filedata){
   return "";
 }
 
-void RunUnfoldingZg_weightedClosure(const std::string_view filedata, const std::string_view filemc, const std::string_view sysoption, double nefcut = 0.02, double fracSmearClosure = 0.5){
+void RunUnfoldingSys_binning(const std::string_view filedata, const std::string_view filemc, const std::string_view systematic, double nefcut = 0.02, double fracSmearClosure = 0.5){
   auto trigger = getTrigger(filedata);
-  auto ptbinvec_smear = getPtBinningRealistic(trigger), 
+  auto ptbinvec_smear = getPtBinningRealistic(trigger, systematic), 
        ptbinvec_true = getPtBinningPart(trigger),
-       zgbins_smear = getZgBinningCoarse(), //FineV1(),
-       zgbins_true = getZgBinningCoarse(); //FineV1Part(); //getZgBinningCoarse();
+       zgbins_smear = getZgBinningCoarse(),
+       zgbins_true = getZgBinningCoarse();
   auto dataextractor = [nefcut](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw, TList *optionals) {
     ROOT::RDataFrame recframe(GetNameJetSubstructureTree(filedata), filedata);
     //auto datahist = recframe.Filter(Form("NEFRec < 1-%f && NEFRec > %f && PtJetRec > %f && PtJetRec < %f", nefcut, nefcut, ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
@@ -86,30 +85,5 @@ void RunUnfoldingZg_weightedClosure(const std::string_view filedata, const std::
     }
   };
 
-  auto reweighter = [&sysoption](const TH2 *hdata, TH2 *hsmeared, TH2 *hsmearedclosure) {
-      // calculate weight: data / smear per slice pt
-      TRandom smearer;
-      auto issmeared = contains(sysoption, "smeared");
-      for(auto bpt : ROOT::TSeqI(0, hdata->GetYaxis()->GetNbins())){
-            std::unique_ptr<TH1> slicedata(hdata->ProjectionX("slicedata", bpt+1, bpt+1)),
-                               slicesmear(hsmeared->ProjectionX("slicesmear", bpt+1, bpt+1)),
-                               slicesmearclosure(hsmearedclosure->ProjectionX("slicesmearclosure", bpt+1, bpt+1));
-            slicedata->Scale(1./slicedata->Integral());
-            slicesmear->Scale(1./slicesmear->Integral());
-            slicesmearclosure->Scale(1./slicesmearclosure->Integral());
-            std::unique_ptr<TH1> weightsmear(histcopy(slicedata.get())), weightsmearclosure(histcopy(slicedata.get()));
-            weightsmear->Divide(slicesmear.get());
-            weightsmearclosure->Divide(slicesmearclosure.get());
-            for(auto bzg : ROOT::TSeqI(0, hsmeared->GetXaxis()->GetNbins())){
-                auto weight_standard = issmeared ? smearer.Gaus(weightsmear->GetBinContent(bzg+1), weightsmear->GetBinError(bzg+1)) : weightsmear->GetBinContent(bzg+1);
-                auto weight_closure = issmeared ? smearer.Gaus(weightsmearclosure->GetBinContent(bzg+1), weightsmearclosure->GetBinError(bzg+1)) : weightsmearclosure->GetBinContent(bzg+1);
-                hsmeared->SetBinContent(bzg+1, bpt+1, hsmeared->GetBinContent(bzg+1, bpt+1) * weight_standard);
-                hsmeared->SetBinError(bzg+1, bpt+1, hsmeared->GetBinError(bzg+1, bpt+1) * weight_standard);
-                hsmearedclosure->SetBinContent(bzg+1, bpt+1, hsmearedclosure->GetBinContent(bzg+1, bpt+1) * weight_closure);
-                hsmearedclosure->SetBinError(bzg+1, bpt+1, hsmearedclosure->GetBinError(bzg+1, bpt+1) * weight_closure);
-            }
-        }
-  };
-
-  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor, reweighter);
+  unfoldingGeneral("zg", filedata, filemc, {ptbinvec_true, zgbins_true, ptbinvec_smear, zgbins_smear}, dataextractor, mcextractor);
 }
