@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import subprocess
+import sys
 
 class Testcase:
 
@@ -17,7 +18,7 @@ class Testcase:
     def getdatasubdir(self):
         return self.__datasubdir
 
-class Testrunner:
+class TestRunner:
 
     def __init__(self, repo, basedir, macro):
         self.__repo = repo
@@ -39,17 +40,20 @@ class Testrunner:
     def runall(self):
         # check whether macro is there  
         logging.info("Checking whether macro exist")
-        if not os.path.exists(t.getmacro()):
-            logging.info("Unfolding macro not found: %s", self.__macro)
+        if not os.path.exists(os.path.join(self.__repo, self.__macro)):
+            logging.info("Unfolding macro not found: %s, repo %s", self.__macro, self.__repo)
             return
         logging.info("Macro check successfull: %s found", self.__macro)
-        for t in self.__testcases:
+        for t in self.__tests:
             self.__runtest(t)
     
     def __runtest(self, testcase):
         logging.info("Running test: %s", testcase.getname())
-        outputdir = os.path.join(self.__basedir, testcase.getdatasubdir())
-        os.chdir(testcase.getoutputpath())
+        casedir = os.path.join(self.__basedir, testcase.getdatasubdir())
+        outputdir = os.path.join(casedir, "unfolded_zg_sys")
+        if not os.path.exists(outputdir):
+            os.makedirs(outputdir, 0755)
+        os.chdir(outputdirdir)
         mergedir_mc = "merged"
         for trg in self.__triggers:
             mergedir_data = "merged_1617" if trg == "INT7" else "merged_17"
@@ -59,15 +63,15 @@ class Testrunner:
                 filename_data = "JetSubstructureTree_FullJets_R%02d_%s.root" %(r, trg)
                 filename_mc = "JetSubstructureTree_FullJets_R%02d_%s_merged.root" %(r, trg)
                 logfile_unfolding = "logunfolding_R%02d_%s.log" %(r, trg)
-                datafile = os.path.join(os.getcwd(), "data", mergedir_data, filename_data)
-                mcfile = os.path.join(os.getcwd(), "mc", mergedir_mc, filename_mc)
+                datafile = os.path.join(casedir, "data", mergedir_data, filename_data)
+                mcfile = os.path.join(casedir, "mc", mergedir_mc, filename_mc)
                 if not os.path.exists(datafile):
                     logging.error("Data file %s not found", datafile)
                     continue
                 if not os.path.exists(mcfile):
-                logging.error("MC file %s not found", mcfile)
+                    logging.error("MC file %s not found", mcfile)
                     continue
-                command = "root -l -b -q \'%s(\"%s\", \"%s\")\' | tee %s" % (os.path.join(self.__repo, "unfolding", self.__macro), datafile, mcfile, logfile_unfolding)
+                command = "root -l -b -q \'%s(\"%s\", \"%s\")\' | tee %s" % (os.path.join(self.__repo, self.__macro), datafile, mcfile, logfile_unfolding)
                 subprocess.call(command, shell = True)
         # Run all plotters for the test case
         logfile_monitor = "logmonitor_R%02d.log" %(r)
@@ -94,8 +98,8 @@ if __name__ == "__main__":
     else:
         testsrequired = defaulttests
     testmanager = TestRunner(repo, database, "RunUnfoldingZgV1.cpp")
-    testmanager.definetriggers(["INT7", "EJ1", "EJ2"])
-    testmanager.defineradii([x for x in range(2, 6)])
+    testmanager.settriggers(["INT7", "EJ1", "EJ2"])
+    testmanager.setjetradii([x for x in range(2, 6)])
     testcases = {"trackingeff" : Testcase("trackingeff", "20180823_trackingeff"),
                  "emcalseed" : Testcase("emcalseed", "20180813_emchighthresh"),
                  "emcaltimeloose" : Testcase("emcaltimeloose", "20180823_emcalloosetimecut"),
