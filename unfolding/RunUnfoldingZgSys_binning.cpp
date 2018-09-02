@@ -31,7 +31,7 @@ std::string getTrigger(const std::string_view filedata){
   return "";
 }
 
-void RunUnfoldingSys_binning(const std::string_view filedata, const std::string_view filemc, const std::string_view systematic, double nefcut = 0.02, double fracSmearClosure = 0.5){
+void RunUnfoldingZgSys_binning(const std::string_view filedata, const std::string_view filemc, const std::string_view systematic, double nefcut = 0.02, double fracSmearClosure = 0.5){
   auto trigger = getTrigger(filedata);
   auto ptbinvec_smear = getPtBinningRealistic(trigger, systematic), 
        ptbinvec_true = getPtBinningPart(trigger),

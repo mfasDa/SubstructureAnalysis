@@ -46,8 +46,11 @@ void RunUnfoldingZgSys_priors(const std::string_view filedata, const std::string
   auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure, TList *optionals){
     TH2 *weighthist(nullptr);
     {
-      std::string repo = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/";
-      std::string weightfile = repo + "/" + basename(filename);
+      std::string repo = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/unfolded_zg/NEFcut/no_cut";
+      std::string weightfilename = basename(filename);
+      weightfilename.erase(weightfilename.find("merged.root"), 11);
+      weightfilename += "unfolded_zg.root";
+      std::string weightfile = repo + "/" + weightfilename;
       std::unique_ptr<TFile> weightreader(TFile::Open(weightfile.data(), "READ"));
       TH2 *truehistPrior = static_cast<TH2 *>(weightreader->Get("true"));
       truehistPrior->SetDirectory(nullptr);

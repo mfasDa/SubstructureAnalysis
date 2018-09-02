@@ -86,7 +86,7 @@ class TestRunner:
                     logging.info("Unfolding Radius: %d", r)
                     filename_data = "JetSubstructureTree_FullJets_R%02d_%s.root" %(r, trg)
                     filename_mc = "JetSubstructureTree_FullJets_R%02d_%s_merged.root" %(r, trg)
-                    logfile_unfolding = "logunfolding_R%02d_%s.log" %(r, trigger)
+                    logfile_unfolding = "logunfolding_R%02d_%s.log" %(r, trg)
                     datafile = os.path.join(self.__datarepo, mergedir_data, filename_data)
                     mcfile = os.path.join(self.__mcrepo, mergedir_mc, filename_mc)
                     if not os.path.exists(datafile):
@@ -99,10 +99,10 @@ class TestRunner:
                     subprocess.call(command, shell = True)
             # Run all plotters for the test case
             logfile_monitor = "logmonitor_R%02d.log" %(r)
-            subprocess.call("%s/compareall.py zg | tee %s" %(repo, logfile_monitor), shell = True)
-            subprocess.call("%s/runiterall.py zg | tee %s" %(repo, logfile_monitor), shell = True)
-            subprocess.call("%s/sortPlotsComp.py | tee %s" %(repo, logfile_monitor), shell = True)
-            subprocess.call("%s/sortPlotsIter.py | tee %s" %(repo, logfile_monitor), shell = True)
+            subprocess.call("%s/compareall.py zg | tee %s" %(self.__coderepo, logfile_monitor), shell = True)
+            subprocess.call("%s/runiterall.py zg | tee %s" %(self.__coderepo, logfile_monitor), shell = True)
+            subprocess.call("%s/sortPlotsComp.py | tee %s" %(self.__coderepo, logfile_monitor), shell = True)
+            subprocess.call("%s/sortPlotsIter.py | tee %s" %(self.__coderepo, logfile_monitor), shell = True)
 
 
 if __name__ == "__main__":
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                  "priors" : Testcase("priors", os.path.join(repo, "RunUnfoldingZgSys_priors.cpp"), os.path.join(outputbase, "priors"), ["default"]),
                  "closure" : Testcase("closure", os.path.join(repo, "RunUnfoldingZg_weightedClosure.cpp"), os.path.join(outputbase, "closure"), ["standard", "smeared"])}
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
-    testadder = lambda tc : testmanager.addtest(tc) if not dryrun else logging.info("Not adding test due to dry run")
+    testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")
     for t in defaulttests:
         if t in testsrequired:
             caselogger(t)
