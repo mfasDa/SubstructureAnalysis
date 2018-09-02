@@ -77,7 +77,7 @@ class Testrunner:
         subprocess.call("%s/sortPlotsIter.py | tee %s" %(self.__repo, logfile_monitor), shell = True)
 
 if __name__ == "__main__":
-    defaulttests = ["trackingefff", "emcalseed", "emcaltimeloose", "emcaltimestrong"]
+    defaulttests = ["trackingeff", "emcalseed", "emcaltimeloose", "emcaltimestrong"]
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     parser = argparse.ArgumentParser(prog="detectorSystematics.py", description="Running detector systematics for zg")
@@ -96,10 +96,10 @@ if __name__ == "__main__":
     testmanager = TestRunner(repo, database, "RunUnfoldingZgV1.cpp")
     testmanager.definetriggers(["INT7", "EJ1", "EJ2"])
     testmanager.defineradii([x for x in range(2, 6)])
-    testcases = {"truncation" : Testcase("truncation", os.path.join(repo, "RunUnfoldingZgSys_truncation.cpp"), os.path.join(outputbase, "truncation"), ["loose", "strong"]),
-                 "binning" : Testcase("binning", os.path.join(repo, "RunUnfoldingZgSys_binning.cpp"), os.path.join(outputbase, "binning"), ["option1", "option2", "option3", "option4"]),
-                 "priors" : Testcase("priors", os.path.join(repo, "RunUnfoldingZgSys_priors.cpp"), os.path.join(outputbase, "priors"), ["default"]),
-                 "closure" : Testcase("closure", os.path.join(repo, "RunUnfoldingZg_weightedClosure.cpp"), os.path.join(outputbase, "closure"), ["standard", "smeared"])}
+    testcases = {"trackingeff" : Testcase("trackingeff", "20180823_trackingeff"),
+                 "emcalseed" : Testcase("emcalseed", "20180813_emchighthresh"),
+                 "emcaltimeloose" : Testcase("emcaltimeloose", "20180823_emcalloosetimecut"),
+                 "emcaltimestrong" : Testcase("emcaltimestrong", "20180823_emcalstrongtimecut")}
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
     testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")
     for t in defaulttests:
