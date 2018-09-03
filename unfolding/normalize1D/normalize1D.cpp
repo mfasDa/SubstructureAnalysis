@@ -53,6 +53,7 @@ std::map<int, TH1 *> getUnfolded(const std::string_view filename) {
 }
 
 double readEventCounter(const std::string_view filename, const std::string_view tag){
+    std::cout << "Reading uncorrected min. bias cout (for INT7 trigger)" << std::endl;
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
     std::stringstream jetdir;
     jetdir << "JetSubstructure_" << tag.data();
@@ -64,6 +65,7 @@ double readEventCounter(const std::string_view filename, const std::string_view 
 }
 
 double readLuminosityCounter(const std::string_view filename, const std::string_view tag) {
+    std::cout << "Reading cluster luminosity (for EMCAL triggers)" << std::endl;
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
     std::stringstream jetdir;
     jetdir << "JetSubstructure_" << tag.data();
@@ -123,7 +125,9 @@ void normalize1D(const std::string_view unfoldedfile, const std::string_view eve
     outfilename << "normalized" << getUnfoldingMethod(unfoldedfile) << "_" << tag << ".root";
     std::unique_ptr<TFile> writer(TFile::Open(outfilename.str().data(), "RECREATE"));
     writer->cd();
-    norm->Write();
+    auto normhist = new TH1F("norm", "norm", 1, 0.5, 1.5);
+    normhist->SetBinContent(1, norm);
+    normhist->Write();
     for(auto iter : unfolded) {
         std::stringstream regdir;
         regdir << "regularization" << iter.first;
