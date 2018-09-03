@@ -46,7 +46,7 @@ void RunUnfoldingZgSys_priors(const std::string_view filedata, const std::string
   auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure, TList *optionals){
     TH2 *weighthist(nullptr);
     {
-      std::string repo = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/unfolded_zg/NEFcut/no_cut";
+      std::string repo = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/unfolded_zg/defaults";
       std::string weightfilename = basename(filename);
       weightfilename.erase(weightfilename.find("merged.root"), 11);
       weightfilename += "unfolded_zg.root";
@@ -89,7 +89,6 @@ void RunUnfoldingZgSys_priors(const std::string_view filedata, const std::string
     TTreeReaderValue<int>     pthardbin(mcreader, "PtHardBin");
     TRandom samplesplitter;
     for(auto en : mcreader){
-      if(*ptsim > 200.) continue;
       //if(*nefrec >= 1- nefcut) continue;
       //if(*nefrec < nefcut) continue;
       if(IsOutlier(*ptsim, *pthardbin, 10.)) continue;

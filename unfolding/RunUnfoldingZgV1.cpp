@@ -56,7 +56,6 @@ void RunUnfoldingZgV1(const std::string_view filedata, const std::string_view fi
     TTreeReaderValue<int>     pthardbin(mcreader, "PtHardBin");
     TRandom samplesplitter;
     for(auto en : mcreader){
-      if(*ptsim > 200.) continue;
       //if(*nefrec >= 1- nefcut) continue;
       //if(*nefrec < nefcut) continue;
       if(IsOutlier(*ptsim, *pthardbin, 10.)) continue;
