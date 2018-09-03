@@ -71,18 +71,18 @@ class VariationGroup:
                     subprocess.call(cmd, shell=True)
 
 def sortPlots(triggers, jetradii):
-    formats = ["png", "pdf", "eps", "gif", "jpeg"]
+    formats = ["png", "pdf", "eps", "gif", "jpg"]
     basedir = os.getcwd()
     allfiles = os.listdir(basedir)
-    for t in triggers:
-        for r in jetradii:
-            for f in formats:
-                resultdir = os.path.join(basedir, trigger, "R%02d" %r, f)
+    for trg in triggers:
+        for rad in jetradii:
+            for form in formats:
+                resultdir = os.path.join(basedir, trg, "R%02d" %rad, form)
                 if not os.path.exists(resultdir):
                     os.makedirs(resultdir, 0755)
-                tag = "R%02d_%s.%s" %(trigger, r, f)
-                for f in [x for x in allfiles if tag in x]:
-                    shutil.move(os.path.join(basedir, x), os.path.join(resultdir, x))
+                tag = "R%02d_%s.%s" %(rad, trg, form)
+                for fl in [x for x in allfiles if tag in x]:
+                    shutil.move(os.path.join(basedir, fl), os.path.join(resultdir, fl))
 
 
 def creadeTruncationGroup(basedir, defaultlocation):
@@ -113,7 +113,7 @@ def createTrackingEffGroup(basedir, defaultlocation):
     resultgroup.addvariation(Variation("strong", "Strong", "20180823_trackingeff"))
     return resultgroup
 
-def createSeedingGroup(basestring, defaultlocation):
+def createSeedingGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("seeding", "Seedig", basedir, defaultlocation)
     resultgroup.addvariation(Variation("strong", "Strong", "20180813_emchighthresh"))
     return resultgroup
@@ -128,8 +128,10 @@ if __name__ == "__main__":
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     triggers = ["INT7", "EJ1", "EJ2"]
     jetradii = [x for x in range(2,6)]
-    producers_unfolding = [creadeTruncationGroup, createBinningGroup, createPriorsGroup]
-    producers_detector = [createTrackingEffGroup, createClusterTimeGroup]
+   # producers_unfolding = [creadeTruncationGroup, createBinningGroup, createPriorsGroup]
+    #producers_detector = [createTrackingEffGroup, createClusterTimeGroup, createSeedingGroup]
+    producers_unfolding = []
+    producers_detector = [createSeedingGroup]
     taskgroups = []
     for prod in producers_unfolding:
         group = prod(arguments.unfoldsyslocation, arguments.defaultlocation)
