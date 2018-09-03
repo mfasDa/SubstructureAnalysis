@@ -51,12 +51,11 @@ void RunUnfoldingZgSys_priors(const std::string_view filedata, const std::string
       weightfilename.erase(weightfilename.find("merged.root"), 11);
       weightfilename += "unfolded_zg.root";
       std::string weightfile = repo + "/" + weightfilename;
+      std::cout << "Reading prior weights from " << weightfile << std::endl;
       std::unique_ptr<TFile> weightreader(TFile::Open(weightfile.data(), "READ"));
       TH2 *truehistPrior = static_cast<TH2 *>(weightreader->Get("true"));
-      truehistPrior->SetDirectory(nullptr);
       weightreader->cd("iteration4");
       TH2 *unfoldedhistPrior = static_cast<TH2 *>(gDirectory->Get("zg_unfolded_iter4"));
-      unfoldedhistPrior->SetDirectory(nullptr);
 
       std::unique_ptr<TH1> integralsTrue(truehistPrior->ProjectionY("integralsTrue")),
                            integralsUnfolded(unfoldedhistPrior->ProjectionY("integralsUnfolded"));
@@ -71,10 +70,13 @@ void RunUnfoldingZgSys_priors(const std::string_view filedata, const std::string
           unfoldedhistPrior->SetBinError(c+1, b+1, unfoldedhistPrior->GetBinContent(c+1, b+1) / scaleunfolded);
         }
       }
+      std::cout << "Creating persistent weight hists " << std::endl;
       weighthist = static_cast<TH2 *>(histcopy(unfoldedhistPrior));
+      weighthist->SetDirectory(nullptr);
       weighthist->SetName("priorweights");
       weighthist->Divide(truehistPrior);
     }
+    std::cout << "Weight reading done" << std::endl;
     std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
 
