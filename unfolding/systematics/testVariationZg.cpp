@@ -117,7 +117,7 @@ void testVariationZg(const std::string_view varname, const std::string_view vart
             leg->AddEntry(varspec, vartitle.data(), "lep");
         }
 
-        ratioplot->cd(ipad+1);
+        ratioplot->cd(ipad);
         (new ROOT6tools::TAxisFrame(Form("ratioframe_%d", ipad), "z_{g}", "variation / default", 0., 0.6, 0.5, 1.5))->Draw("axis");
         label->Draw();
         if(ipad == 1) {
