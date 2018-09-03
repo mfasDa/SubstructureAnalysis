@@ -53,7 +53,7 @@ class TestRunner:
         outputdir = os.path.join(casedir, "unfolded_zg_sys")
         if not os.path.exists(outputdir):
             os.makedirs(outputdir, 0755)
-        os.chdir(outputdirdir)
+        os.chdir(outputdir)
         mergedir_mc = "merged"
         for trg in self.__triggers:
             mergedir_data = "merged_1617" if trg == "INT7" else "merged_17"
