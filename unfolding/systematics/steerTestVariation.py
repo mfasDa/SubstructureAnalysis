@@ -104,18 +104,18 @@ def createPriorsGroup(basedir, defaultlocation):
 
 def createClusterTimeGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("emcaltimecut", "EMCAL time cut", basedir, defaultlocation)
-    resultgroup.addvariation(Variation("loose", "Loose", "20180823_emcalloosetimecut"))
-    resultgroup.addvariation(Variation("strong", "Strong", "20180823_emcalstrongtimecut"))
+    resultgroup.addvariation(Variation("loose", "Loose", "20180823_emcalloosetimecut/unfolded_zg_sys"))
+    resultgroup.addvariation(Variation("strong", "Strong", "20180823_emcalstrongtimecut/unfolded_zg_sys"))
     return resultgroup
 
 def createTrackingEffGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("trackingeff", "Tracking efficiency", basedir, defaultlocation)
-    resultgroup.addvariation(Variation("strong", "Strong", "20180823_trackingeff"))
+    resultgroup.addvariation(Variation("strong", "Strong", "20180823_trackingeff/unfolded_zg_sys"))
     return resultgroup
 
 def createSeedingGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("seeding", "Seedig", basedir, defaultlocation)
-    resultgroup.addvariation(Variation("strong", "Strong", "20180813_emchighthresh"))
+    resultgroup.addvariation(Variation("strong", "Strong", "20180813_emchighthresh/unfolded_zg_sys"))
     return resultgroup
 
 if __name__ == "__main__":

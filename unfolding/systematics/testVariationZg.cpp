@@ -13,7 +13,7 @@ struct ptbindata {
     TH1 *bindata;
 };
 
-std::vector<ptbindata> getCorrected(const std::string_view filename, int iteration = 4) {
+std::vector<ptbindata> getCorrected(const std::string_view filename, const std::string_view varname, int iteration = 4) {
     std::vector<ptbindata> result;
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
     // get kinematic efficiencies:
@@ -36,7 +36,7 @@ std::vector<ptbindata> getCorrected(const std::string_view filename, int iterati
     auto h2d = static_cast<TH2 *>(gDirectory->Get(Form("zg_unfolded_iter%d", iteration)));
     for(auto b : ROOT::TSeqI(0, h2d->GetYaxis()->GetNbins())){
         double ptmin = h2d->GetYaxis()->GetBinLowEdge(b+1), ptmax = h2d->GetYaxis()->GetBinUpEdge(b+1);
-        auto projected = h2d->ProjectionX(Form("projectionIter%dzg_pt%d_%d", iteration, int(ptmin), int(ptmax)));
+        auto projected = h2d->ProjectionX(Form("projectionIter%dzg_%s_pt%d_%d", iteration, varname.data(), int(ptmin), int(ptmax)));
         projected->SetDirectory(nullptr);
         auto eff = efffinder(ptmin, ptmax);
         if(eff) {
@@ -72,7 +72,7 @@ TH1 *makeRatio(const TH1 *variation, const TH1 *defaultdist){
 }
 
 void testVariationZg(const std::string_view varname, const std::string_view vartitle, const std::string_view defaultfile, const std::string_view varfile){
-    auto spectraDefault = getCorrected(defaultfile), spectraVariation = getCorrected(varfile);
+    auto spectraDefault = getCorrected(defaultfile, "default"), spectraVariation = getCorrected(varfile, "variation");
 
     auto tag = getFileTag(defaultfile);
     auto jd = getJetType(tag);
@@ -93,6 +93,7 @@ void testVariationZg(const std::string_view varname, const std::string_view vart
     Style defaultstyle{kRed, 24}, varstyle{kBlue, 25};
 
     int ipad = 1;
+    std::vector<TH1 *> ratiohists, barlowhists;
     for(auto spec : spectraDefault) {
         auto label = new ROOT6tools::TNDCLabel(0.15, 0.9, 0.55, 0.97, Form("%.1f GeV/c < p_{t} < %.1f GeV/c", spec.ptmin, spec.ptmax));
         auto varspec = binfinder(spectraVariation, spec.ptmin, spec.ptmax);
@@ -128,6 +129,7 @@ void testVariationZg(const std::string_view varname, const std::string_view vart
         ratiospec->SetName(Form("ratioDefaultVar_pt%d_%d", int(spec.ptmin), int(spec.ptmax)));
         defaultstyle.SetStyle<TH1>(*ratiospec);
         ratiospec->Draw("epsame");
+        ratiohists.push_back(ratiospec);
 
         barlowplot->cd(ipad);
         (new ROOT6tools::TAxisFrame(Form("barlowframe_%d", ipad), "z_{g}", "(default-variation)/(#sqrt{|#sigma_{var}^{2} - sigma_{default}^{2}|})", 0., 0.6, 0., 10.))->Draw("axis");
@@ -141,6 +143,7 @@ void testVariationZg(const std::string_view varname, const std::string_view vart
         barlow->SetLineColor(kBlack);
         barlow->SetFillColor(kRed);
         barlow->Draw("boxsame");
+        barlowhists.push_back(barlow);
         ipad++;
     }
     compplot->cd();
@@ -152,4 +155,12 @@ void testVariationZg(const std::string_view varname, const std::string_view vart
     barlowplot->cd();
     barlowplot->Update();
     barlowplot->SaveCanvas(barlowplot->GetName());
+
+    // Create output rootfile
+    std::unique_ptr<TFile> outwriter(TFile::Open(Form("systematics_%s_%s.root", varname.data(), tag.data()), "RECREATE"));
+    outwriter->cd();
+    for(auto s : spectraDefault) s.bindata->Write();
+    for(auto s : spectraVariation) s.bindata->Write();
+    for(auto r : ratiohists) r->Write();
+    for(auto b : barlowhists) b->Write();
 }
