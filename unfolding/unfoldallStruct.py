@@ -19,15 +19,15 @@ class workqueue:
         self.__lock = threading.Lock()
 
     def addtask(self, task):
-        self.__lock.acquire()
+        self.__lock.acquire(True)
         self.__tasks.append(task)
         self.__lock.release()
 
     def pop(self):
         task = None 
-        self.__lock.acquire()
+        self.__lock.acquire(True)
         if len(self.__tasks):
-            task = self.__tasks.pop()
+            task = self.__tasks.pop(0)
         self.__lock.release()
         return task
 
@@ -43,6 +43,7 @@ class taskrunner(threading.Thread):
         while nextitem:
             logging.info("Processing %s" %nextitem)
             subprocess.call(nextitem, shell=True)
+            nextitem = self.__workquene.pop()
         logging.info("Worker %d finished work", self.__workerID)
     
 if __name__ == "__main__":
