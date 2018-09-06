@@ -128,10 +128,10 @@ if __name__ == "__main__":
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     triggers = ["INT7", "EJ1", "EJ2"]
     jetradii = [x for x in range(2,6)]
-   # producers_unfolding = [creadeTruncationGroup, createBinningGroup, createPriorsGroup]
-    #producers_detector = [createTrackingEffGroup, createClusterTimeGroup, createSeedingGroup]
-    producers_unfolding = []
-    producers_detector = [createSeedingGroup]
+    producers_unfolding = [creadeTruncationGroup, createBinningGroup, createPriorsGroup]
+    producers_detector = [createTrackingEffGroup, createClusterTimeGroup, createSeedingGroup]
+    #producers_unfolding = []
+    #producers_detector = [createSeedingGroup]
     taskgroups = []
     for prod in producers_unfolding:
         group = prod(arguments.unfoldsyslocation, arguments.defaultlocation)
