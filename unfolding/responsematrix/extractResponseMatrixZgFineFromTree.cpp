@@ -16,7 +16,7 @@ void extractResponseMatrixZgFineFromTree(const std::string_view treefile){
 
     auto ptsmearmin = *binningdet.begin(), ptsmearmax = *binningdet.rbegin();
     std::vector<ROOT::RDF::RResultPtr<TH2D>> responsematrices;
-    auto rejectoutlier = dataframe.Define("Outlier", [](double ptsim, int pthardbin) { if(IsOutlier(ptsim, pthardbin)) return 1.; else return 0.; }, {"PtJetSim", "PtHardBin"}).Filter("Outlier < 1.");
+    auto rejectoutlier = dataframe.Define("Outlier", [](double ptsim, int pthardbin) { if(IsOutlierFast(ptsim, pthardbin)) return 1.; else return 0.; }, {"PtJetSim", "PtHardBin"}).Filter("Outlier < 1.");
     auto responsematrixall = rejectoutlier.Filter(Form("PtJetRec >= %.1f && PtJetRec < %.1f", ptsmearmin, ptsmearmax)).Histo2D({"matrixfine_allptsim", "; z_{g,det}; z_{g,part}", 55, 0., 0.55, 55, 0., 0.55}, "ZgMeasured", "ZgTrue", "PythiaWeight");
     for(auto irange : ROOT::TSeqI(0, binningpart.size() - 1)) {
         auto histptr = rejectoutlier.Filter(Form("PtJetRec >= %.1f && PtJetRec < %.1f && PtJetSim >= %1f && PtJetSim < %.1f", ptsmearmin, ptsmearmax, binningpart[irange], binningpart[irange+1])).Histo2D({Form("matrixfine_%d_%d", int(binningpart[irange]), int(binningpart[irange+1])), "; z_{g,det}; z_{g,part}", 55, 0., 0.55, 55, 0., 0.55}, "ZgMeasured", "ZgTrue", "PythiaWeight");

@@ -1,3 +1,5 @@
+#include "../../meta/root.C"
+#include "../../meta/root6tools.C"
 #include "../../helpers/graphics.C"
 #include "../../helpers/math.C"
 #include "../../helpers/root.C"
