@@ -12,3 +12,10 @@ bool IsOutlier(double ptjetsim, int pthardbin, double outliercut = 2.) {
   if(pthardbin > 20) return false;
   return ptjetsim > outliercut * pthardbins[pthardbin].second;
 }
+
+bool IsOutlierFast(double ptjetsim, int pthardbin) {
+  const double outliercut = 10.;  
+  const double upper[] = {5., 7., 9., 12., 16., 21., 28., 36., 45., 57., 70., 85., 99., 115., 132., 150., 169., 190., 212., 235., 1000.};
+  if(pthardbin > 20) return false;
+  return ptjetsim > outliercut * upper[pthardbin];
+}
