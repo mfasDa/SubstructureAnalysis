@@ -9,11 +9,13 @@ import sys
 
 class Testcase:
 
-    def __init__(self, name, macro, outputpath, sysoptions):
+    def __init__(self, name, macro, outputpath, sysoptions, triggeroption = None, mcresponsetrigger = False):
         self.__name = name
         self.__macro = macro
         self.__outputpath = outputpath
         self.__sysoptions = sysoptions
+        self.__triggeroption = triggeroption    
+        self.__mcresponsetrigger = mcresponsetrigger
 
     def getname(self):
         return self.__name
@@ -26,6 +28,12 @@ class Testcase:
 
     def getsysoptions(self):
         return self.__sysoptions
+
+    def gettriggeroptions(self):
+        return self.__triggeroption
+
+    def isusemctriggerresponse(self):
+        return self.__mcresponsetrigger
 
 class TestRunner:
 
@@ -80,12 +88,16 @@ class TestRunner:
             os.chdir(sysdir)
             logging.info("Running systematics: %s", o)
             for trg in self.__triggers:
+                testtriggeroptions = testcase.gettriggeroptions()
+                if testtriggeroptions and len(testtriggeroptions):
+                    if not trg in testtriggeroptions:
+                        continue
                 mergedir_data = "merged_1617" if trg == "INT7" else "merged_17"
                 logging.info("Unfolding trigger: %s", trg)
                 for r in self.__jetradii:
                     logging.info("Unfolding Radius: %d", r)
                     filename_data = "JetSubstructureTree_FullJets_R%02d_%s.root" %(r, trg)
-                    filename_mc = "JetSubstructureTree_FullJets_R%02d_%s_merged.root" %(r, trg)
+                    filename_mc = "JetSubstructureTree_FullJets_R%02d_%s_merged.root" %(r, trg if testcase.isusemctriggerresponse() else "INT7")
                     logfile_unfolding = "logunfolding_R%02d_%s.log" %(r, trg)
                     datafile = os.path.join(self.__datarepo, mergedir_data, filename_data)
                     mcfile = os.path.join(self.__mcrepo, mergedir_mc, filename_mc)
@@ -131,6 +143,7 @@ if __name__ == "__main__":
                  "binning" : Testcase("binning", os.path.join(repo, "RunUnfoldingZgSys_binning.cpp"), os.path.join(outputbase, "binning"), ["option1", "option2", "option3", "option4"]),
                  "priors" : Testcase("priors", os.path.join(repo, "RunUnfoldingZgSys_priors.cpp"), os.path.join(outputbase, "priors"), ["default"]),
                  "closure" : Testcase("closure", os.path.join(repo, "RunUnfoldingZg_weightedClosure.cpp"), os.path.join(outputbase, "closure"), ["standard", "smeared"])}
+                 "triggerresponse" : Testcase("triggerresponse", os.path.join(repo, "RunUnfoldingZg.cpp", os.path.join(outputbase, "triggerresponse"), ["default"], triggeroption = ["EJ1", "EJ2"], mcresponsetrigger = True))
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
     testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")
     for t in defaulttests:
