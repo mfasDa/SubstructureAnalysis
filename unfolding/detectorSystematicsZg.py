@@ -5,6 +5,39 @@ import logging
 import os
 import subprocess
 import sys
+import threading
+
+class Workqueue:
+
+    def __init__(self):
+        self.__tasks = []
+        self.__lock = threading.Lock
+    
+    def addtask(self, task):
+        self.__lock.acquire(True)
+        self.__tasks.append(task)
+        self.__lock.release
+
+    def pop(self):
+        task = None
+        self.__lock.aquire(True)
+        if len(self.__tasks):
+            task = self.__tasks.pop(0)
+        self.__lock.release()
+        return task
+
+class Taskrunner(threading.Thread):
+
+    def __init__(self, workqueue):
+        threading.Thread.__init__(self)
+        self.__workqueue = workqueue
+
+    def run(self):
+        task = self.__workqueue.pop()
+        while task:
+            subprocess.call(task, shell=True)
+            task = self.__workqueue.pop() 
+
 
 class Testcase:
 
@@ -24,6 +57,7 @@ class TestRunner:
         self.__repo = repo
         self.__basedir = basedir
         self.__macro = macro
+        self.__nworkers = 1
         self.__tests = []
         self.__triggers = []
         self.__jetradii = []
@@ -36,6 +70,9 @@ class TestRunner:
     
     def setjetradii(self, jetradii):
         self.__jetradii = jetradii
+    
+    def setnworkers(self, nworkers):
+        self.__nworkers = nworkers
 
     def runall(self):
         # check whether macro is there  
@@ -54,7 +91,8 @@ class TestRunner:
         if not os.path.exists(outputdir):
             os.makedirs(outputdir, 0755)
         os.chdir(outputdir)
-        mergedir_mc = "merged"
+        workqueue = Workqueue()
+        mergedir_mc = "merged_calo"
         for trg in self.__triggers:
             mergedir_data = "merged_1617" if trg == "INT7" else "merged_17"
             logging.info("Unfolding trigger: %s", trg)
@@ -72,7 +110,16 @@ class TestRunner:
                     logging.error("MC file %s not found", mcfile)
                     continue
                 command = "root -l -b -q \'%s(\"%s\", \"%s\")\' | tee %s" % (os.path.join(self.__repo, self.__macro), datafile, mcfile, logfile_unfolding)
-                subprocess.call(command, shell = True)
+                workqueue.addtask(command)
+        
+        tasks = []
+        for itask in range(0, self.__nworkers):
+            systask = Taskrunner(workqueue)
+            systask.start()
+            tasks.append(systask)
+        for task in tasks:
+            task.join()
+            
         # Run all plotters for the test case
         logfile_monitor = "logmonitor_R%02d.log" %(r)
         subprocess.call("%s/compareall.py zg | tee %s" %(self.__repo, logfile_monitor), shell = True)

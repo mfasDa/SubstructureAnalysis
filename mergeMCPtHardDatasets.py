@@ -141,7 +141,7 @@ def mergemcptharddatasets(inputdir, basename, mergedir, nworkrequest):
 if __name__ == "__main__":
     logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
     parser = argparse.ArgumentParser(prog = "./mergeMCPtHardDatasets.py", description = "Merging pt-hard bins from multiple pt-hard datasets")
-    parser.add_argument("basedir", meta = "BASEDIR", help = "Directory where to find the productions")
+    parser.add_argument("basedir", metavar="BASEDIR", help = "Directory where to find the productions")
     parser.add_argument("-f" , "--file", type = str, default = "AnalysisResults.root", help = "ROOT file to be merged (default: AnalysisResults.root)")
     parser.add_argument("-m", "--mergedir", type = str, default = "merged", help = "Directory of the period-merged output (default: merged)")
     parser.add_argument("-n", "--nworkers", type = int, default = multiprocessing.cpu_count(), help = "Number of parallel workers")

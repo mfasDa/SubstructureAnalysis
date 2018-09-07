@@ -50,6 +50,7 @@ if __name__ == "__main__":
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     parser = argparse.ArgumentParser(prog="unfoldallStruct.py", description="Unfold all radii and triggers for stucture")
     parser.add_argument("observable", metavar="OBSERVABLE", help = "Observable to be unfolded")
+    parser.add_argument("-d", "--datadir", type=str, required=False, help="Directory where to find the jet trees for data and MC")
     parser.add_argument("-e", "--eventsel", nargs='*', required=False, help="Triggers to be unfolded")
     parser.add_argument("-t", "--tag", type=str, default="", help = "Tag of the unfolding macro")
     parser.add_argument("-n", "--nworkers", type=int, default=4, help="Number of parallel workers")
@@ -62,6 +63,10 @@ if __name__ == "__main__":
     SCRIPTNAME += ".cpp"
     logging.info("Using script name %s" %SCRIPTNAME)
     SCRIPT = os.path.join(getrepo(), SCRIPTNAME)
+    datadir = os.getcwd()
+    if args.datadair:
+        datadir = args.datadir
+        logging.info("Using optional data directory: %s", datadir)
     QUEUE = workqueue()
     DEFAULTTRIGGERS = ["INT7", "EJ1", "EJ2"]
     TRIGGERS = []
@@ -71,8 +76,8 @@ if __name__ == "__main__":
         TRIGGERS = DEFAULTTRIGGERS
     for TRIGGER in TRIGGERS:
         for RADIUS in range(2, 6):
-            FILEDATA = os.path.join("data", "merged_1617" if TRIGGER == "INT7" else "merged_17", "JetSubstructureTree_%s_R%02d_%s.root" %(JETTYPE, RADIUS, TRIGGER))
-            FILEMC = os.path.join("mc", "merged_barrel", "JetSubstructureTree_%s_R%02d_INT7_merged.root" %(JETTYPE, RADIUS))
+            FILEDATA = os.path.join(datadir, "data", "merged_1617" if TRIGGER == "INT7" else "merged_17", "JetSubstructureTree_%s_R%02d_%s.root" %(JETTYPE, RADIUS, TRIGGER))
+            FILEMC = os.path.join(datadir. "mc", "merged_calo", "JetSubstructureTree_%s_R%02d_INT7_merged.root" %(JETTYPE, RADIUS))
             logging.info("Unfolding %s, R=%.1f" %(TRIGGER, float(RADIUS)))
             cmd="root -l -b -q \'%s(\"%s\", \"%s\")'" %(SCRIPT, FILEDATA, FILEMC)
             logging.info("Command: %s" %cmd)

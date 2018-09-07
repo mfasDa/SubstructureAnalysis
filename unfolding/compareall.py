@@ -1,12 +1,17 @@
 #! /usr/bin/env python
 
 from __future__ import print_function
+import argparse
 import os
 import subprocess
 import sys
 
 if __name__ == "__main__":
-    OBSERVABLE = sys.argv[1]
+    parser = argparse.ArgumentParser(prog = "compareall.py", description = "Make all comparison plots")
+    parser.add_argument("observable", metavar="OBSERVABLE", type=str, help="Name of the observable")
+    parser.add_argument("-t", "--triggers", nargs="*", required=False, help="Run macro only for certain triggers")
+    args = parser.parse_args()
+    OBSERVABLE = args.observable
     JETTYPE = "FullJets"
     SCRIPTDIR         = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/unfolding"
     COMPUNFOLD        = "comparisons/makeComparisonUnfoldedRaw.cpp" 
@@ -23,7 +28,13 @@ if __name__ == "__main__":
     #SCRIPTS= [PEARSONOBSERVABLE]
     #SCRIPTS= [CLOSURETEST, SELFCLOSURETEST]
     #SCRIPTS= [COMPUNFOLD, COMPFOLDPT]
-    for TRIGGER in ["INT7", "EJ1", "EJ2"]:
+    defaulttriggers = ["INT7", "EJ1", "EJ2"]
+    TRIGGERS=[]
+    if args.triggers and len(args.triggers):
+        TRIGGERS = args.triggers
+    else:
+        TRIGGERS = defaulttriggers
+    for TRIGGER in TRIGGERS:
     #for TRIGGER in ["INT7", "EJ1"]:
         for RADIUS in range(2, 6):
             FILERESULT = "JetSubstructureTree_%s_R%02d_%s_unfolded_%s.root" %(JETTYPE, RADIUS, TRIGGER, OBSERVABLE)
