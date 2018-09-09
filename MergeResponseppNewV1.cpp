@@ -59,6 +59,7 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
   double Radius, EventWeight;
   int TriggerClusterIndex;
   double RhoPtRec, RhoPtSim, RhoMassRec, RhoMassSim, PtJetRec, EJetRec, EtaRec, PhiRec, AreaRec, MassRec, NEFRec;
+  double zleadingrec, zleadingchargedrec, zleadingneutralrec, zleadingsim, zleadingchargedsim, zleadingneutralsim;
   int NChargedRec, NNeutralRec;
   double PtJetSim, EJetSim, EtaSim, PhiSim, AreaSim, MassSim, NEFSim;
   int NChargedSim, NNeutralSim;
@@ -68,7 +69,7 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
   int NDroppedTrue;
   double OneSubjettinessMeasured, TwoSubjettinessMeasured, OneSubjettinessTrue, TwoSubjettinessTrue, AngularityMeasured, PtDMeasured, AngularityTrue, PtDTrue, PythiaWeight;
   int pthardbin;
-
+  
   std::unique_ptr<TFile> output(TFile::Open(Form("%s_merged.root", treename.data()), "RECREATE"));
   auto outtree = new TTree("jetSubstructure", "Jet substructure tree");
   outtree->Branch("Radius", &Radius, "Radius/D");
@@ -121,6 +122,12 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
   outtree->Branch("PtDTrue", &PtDTrue, "PtDTrue/D");
   outtree->Branch("PythiaWeight", &PythiaWeight, "PythiaWeight/D");
   outtree->Branch("PtHardBin", &pthardbin, "PtHardBin/I");
+  outtree->Branch("ZLeadingRec", &zleadingrec, "ZLeadingRec/D");
+  outtree->Branch("ZLeadingChargedRec", &zleadingchargedrec, "ZLeadingChargedRec/D");
+  outtree->Branch("ZLeadingNeutralRec", &zleadingneutralrec, "ZLeadingNeutralRec/D");
+  outtree->Branch("ZLeadingSim", &zleadingsim, "ZLeadingSim/D");
+  outtree->Branch("ZLeadingChargedSim", &zleadingchargedsim, "ZLeadingChargedSim/D");
+  outtree->Branch("ZLeadingNeutralSim", &zleadingneutralsim, "ZLeadingNeutralSim/D");
 
   for(auto b : pthardbins){
     // Read in weights
@@ -186,6 +193,12 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
     substructuretree->SetBranchAddress("PtDMeasured", &PtDMeasured);
     substructuretree->SetBranchAddress("AngularityTrue", &AngularityTrue);
     substructuretree->SetBranchAddress("PtDTrue", &PtDTrue);
+    substructuretree->SetBranchAddress("ZLeadingRec", &zleadingrec); 
+    substructuretree->SetBranchAddress("ZLeadingChargedRec", &zleadingchargedrec); 
+    substructuretree->SetBranchAddress("ZLeadingNeutralRec", &zleadingneutralrec);
+    substructuretree->SetBranchAddress("ZLeadingSim", &zleadingsim); 
+    substructuretree->SetBranchAddress("ZLeadingChargedSim", &zleadingchargedsim); 
+    substructuretree->SetBranchAddress("ZLeadingNeutralSim", &zleadingneutralsim);
     for(auto en : ROOT::TSeqI(0, substructuretree->GetEntriesFast())){
       //printf("Doing entry %d\n", en);
       substructuretree->GetEntry(en);
