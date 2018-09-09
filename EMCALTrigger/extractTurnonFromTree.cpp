@@ -38,7 +38,7 @@ void extractTurnonFromTree(){
         for(auto trg : triggers){
             std::stringstream filename;
             if(trg == "INT7") filename << "merged_1617/";
-            else filename << "merged17_new/";
+            else filename << "merged_17/";
             filename << "JetSubstructureTree_FullJets_R" << std::setw(2) << std::setfill('0') << radius << "_" << trg << ".root";
             spectra[trg] = extractRawSpectrum(filename.str());
             spectra[trg]->Scale(1./norm[trg]);
