@@ -10,14 +10,15 @@ void makePlotOverlayTriggers(const std::string_view inputfile){
     double radius = float(std::stoi(std::string(rstring)))/10.;
     {
         std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ"));
+        reader->cd("rawlevel");
         for(const auto &trg : triggers) {
-            auto spechist = static_cast<TH1 *>(reader->Get(Form("dataspec_R%02d_%s", int(radius*10.), trg.data())));
+            auto spechist = static_cast<TH1 *>(gDirectory->Get(Form("dataspec_R%02d_%s", int(radius*10.), trg.data())));
             spechist->SetDirectory(nullptr);
             styles[trg].SetStyle<TH1>(*spechist);
             spectra[trg] = spechist;
 
             if(trg != "INT7") {
-                auto ratio = static_cast<TH1 *>(reader->Get(Form("%soverMB_R%02d", trg.data(), int(radius*10.))));
+                auto ratio = static_cast<TH1 *>(gDirectory->Get(Form("%soverMB_R%02d", trg.data(), int(radius*10.))));
                 ratio->SetDirectory(nullptr);
                 styles[trg].SetStyle<TH1>(*ratio);
                 ratios[trg] = ratio;
