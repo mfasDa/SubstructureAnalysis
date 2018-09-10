@@ -5,25 +5,37 @@
 #include "../helpers/root.C"
 #include "../meta/root6tools.C"
 #include "../helpers/graphics.C"
+#include "../helpers/pthard.C"
 #include "../helpers/substructuretree.C"
 #include "../helpers/unfolding.C"
 #include "binnings/binningPt1D.C"
 
 std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"};
 
-TH1 *readSmeared(const std::string_view inputfile, bool weighted, bool downscaleweighted){
+TH1 *readSmeared(const std::string_view inputfile, bool weighted, bool downscaleweighted, bool dooutlierrejection){
     auto binning = getJetPtBinningNonLinSmearLarge();
     ROOT::RDataFrame df(GetNameJetSubstructureTree(inputfile), inputfile);
     TH1 *result(nullptr);
     if(weighted){
-        auto hist = df.Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec", "PythiaWeight");
-        result = histcopy(hist.GetPtr());
+        if(dooutlierrejection){
+            auto hist = df.Filter([](double ptsim, int ptbin) { return !IsOutlierFast(ptsim, ptbin); },{"PtJetSim", "PtHardBin"}).Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec", "PythiaWeight");
+            result = histcopy(hist.GetPtr());
+        } else {
+            auto hist = df.Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec", "PythiaWeight");
+            result = histcopy(hist.GetPtr());
+        }
     } else if(downscaleweighted){
+        // data - no outlier rejection
         auto hist = df.Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec", "EventWeight");
         result = histcopy(hist.GetPtr());
     } else {
-        auto hist = df.Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec");
-        result = histcopy(hist.GetPtr());
+        if(dooutlierrejection) {
+            auto hist = df.Filter([](double ptsim, int ptbin) { return !IsOutlierFast(ptsim, ptbin); },{"PtJetSim", "PtHardBin"}).Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec");
+            result = histcopy(hist.GetPtr());
+        } else {
+            auto hist = df.Histo1D({"spectrum", "spectrum", static_cast<int>(binning.size()-1), binning.data()}, "PtJetRec");
+            result = histcopy(hist.GetPtr());
+        }
     }
     result->SetDirectory(nullptr);
     return result;
@@ -107,7 +119,7 @@ void runCorrectionChain1DBayes(double radius, const std::string_view indatadir =
     for(const auto &trg : triggers) {
         std::stringstream filename;
         filename << datadir << "/mc/merged_calo/JetSubstructureTree_FullJets_R" << std::setw(2) << std::setfill('0') << int(radius*10.) << "_" << trg << "_merged.root";
-        auto spec = readSmeared(filename.str(), true, false);
+        auto spec = readSmeared(filename.str(), true, false, true);
         spec->SetName(Form("mcspec_R%02d_%s", int(radius*10.), trg.data()));
         mcspectra[trg] = spec;
     }
@@ -116,7 +128,7 @@ void runCorrectionChain1DBayes(double radius, const std::string_view indatadir =
     for(const auto &trg : triggers) {
         std::stringstream filename;
         filename << datadir << "/data/" << (trg == "INT7" ? "merged_1617" : "merged_17") << "/JetSubstructureTree_FullJets_R" << std::setw(2) << std::setfill('0') << int(radius*10.) << "_" << trg << ".root";
-        auto spec = readSmeared(filename.str(), false, trg == "EJ2");
+        auto spec = readSmeared(filename.str(), false, trg == "EJ2", false);
         spec->SetName(Form("dataspec_R%02d_%s", int(radius*10.), trg.data()));
         dataspectra[trg] = spec;
     }
@@ -199,9 +211,10 @@ void runCorrectionChain1DBayes(double radius, const std::string_view indatadir =
                                   ptsim(mcreader, "PtJetSim"), 
                                   nefrec(mcreader, "NEFRec"),
                                   weight(mcreader, "PythiaWeight");
+        TTreeReaderValue<int>     pthardbin(mcreader, "PtHardBin");
         bool closureUseSpectrum;
         for(auto en : mcreader){
-            if(*nefrec > 0.98) continue;
+            if(IsOutlierFast(*ptsim, *pthardbin)) continue;
             double rdm = closuresplit.Uniform();
             closureUseSpectrum = (rdm < 0.2);
             htrueFull->Fill(*ptsim, *weight);

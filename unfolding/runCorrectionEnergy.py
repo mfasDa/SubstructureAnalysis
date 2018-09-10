@@ -44,9 +44,9 @@ def getrepo():
 if __name__ == "__main__":
     REPO = getrepo()
     DATADIR= sys.argv[1]
-    #SCRIPTS = ["runCorrectionChain1DBayes.cpp", "runCorrectionChain1DSVD.cpp"] 
+    SCRIPTS = ["runCorrectionChain1DBayes.cpp", "runCorrectionChain1DSVD.cpp"] 
     #SCRIPTS = ["runCorrectionChain1DBayes.cpp"]
-    SCRIPTS = ["runCorrectionChain1DSVD.cpp"]
+    #SCRIPTS = ["runCorrectionChain1DSVD.cpp"]
     WORKQUEUE = workpool()
     for RADIUS in range(2, 6):
         print("Unfolding R=%.1f" %(float(RADIUS)/10.))

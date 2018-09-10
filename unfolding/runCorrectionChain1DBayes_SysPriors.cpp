@@ -93,18 +93,18 @@ std::vector<std::string> getSortedKeys(const std::map<std::string, std::vector<T
     return keys;
 }
 
-void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = ""){
+void runCorrectionChain1DBayes_SysPriors(double radius, const std::string_view option, const std::string_view indatadir = ""){
     std::string datadir;
     if (indatadir.length()) datadir = std::string(indatadir);
     else datadir = gSystem->GetWorkingDirectory();
-    std::cout << "[SVD unfolding] Using data directory " << datadir << std::endl;
-    std::cout << "[SVD unfolding] Reading luminosity for cluster CENT " << std::endl;
+    std::cout << "[Bayes unfolding] Using data directory " << datadir << std::endl;
+    std::cout << "[Bayes unfolding] Reading luminosity for cluster CENT " << std::endl;
     auto lumiCENT = extractLumiCENT(Form("%s/data/merged_17/AnalysisResults_split.root", datadir.data()));
-    std::cout << "[SVD unfolding] Getting correction factor for CENTNOTRD cluster" << std::endl;
+    std::cout << "[Bayes unfolding] Getting correction factor for CENTNOTRD cluster" << std::endl;
     auto centnotrdCorrection = extractCENTNOTRDCorrection(Form("%s/data/merged_17/JetSubstructureTree_FullJets_R%02d_EJ1.root", datadir.data(), int(radius*10.)));
     TF1 fit("centnotrdcorrfit", "pol0", 0., 200.);
     centnotrdCorrection[2]->Fit(&fit, "N", "", 20., 200.);
-    std::cout << "[SVD unfolding] Using CENTNOTRD correction factor " << fit.GetParameter(0) << std::endl;
+    std::cout << "[Bayes unfolding] Using CENTNOTRD correction factor " << fit.GetParameter(0) << std::endl;
     auto lumiCENTNOTRD = lumiCENT * fit.GetParameter(0);
     auto lumihist = new TH1D("luminosities", "Luminosities", 3, 0., 3.);
     lumihist->SetDirectory(nullptr);
@@ -115,7 +115,7 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
     lumihist->SetBinContent(3, lumiCENTNOTRD);
     std::map<std::string, TH1 *> mcspectra, dataspectra;
     // Read MC specta
-    std::cout << "[SVD unfolding] Reading Monte-Carlo spectra for trigger efficiency correction" << std::endl;
+    std::cout << "[Bayes unfolding] Reading Monte-Carlo spectra for trigger efficiency correction" << std::endl;
     for(const auto &trg : triggers) {
         std::stringstream filename;
         filename << datadir << "/mc/merged_calo/JetSubstructureTree_FullJets_R" << std::setw(2) << std::setfill('0') << int(radius*10.) << "_" << trg << "_merged.root";
@@ -124,7 +124,7 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         mcspectra[trg] = spec;
     }
     // Read data specta
-    std::cout << "[SVD unfolding] Reading data spectra for all triggers" << std::endl;
+    std::cout << "[Bayes unfolding] Reading data spectra for all triggers" << std::endl;
     for(const auto &trg : triggers) {
         std::stringstream filename;
         filename << datadir << "/data/" << (trg == "INT7" ? "merged_1617" : "merged_17") << "/JetSubstructureTree_FullJets_R" << std::setw(2) << std::setfill('0') << int(radius*10.) << "_" << trg << ".root";
@@ -133,7 +133,7 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         dataspectra[trg] = spec;
     }
     // get weights and renormalize data spectra
-    std::cout << "[SVD unfolding] normalize spectra" << std::endl;
+    std::cout << "[Bayes unfolding] normalize spectra" << std::endl;
     auto weights = readNriggers(Form("%s/data/merged_1617/AnalysisResults_split.root", datadir.data()));
     std::map<std::string, TH1 *> hnorm;
     for(auto &spec : dataspectra) {
@@ -151,7 +151,7 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         hnorm[spec.first] = normhist;
     }
     // build efficiencies, correct triggered spectra
-    std::cout << "[SVD unfolding] Building trigger efficiency" << std::endl;
+    std::cout << "[Bayes unfolding] Building trigger efficiency" << std::endl;
     std::map<std::string, TH1 *> efficiencies;
     auto reference = mcspectra.find("INT7")->second;
     for(auto &trg : triggers) {
@@ -185,7 +185,7 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         hraw->SetBinContent(b+1, triggered->GetBinContent(b+1));
         hraw->SetBinError(b+1, triggered->GetBinError(b+1));
     }
-    std::cout << "[SVD unfolding] Raw spectrum ready, getting detector response ..." << std::endl;
+    std::cout << "[Bayes unfolding] Raw spectrum ready, getting detector response ..." << std::endl;
 
     // read MC
     auto binningdet = getJetPtBinningNonLinSmearLarge(), 
@@ -200,7 +200,26 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         *hpriorsClosure = new TH1D("hpriorsClosure", "non-truncated true spectrum (for closure test, same jets as repsonse matrix)", binningpart.size() - 1, binningpart.data());
     TH2 *responseMatrix = new TH2D("responseMatrix", "response matrix", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data()),
         *responseMatrixClosure = new TH2D("responseMatrixClosure", "response matrix (for closure test)", binningdet.size()-1, binningdet.data(), binningpart.size()-1, binningpart.data());
-  
+
+    TH1 *responseweight(nullptr);
+    {
+        std::stringstream priorfile;
+        priorfile << "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/corrected_1D/default/corrected1DBayes_R" << std::setw(2) << std::setfill('0') << ".root";
+        std::unique_ptr<TFile> weightreader(TFile::Open(priorfile.str().data(), "READ"));
+        weightreader->cd("iteration4");
+        std::unique_ptr<TH1>unfoldedhist(static_cast<TH1 *>(gDirectory->Get("unfolded_iter4")));
+        unfoldedhist->SetDirectory(nullptr);
+        normalizeBinWidth(unfoldedhist.get());
+        unfoldedhist->Scale(1./unfoldedhist->Integral());
+        weightreader->cd("detectorresponse");
+        std::unique_ptr<TH1> weighttruefull(static_cast<TH1 *>(gDirectory->Get("htrueFull")));
+        weighttruefull->SetDirectory(nullptr);
+        normalizeBinWidth(weighttruefull.get());
+        weighttruefull->Scale(1./weighttruefull->Integral());
+        responseweight = histcopy(unfoldedhist.get());
+        responseweight->SetNameTitle("responseweight", "Weight used for response smearing");
+        responseweight->Divide(weighttruefull.get());
+    }
     {
         TRandom closuresplit;
         std::stringstream filemc;
@@ -215,15 +234,16 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         bool closureUseSpectrum;
         for(auto en : mcreader){
             if(IsOutlierFast(*ptsim, *pthardbin)) continue;
+            double priorweight = responseweight->GetBinContent(responseweight->GetXaxis()->FindBin(*ptsim));
             double rdm = closuresplit.Uniform();
             closureUseSpectrum = (rdm < 0.2);
-            htrueFull->Fill(*ptsim, *weight);
+            htrueFull->Fill(*ptsim, *weight * priorweight);
             if(closureUseSpectrum) htrueFullClosure->Fill(*ptsim, *weight);
             else hpriorsClosure->Fill(*ptsim, *weight);
             if(*ptrec > ptmin && *ptrec < ptmax){
-                htrue->Fill(*ptsim, *weight);
-                hsmeared->Fill(*ptrec, *weight);
-                responseMatrix->Fill(*ptrec, *ptsim, *weight);
+                htrue->Fill(*ptsim, *weight * priorweight);
+                hsmeared->Fill(*ptrec, *weight * priorweight);
+                responseMatrix->Fill(*ptrec, *ptsim, *weight * priorweight);
 
                 if(closureUseSpectrum) {
                     hsmearedClosure->Fill(*ptrec, *weight);
@@ -236,90 +256,70 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
     }
 
     // Calculate kinematic efficiency
-    std::cout << "[SVD unfolding] Make kinematic efficiecny for raw unfolding ..." << std::endl;
+    std::cout << "[Bayes unfolding] Make kinematic efficiecny for raw unfolding ..." << std::endl;
     auto effKine = histcopy(htrue);
     effKine->SetDirectory(nullptr);
     effKine->SetName("effKine");
     effKine->Divide(effKine, htrueFull, 1., 1., "b");
 
-    std::cout << "[SVD unfolding] ... and for closure test" << std::endl;
+    std::cout << "[Bayes unfolding] ... and for closure test" << std::endl;
     auto effKineClosure = histcopy(htrueClosure);
     effKineClosure->SetDirectory(nullptr);
     effKineClosure->SetName("effKineClosure");
     effKineClosure->Divide(htrueFullClosure);
 
-    std::cout << "[SVD unfolding] Building RooUnfold response" << std::endl;
+    std::cout << "[Bayes unfolding] Building RooUnfold response" << std::endl;
     RooUnfoldResponse response(nullptr, htrueFull, responseMatrix), responseClosure(nullptr, hpriorsClosure, responseMatrixClosure);
 
     std::cout << "Running unfolding" << std::endl;
     std::map<std::string, std::vector<TObject *>> iterresults;
-    RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;//ariance;
+    RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovariance;
     const double kSizeEmcalPhi = 1.88,
                  kSizeEmcalEta = 1.4;
     double acceptance = (kSizeEmcalPhi - 2 * radius) * (kSizeEmcalEta - 2 * radius) / (TMath::TwoPi());
     double crosssection = 57.8;
     double epsilon_vtx = 0.8228; // for the moment hard coded, for future analyses determined automatically from the output
-    for(auto reg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())){
-        std::cout << "[SVD unfolding] Regularization " << reg << "\n================================================================\n";
-        std::cout << "[SVD unfolding] Running unfolding" << std::endl;
-        RooUnfoldSvd unfolder(&response, hraw, reg);
+    for(auto iter : ROOT::TSeqI(1, 36)){
+        std::cout << "[Bayes unfolding] Doing iteration " << iter << "\n================================================================\n";
+        std::cout << "[Bayes unfolding] Running unfolding" << std::endl;
+        RooUnfoldBayes unfolder(&response, hraw, iter);
         auto unfolded = unfolder.Hreco(errorTreatment);
-        unfolded->SetName(Form("unfoldedReg%d", reg));
-        unfolded->SetDirectory(nullptr);
-        TH1 *dvec(nullptr);
-        if(auto imp = unfolder.Impl()){
-            dvec = imp->GetD();
-            dvec->SetName(Form("dvectorReg%d", reg));
-            dvec->SetDirectory(nullptr);
-        }
+        unfolded->SetName(Form("unfolded_iter%d", iter));
         std::cout << "----------------------------------------------------------------------\n";
-        std::cout << "[SVD unfolding] Running MC closure test" << std::endl;
-        RooUnfoldSvd unfolderClosure(&responseClosure, hsmearedClosure, reg, 1000, "unfolderClosure", "unfolderClosure");
+        std::cout << "[Bayes unfolding] Running MC closure test" << std::endl;
+        RooUnfoldBayes unfolderClosure(&responseClosure, hsmearedClosure);
         auto unfoldedClosure = unfolderClosure.Hreco(errorTreatment);
-        unfoldedClosure->SetName(Form("unfoldedClosureReg%d", reg));
-        unfoldedClosure->SetDirectory(nullptr);
-        TH1 * dvecClosure(nullptr);
-        if(auto imp = unfolderClosure.Impl()){
-            dvecClosure = imp->GetD();
-            dvecClosure->SetName(Form("dvectorClosureReg%d", reg));
-            dvecClosure->SetDirectory(nullptr);
-        }
+        unfoldedClosure->SetName(Form("unfoldedClosure_iter%d", iter));
 
         // back-folding test
         std::cout << "----------------------------------------------------------------------\n";
-        std::cout << "[SVD unfolding] Running back-folding test" << std::endl;
+        std::cout << "[Bayes unfolding] Running refolding test" << std::endl;
         auto backfolded = MakeRefolded1D(hraw, unfolded, response);
-        backfolded->SetName(Form("backfolded_reg%d", reg));
-        backfolded->SetDirectory(nullptr);
+        backfolded->SetName(Form("backfolded_iter%d", iter));
         auto backfoldedClosure = MakeRefolded1D(hsmearedClosure, unfoldedClosure, responseClosure);
-        backfoldedClosure->SetName(Form("backfoldedClosure_reg%d", reg));
-        backfoldedClosure->SetDirectory(nullptr);
+        backfoldedClosure->SetName(Form("backfoldedClosure_iter%d", iter));
 
         // normalize spectrum (but write as new object)
         std::cout << "----------------------------------------------------------------------\n";
-        std::cout << "[SVD unfolding] Normalizing spectrum" << std::endl;
+        std::cout << "[Bayes unfolding] Normalizing spectrum" << std::endl;
         auto normalized = histcopy(unfolded);
-        normalized->SetDirectory(nullptr);
-        normalized->SetNameTitle(Form("normalizedReg%d", reg), Form("Normalized for regularization %d", reg));
+        normalized->SetNameTitle(Form("normalized_iter%d", iter), Form("Normalized for regularization %d", iter));
         normalized->Scale(crosssection*epsilon_vtx/acceptance);
         normalizeBinWidth(normalized);
 
         // preparing for output finding
         std::cout << "----------------------------------------------------------------------\n";
-        std::cout << "[SVD unfolding] Building output list" << std::endl;
-        std::vector<TObject *>resultvec = {unfolded, normalized, backfolded, unfoldedClosure, backfoldedClosure};
-        if(dvec) resultvec.push_back(histcopy(dvec));
-        if(dvecClosure) resultvec.push_back(histcopy(dvecClosure));
-        iterresults[Form("regularization%d", reg)] = resultvec;
+        std::cout << "[Bayes unfolding] Building output list" << std::endl;
+        iterresults[Form("iteration%d", iter)] = {unfolded, normalized, backfolded, unfoldedClosure, backfoldedClosure};
         std::cout << "----------------------------------------------------------------------\n";
-        std::cout << "[SVD unfolding] regularization done" << std::endl;
+        std::cout << "[Bayes unfolding] regularization done" << std::endl;
         std::cout << "======================================================================\n";
     }
 
     // write everything
     std::cout << "----------------------------------------------------------------------\n";
-    std::cout << "[SVD unfolding] Writeing output" << std::endl;
-    std::unique_ptr<TFile> writer(TFile::Open(Form("corrected1DSVD_R%02d.root", int(radius*10.)), "RECREATE"));
+    std::cout << "[Bayes unfolding] Writeing output" << std::endl;
+    std::unique_ptr<TFile> writer(TFile::Open(Form("corrected1DBayes_R%02d.root", int(radius*10.)), "RECREATE"));
     writer->mkdir("rawlevel");
     writer->cd("rawlevel");
     hraw->Write();
@@ -350,6 +350,6 @@ void runCorrectionChain1DSVD(double radius, const std::string_view indatadir = "
         for(auto h : iterresults.find(k)->second) h->Write();
     }
     std::cout << "----------------------------------------------------------------------\n";
-    std::cout << "[SVD unfolding] All done" << std::endl;
+    std::cout << "[Bayes unfolding] All done" << std::endl;
     std::cout << "======================================================================\n";
 }
