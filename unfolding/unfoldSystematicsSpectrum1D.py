@@ -137,6 +137,11 @@ class TestRunner:
             for task in tasks:
                 task.join()
 
+            logplots = "logplotting_R%02d.log"
+            cmdplot = "%s | tee %s" %(os.path.join(self.__coderepo, "comparisons", "comp1D", "makeallplots.py"), logplots)
+            cmdsort = "%s | tee %s" %(os.path.join(self.__coderepo, "comparisons", "comp1D", "sortall1D.py"), logplots)
+            subprocess.call(cmdplot, shell = True)
+            subprocess.call(cmdsort, shell = True)
 
 if __name__ == "__main__":
     defaulttests = ["truncation", "binning", "priors", "triggereff"]

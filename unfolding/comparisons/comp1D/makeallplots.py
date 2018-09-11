@@ -21,17 +21,21 @@ if __name__ == "__main__":
         FILERESULT_Bayes = "corrected1DBayes_R%02d.root" %(RADIUS)
         print("Comparing R=%.1f" %(float(RADIUS)))
         # first execute special scripts
-        cmd = "root -l -b -q \'%s(\"%s\")'" %(os.path.join(SCRIPTDIR, COMPITERBAYES), FILERESULT_Bayes)
-        print("Command: %s" %cmd)
-        subprocess.call(cmd, shell=True)
-        cmd = "root -l -b -q \'%s(\"%s\")'" %(os.path.join(SCRIPTDIR, COMPREGSVD), FILERESULT_SVD)
-        print("Command: %s" %cmd)
-        subprocess.call(cmd, shell=True)
-        cmd = "root -l -b -q \'%s(\"%s\", \"%s\")'" %(os.path.join(SCRIPTDIR, COMPBAYESSVD), FILERESULT_Bayes, FILERESULT_SVD)
-        print("Command: %s" %cmd)
-        subprocess.call(cmd, shell=True)
+        if os.path.exists(FILERESULT_Bayes):
+            cmd = "root -l -b -q \'%s(\"%s\")'" %(os.path.join(SCRIPTDIR, COMPITERBAYES), FILERESULT_Bayes)
+            print("Command: %s" %cmd)
+            subprocess.call(cmd, shell=True)
+        if os.path.exists(FILERESULT_SVD):
+            cmd = "root -l -b -q \'%s(\"%s\")'" %(os.path.join(SCRIPTDIR, COMPREGSVD), FILERESULT_SVD)
+            print("Command: %s" %cmd)
+            subprocess.call(cmd, shell=True)
+        if os.path.exists(FILERESULT_Bayes) and os.path.exists(FILERESULT_SVD):
+            cmd = "root -l -b -q \'%s(\"%s\", \"%s\")'" %(os.path.join(SCRIPTDIR, COMPBAYESSVD), FILERESULT_Bayes, FILERESULT_SVD)
+            print("Command: %s" %cmd)
+            subprocess.call(cmd, shell=True)
         for SCRIPT in SCRIPTS:
             for UNFOLDED in [FILERESULT_Bayes, FILERESULT_SVD]:
-                cmd="root -l -b -q \'%s(\"%s\")'" %(os.path.join(SCRIPTDIR, SCRIPT), UNFOLDED)
-                print("Command: %s" %cmd)
-                subprocess.call(cmd, shell=True)
+                if os.path.exists(UNFOLDED):
+                    cmd="root -l -b -q \'%s(\"%s\")'" %(os.path.join(SCRIPTDIR, SCRIPT), UNFOLDED)
+                    print("Command: %s" %cmd)
+                    subprocess.call(cmd, shell=True)

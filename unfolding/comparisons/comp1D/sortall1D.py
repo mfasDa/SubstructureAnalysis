@@ -15,12 +15,14 @@ def run_sort(inputdir):
     for myb in basedirs:
         for myform in formats:
             outdir = os.path.join(myb, myform)
-            if not os.path.exists(outdir):
-                os.makedirs(outdir, 0755)
-            for matchfile in find_files(inputdir, myb, myform):
-                infile = os.path.join(inputdir, matchfile)
-                outfile = os.path.join(outdir, matchfile)
-                shutil.move(infile, outfile)
+            matched = find_files(inputdir, myb, myform)
+            if len(matched):
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir, 0755)
+                for matchfile in matched:
+                    infile = os.path.join(inputdir, matchfile)
+                    outfile = os.path.join(outdir, matchfile)
+                    shutil.move(infile, outfile)
 
 if __name__ == "__main__":
     run_sort(os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.getcwd()))

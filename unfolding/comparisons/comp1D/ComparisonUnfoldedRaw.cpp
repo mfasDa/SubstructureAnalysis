@@ -101,7 +101,7 @@ void ComparisonUnfoldedRaw(const std::string_view filename){
   auto plot = new ROOT6tools::TSavableCanvas(Form("comparisonUnfoldedRaw%s_%s", (isSVD ? "SVD" : "Bayes"), tag.data()), "Conparison unfolded raw", 800, 600);
   plot->cd();
   gPad->SetLogy();
-  (new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/c)", "dN/dp_{t} ((GeV/c)^{-1})", 0., 250., 1e-10, 10))->Draw("axis");
+  (new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/c)", "dN/dp_{t} ((GeV/c)^{-1})", 0., 250., 1e-10, 1e-3))->Draw("axis");
   auto leg = new ROOT6tools::TDefaultLegend(0.65, 0.6, 0.89, 0.89);
   leg->Draw();
   (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.45, 0.22, Form("jets, R=%.1f", radius)))->Draw();

@@ -106,6 +106,12 @@ class TestRunner:
         for task in tasks:
             task.join()
 
+        logplots = "logplotting.log"
+        cmdplot = "%s | tee %s" %(os.path.join(self.__repo, "comparisons", "comp1D", "makeallplots.py"), logplots)
+        cmdsort = "%s | tee %s" %(os.path.join(self.__repo, "comparisons", "comp1D", "sortall1D.py"), logplots)
+        subprocess.call(cmdplot, shell = True)
+        subprocess.call(cmdsort, shell = True)
+
 if __name__ == "__main__":
     defaulttests = ["trackingeff", "emcalseed", "emcaltimeloose", "emcaltimestrong", "emcalclusterizerv1", "emcalhadcorrf0"]
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)

@@ -180,7 +180,7 @@ void runCorrectionChain1DBayes_SysTruncation(double radius, const std::string_vi
     hraw->SetNameTitle("hraw", "raw spectrum from various triggers");
     auto triggered = dataspectra.find("EJ1")->second;
     for(auto b : ROOT::TSeqI(0, hraw->GetNbinsX())){
-        if(hraw->GetXaxis()->GetBinCenter(b+1) < 60.) continue;       // Use data from INT7 trigger
+        if(hraw->GetXaxis()->GetBinCenter(b+1) < 70.) continue;       // Use data from INT7 trigger
         // else Use data from EJ1 trigger
         hraw->SetBinContent(b+1, triggered->GetBinContent(b+1));
         hraw->SetBinError(b+1, triggered->GetBinError(b+1));

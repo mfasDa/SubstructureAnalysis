@@ -180,7 +180,7 @@ void runCorrectionChain1DBayes_SysPriors(double radius, const std::string_view o
     hraw->SetNameTitle("hraw", "raw spectrum from various triggers");
     auto triggered = dataspectra.find("EJ1")->second;
     for(auto b : ROOT::TSeqI(0, hraw->GetNbinsX())){
-        if(hraw->GetXaxis()->GetBinCenter(b+1) < 60.) continue;       // Use data from INT7 trigger
+        if(hraw->GetXaxis()->GetBinCenter(b+1) < 70.) continue;       // Use data from INT7 trigger
         // else Use data from EJ1 trigger
         hraw->SetBinContent(b+1, triggered->GetBinContent(b+1));
         hraw->SetBinError(b+1, triggered->GetBinError(b+1));
@@ -204,7 +204,7 @@ void runCorrectionChain1DBayes_SysPriors(double radius, const std::string_view o
     TH1 *responseweight(nullptr);
     {
         std::stringstream priorfile;
-        priorfile << "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/corrected_1D/default/corrected1DBayes_R" << std::setw(2) << std::setfill('0') << ".root";
+        priorfile << "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/corrected_1D/default/corrected1DBayes_R" << std::setw(2) << std::setfill('0') << radius << ".root";
         std::unique_ptr<TFile> weightreader(TFile::Open(priorfile.str().data(), "READ"));
         weightreader->cd("iteration4");
         std::unique_ptr<TH1>unfoldedhist(static_cast<TH1 *>(gDirectory->Get("unfolded_iter4")));

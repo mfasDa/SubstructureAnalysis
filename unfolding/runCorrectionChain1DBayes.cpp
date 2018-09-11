@@ -60,6 +60,17 @@ std::vector<TH1 *> extractCENTNOTRDCorrection(std::string_view filename){
     return {rescentnotrd, rescent, correction};
 }
 
+double extractCENTNOTRDCorrectionFromClusterCounter(const std::string_view filename, double radius) {
+    std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
+    reader->cd(Form("JetSubstructure_FullJets_R%02d_EJ1", int(radius*10.)));
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    auto clustercounter = static_cast<TH1 *>(histlist->FindObject("hTriggerClusterCounter"));
+    if(!clustercounter) return -1.;             // not found
+    auto centpluscentnotrdcounter = clustercounter->GetBinContent(clustercounter->FindBin(0)),
+         onlycentnotrdcounter = clustercounter->GetBinContent(clustercounter->FindBin(2));
+    return (centpluscentnotrdcounter + onlycentnotrdcounter) / centpluscentnotrdcounter;
+}
+
 double extractLumiCENT(const std::string_view filename){
     std::pair<double, double> result;
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
@@ -99,13 +110,23 @@ void runCorrectionChain1DBayes(double radius, const std::string_view indatadir =
     else datadir = gSystem->GetWorkingDirectory();
     std::cout << "[Bayes unfolding] Using data directory " << datadir << std::endl;
     std::cout << "[Bayes unfolding] Reading luminosity for cluster CENT " << std::endl;
-    auto lumiCENT = extractLumiCENT(Form("%s/data/merged_17/AnalysisResults_split.root", datadir.data()));
+    std::string normfilename = Form("%s/data/merged_17/AnalysisResults_split.root", datadir.data());
+    auto lumiCENT = extractLumiCENT(normfilename.data());
     std::cout << "[Bayes unfolding] Getting correction factor for CENTNOTRD cluster" << std::endl;
-    auto centnotrdCorrection = extractCENTNOTRDCorrection(Form("%s/data/merged_17/JetSubstructureTree_FullJets_R%02d_EJ1.root", datadir.data(), int(radius*10.)));
-    TF1 fit("centnotrdcorrfit", "pol0", 0., 200.);
-    centnotrdCorrection[2]->Fit(&fit, "N", "", 20., 200.);
-    std::cout << "[Bayes unfolding] Using CENTNOTRD correction factor " << fit.GetParameter(0) << std::endl;
-    auto lumiCENTNOTRD = lumiCENT * fit.GetParameter(0);
+    std::vector<TH1 *> centnotrdCorrection;
+    double cntcorrectionvalue = extractCENTNOTRDCorrectionFromClusterCounter(normfilename.data(), radius);
+    if(cntcorrectionvalue < 0){
+        // counter historgam not found (old output) - try with jet spectra
+        std::cout << "[Bayes unfolding] Getting CENTNOTRD correction from spectra comparison (old method)" << std::endl;
+        centnotrdCorrection = extractCENTNOTRDCorrection(Form("%s/data/merged_17/JetSubstructureTree_FullJets_R%02d_EJ1.root", datadir.data(), int(radius*10.)));
+        TF1 fit("centnotrdcorrfit", "pol0", 0., 200.);
+        centnotrdCorrection[2]->Fit(&fit, "N", "", 20., 200.);
+        cntcorrectionvalue = fit.GetParameter(0);
+    } else {
+        std::cout << "[Bayes unfolding] CENTNOTRD correction was obtained from trigger cluster counter (new method)" << std::endl;
+    }
+    std::cout << "[Bayes unfolding] Using CENTNOTRD correction factor " << cntcorrectionvalue << std::endl;
+    auto lumiCENTNOTRD = lumiCENT * cntcorrectionvalue;
     auto lumihist = new TH1D("luminosities", "Luminosities", 3, 0., 3.);
     lumihist->SetDirectory(nullptr);
     lumihist->GetXaxis()->SetBinLabel(1, "INT7");
@@ -180,7 +201,7 @@ void runCorrectionChain1DBayes(double radius, const std::string_view indatadir =
     hraw->SetNameTitle("hraw", "raw spectrum from various triggers");
     auto triggered = dataspectra.find("EJ1")->second;
     for(auto b : ROOT::TSeqI(0, hraw->GetNbinsX())){
-        if(hraw->GetXaxis()->GetBinCenter(b+1) < 60.) continue;       // Use data from INT7 trigger
+        if(hraw->GetXaxis()->GetBinCenter(b+1) < 70.) continue;       // Use data from INT7 trigger
         // else Use data from EJ1 trigger
         hraw->SetBinContent(b+1, triggered->GetBinContent(b+1));
         hraw->SetBinError(b+1, triggered->GetBinError(b+1));
