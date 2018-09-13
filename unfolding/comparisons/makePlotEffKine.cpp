@@ -50,8 +50,8 @@ void makePlotEffKine(const std::string_view inputfile){
   (new ROOT6tools::TNDCLabel(0.15, 0.9, 0.5, 0.95, Form("%s, R=%.1f, %s", conf.fJetType.data(), conf.fR, conf.fTrigger.data())))->Draw();
   leg->Draw();
 
-  std::array<Color_t, 10> colors = {{kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kAzure, kGray, kMagenta, kCyan}};
-  std::array<Style_t, 10> markers = {{24, 25, 26, 27, 28, 29, 30, 31, 32, 33}};
+  std::array<Color_t, 15> colors = {{kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kAzure, kGray, kMagenta, kCyan, kRed-6, kBlue-6, kGreen-6, kOrange-6, kViolet -6}};
+  std::array<Style_t, 15> markers = {{24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38}};
 
   int ieff = 0;
   for(auto e : efficiencies) {
