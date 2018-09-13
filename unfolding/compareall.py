@@ -4,7 +4,6 @@ from __future__ import print_function
 import argparse
 import os
 import subprocess
-import sys
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog = "compareall.py", description = "Make all comparison plots")
@@ -21,13 +20,17 @@ if __name__ == "__main__":
     COMPFOLDPT        = "comparisons/makeComparisonFoldingRawPt.cpp" 
     CLOSURETESTPT     = "comparisons/makeClosureTestPt.cpp"
     SELFCLOSURETESTPT = "comparisons/makeSelfClosureTestPt.cpp"
+    EFFKINE           = "comparisons/makePlotEffKine.cpp"
     PEARSONOBSERVABLE = "pearson/makePlotPearson_%s.cpp" %OBSERVABLE
     PEARSONPT         = "pearson/makePlotPearson_pt.cpp"
+    STATS             = "stats/plotStatsFromUnfoldingOutput.cpp"
     RESPONSEMATRIX    = "responsematrix/makePlotResponseMatrixProjection_%s.cpp" %OBSERVABLE
-    SCRIPTS= [COMPUNFOLD, COMPFOLD, CLOSURETEST, SELFCLOSURETEST, COMPFOLDPT, CLOSURETESTPT, SELFCLOSURETESTPT, PEARSONOBSERVABLE, PEARSONPT, RESPONSEMATRIX]
+    SCRIPTS= [COMPUNFOLD, COMPFOLD, CLOSURETEST, SELFCLOSURETEST, COMPFOLDPT, CLOSURETESTPT, SELFCLOSURETESTPT,
+              PEARSONOBSERVABLE, PEARSONPT, RESPONSEMATRIX, STATS, EFFKINE]
     #SCRIPTS= [PEARSONOBSERVABLE]
     #SCRIPTS= [CLOSURETEST, SELFCLOSURETEST]
     #SCRIPTS= [COMPUNFOLD, COMPFOLDPT]
+    #SCRIPTS=[EFFKINE]
     defaulttriggers = ["INT7", "EJ1", "EJ2"]
     TRIGGERS=[]
     if args.triggers and len(args.triggers):

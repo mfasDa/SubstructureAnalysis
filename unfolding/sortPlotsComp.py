@@ -11,14 +11,17 @@ def find_files(inputdir, tag, trigger, format):
 def run_sort(inputdir):
     triggers = ["INT7", "EJ1", "EJ2"]
     formats = ["eps", "pdf", "png", "jpg", "gif"]
-    basedirs = ["MCClosure", "MCSelfClosure", "FoldRaw",  "UnfoldRaw", "pearsonmatrix", "responsematrix"]
+    basedirs = ["MCClosure", "MCSelfClosure", "FoldRaw",  "UnfoldRaw", "pearsonmatrix", "responsematrix", "stat", "EffKine"]
     for myb in basedirs:
         for myt in triggers:
             for myform in formats:
                 outdir = os.path.join(myb, myt, myform)
+                matched = find_files(inputdir, myb, myt, myform)
+                if not len(matched):
+                    continue
                 if not os.path.exists(outdir):
                     os.makedirs(outdir, 0755)
-                for matchfile in find_files(inputdir, myb, myt, myform):
+                for matchfile in matched:
                     infile = os.path.join(inputdir, matchfile)
                     outfile = os.path.join(outdir, matchfile)
                     shutil.move(infile, outfile)

@@ -64,7 +64,7 @@ if __name__ == "__main__":
     logging.info("Using script name %s" %SCRIPTNAME)
     SCRIPT = os.path.join(getrepo(), SCRIPTNAME)
     datadir = os.getcwd()
-    if args.datadair:
+    if args.datadir:
         datadir = args.datadir
         logging.info("Using optional data directory: %s", datadir)
     QUEUE = workqueue()
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     for TRIGGER in TRIGGERS:
         for RADIUS in range(2, 6):
             FILEDATA = os.path.join(datadir, "data", "merged_1617" if TRIGGER == "INT7" else "merged_17", "JetSubstructureTree_%s_R%02d_%s.root" %(JETTYPE, RADIUS, TRIGGER))
-            FILEMC = os.path.join(datadir. "mc", "merged_calo", "JetSubstructureTree_%s_R%02d_INT7_merged.root" %(JETTYPE, RADIUS))
+            FILEMC = os.path.join(datadir, "mc", "merged_calo", "JetSubstructureTree_%s_R%02d_INT7_merged.root" %(JETTYPE, RADIUS))
             logging.info("Unfolding %s, R=%.1f" %(TRIGGER, float(RADIUS)))
             cmd="root -l -b -q \'%s(\"%s\", \"%s\")'" %(SCRIPT, FILEDATA, FILEMC)
             logging.info("Command: %s" %cmd)
