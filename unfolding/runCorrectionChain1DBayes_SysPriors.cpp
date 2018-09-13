@@ -204,7 +204,7 @@ void runCorrectionChain1DBayes_SysPriors(double radius, const std::string_view o
     TH1 *responseweight(nullptr);
     {
         std::stringstream priorfile;
-        priorfile << "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/corrected_1D/default/corrected1DBayes_R" << std::setw(2) << std::setfill('0') << radius << ".root";
+        priorfile << "/data1/markus/Fulljets/pp_13TeV/Substructuretree/data_mc/20180620_corr2017/corrected_1D/default/corrected1DBayes_R" << std::setw(2) << std::setfill('0') << int(radius*10.) << ".root";
         std::unique_ptr<TFile> weightreader(TFile::Open(priorfile.str().data(), "READ"));
         weightreader->cd("iteration4");
         std::unique_ptr<TH1>unfoldedhist(static_cast<TH1 *>(gDirectory->Get("unfolded_iter4")));
