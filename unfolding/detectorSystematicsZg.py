@@ -11,16 +11,16 @@ class Workqueue:
 
     def __init__(self):
         self.__tasks = []
-        self.__lock = threading.Lock
+        self.__lock = threading.Lock()
     
     def addtask(self, task):
         self.__lock.acquire(True)
         self.__tasks.append(task)
-        self.__lock.release
+        self.__lock.release()
 
     def pop(self):
         task = None
-        self.__lock.aquire(True)
+        self.__lock.acquire(True)
         if len(self.__tasks):
             task = self.__tasks.pop(0)
         self.__lock.release()
@@ -53,9 +53,10 @@ class Testcase:
 
 class TestRunner:
 
-    def __init__(self, repo, basedir, macro):
+    def __init__(self, repo, database, outputbase, macro):
         self.__repo = repo
-        self.__basedir = basedir
+        self.__database = database
+        self.__outputbase = outputbase
         self.__macro = macro
         self.__nworkers = 1
         self.__tests = []
@@ -86,8 +87,8 @@ class TestRunner:
     
     def __runtest(self, testcase):
         logging.info("Running test: %s", testcase.getname())
-        casedir = os.path.join(self.__basedir, testcase.getdatasubdir())
-        outputdir = os.path.join(casedir, "unfolded_zg_sys")
+        casedir = os.path.join(self.__database, testcase.getdatasubdir())
+        outputdir = os.path.join(self.__outputbase, testcase.getname())
         if not os.path.exists(outputdir):
             os.makedirs(outputdir, 0755)
         os.chdir(outputdir)
@@ -128,13 +129,14 @@ class TestRunner:
         subprocess.call("%s/sortPlotsIter.py | tee %s" %(self.__repo, logfile_monitor), shell = True)
 
 if __name__ == "__main__":
-    defaulttests = ["trackingeff", "emcalseed", "emcaltimeloose", "emcaltimestrong"]
+    defaulttests = ["trackingeff", "emcalseed", "emcaltimeloose", "emcaltimestrong", "clusterizerv1", "hadcorrloose"]
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     parser = argparse.ArgumentParser(prog="detectorSystematics.py", description="Running detector systematics for zg")
     parser.add_argument("database", metavar="DATADIR", type=str, help="Directory where to find the data")
     parser.add_argument("-t", "--testcases", nargs='*', required=False, help="tests to be run (if not set all tests will be run")
     parser.add_argument("-d", "--dryrun", action="store_true", help="Set dry run mode")
+    parser.add_argument("-n", "--ntasks", type=int, default=4, help="Number of parallel workers")
     args = parser.parse_args()
     dryrun = args.dryrun
     database = os.path.abspath(args.database)
@@ -144,13 +146,17 @@ if __name__ == "__main__":
         testsrequired = args.testcases
     else:
         testsrequired = defaulttests
-    testmanager = TestRunner(repo, database, "RunUnfoldingZgV1.cpp")
+    testmanager = TestRunner(repo, database, currentdir, "RunUnfoldingZgV1.cpp")
     testmanager.settriggers(["INT7", "EJ1", "EJ2"])
     testmanager.setjetradii([x for x in range(2, 6)])
+    testmanager.setnworkers(args.ntasks)
     testcases = {"trackingeff" : Testcase("trackingeff", "20180823_trackingeff"),
                  "emcalseed" : Testcase("emcalseed", "20180813_emchighthresh"),
                  "emcaltimeloose" : Testcase("emcaltimeloose", "20180823_emcalloosetimecut"),
-                 "emcaltimestrong" : Testcase("emcaltimestrong", "20180823_emcalstrongtimecut")}
+                 "emcaltimestrong" : Testcase("emcaltimestrong", "20180823_emcalstrongtimecut"),
+                 "clusterizerv1": Testcase("clusterizerv1", "20180907_clusterizerv1"),
+                 "hadcorrloose" : Testcase("hadcorrloose", "20180907_hadcorrf0")}
+    #             "hadcorrintermediate" : Testcase("hadcorrintermediate", "20180912_haddcorrf07")
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
     testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")
     for t in defaulttests:

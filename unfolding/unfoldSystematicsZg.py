@@ -12,16 +12,16 @@ class Workqueue:
 
     def __init__(self):
         self.__tasks = []
-        self.__lock = threading.Lock
+        self.__lock = threading.Lock()
     
     def addtask(self, task):
         self.__lock.acquire(True)
         self.__tasks.append(task)
-        self.__lock.release
+        self.__lock.release()
 
     def pop(self):
         task = None
-        self.__lock.aquire(True)
+        self.__lock.acquire(True)
         if len(self.__tasks):
             task = self.__tasks.pop(0)
         self.__lock.release()
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("outputbase", metavar="OUTDIR", type=str, help="Directory where to store the output")
     parser.add_argument("-t", "--testcases", nargs='*', required=False, help="tests to be run (if not set all tests will be run")
     parser.add_argument("-d", "--dryrun", action="store_true", help="Set dry run mode")
-    parser.add_argument("-n", "--ntasks", type=int, default=4 help="Number of parallel workers")
+    parser.add_argument("-n", "--ntasks", type=int, default=4, help="Number of parallel workers")
     args = parser.parse_args()
     dryrun = args.dryrun
     database = os.path.abspath(args.database)
@@ -190,8 +190,9 @@ if __name__ == "__main__":
     testcases = {"truncation" : Testcase("truncation", os.path.join(repo, "RunUnfoldingZgSys_truncation.cpp"), os.path.join(outputbase, "truncation"), ["loose", "strong"]),
                  "binning" : Testcase("binning", os.path.join(repo, "RunUnfoldingZgSys_binning.cpp"), os.path.join(outputbase, "binning"), ["option1", "option2", "option3", "option4"]),
                  "priors" : Testcase("priors", os.path.join(repo, "RunUnfoldingZgSys_priors.cpp"), os.path.join(outputbase, "priors"), ["default"]),
-                 "closure" : Testcase("closure", os.path.join(repo, "RunUnfoldingZg_weightedClosure.cpp"), os.path.join(outputbase, "closure"), ["standard", "smeared"])}
-                 "triggerresponse" : Testcase("triggerresponse", os.path.join(repo, "RunUnfoldingZg.cpp", os.path.join(outputbase, "triggerresponse"), ["default"], triggeroption = ["EJ1", "EJ2"], mcresponsetrigger = True))
+                 "closure" : Testcase("closure", os.path.join(repo, "RunUnfoldingZg_weightedClosure.cpp"), os.path.join(outputbase, "closure"), ["standard", "smeared"]),
+                 "fakebin0" : Testcase("fakebin0", os.path.join(os.path.join("RunUnfoldingZg_fakebin0_v2.cpp")), os.path.join(outputbase, "fakebin0"), ["default"]),
+                 "triggerresponse" : Testcase("triggerresponse", os.path.join(repo, "RunUnfoldingZg.cpp"), os.path.join(outputbase, "triggerresponse"), ["default"], triggeroption = ["EJ1", "EJ2"], mcresponsetrigger = True)}
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
     testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")
     for t in defaulttests:
