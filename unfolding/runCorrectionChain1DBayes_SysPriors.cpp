@@ -217,8 +217,10 @@ void runCorrectionChain1DBayes_SysPriors(double radius, const std::string_view o
         normalizeBinWidth(weighttruefull.get());
         weighttruefull->Scale(1./weighttruefull->Integral());
         responseweight = histcopy(unfoldedhist.get());
+        responseweight->SetDirectory(nullptr);
         responseweight->SetNameTitle("responseweight", "Weight used for response smearing");
         responseweight->Divide(weighttruefull.get());
+        std::cout << "[Bayes unfolding] got response weight" << std::endl;
     }
     {
         TRandom closuresplit;
