@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import os
 import subprocess
+import sys
 
 def find_files(filename, years, basedir):
     outlist = []
@@ -43,12 +44,13 @@ def merge_years(filename, years, basedir):
         subprocess.call(cmd, shell=True)
 
 if __name__ == "__main__":
+    jettype = sys.argv[1] if len(sys.argv) > 1 else "FullJets"
     basedir = os.getcwd()
     for trg in ["INT7", "EJ1", "EJ2"]:
         years = [17]
         if trg == "INT7":
             years.append(16)
         for r in range(2, 6):
-            filename = "JetSubstructureTree_FullJets_R%02d_%s.root" %(r, trg)
+            filename = "JetSubstructureTree_%s_R%02d_%s.root" %(jettype, r, trg)
             merge_years(filename, years, basedir)
     merge_years("AnalysisResults_split.root", [16, 17], basedir)

@@ -19,11 +19,12 @@ class worker(threading.Thread):
 		os.system("root -l -b -q \'%s(\"%s\", \"%s\")\'" %(script, os.getcwd(), self.__treename))
 
 if __name__ == "__main__":
+  jettype = sys.argv[1] if len(sys.argv) > 1 else "FullJets"
   workers = []
   for trigger in ["INT7", "EJ1", "EJ2"]:
     for radius in range(2,6):
       print("Merging %s,R=%.1f" %( trigger, float(radius)/10.))
-      treename = "JetSubstructureTree_FullJets_R%02d_%s" %(radius, trigger)
+      treename = "JetSubstructureTree_%s_R%02d_%s" %(jettype, radius, trigger)
       print("Merging %s" %treename)
       merge  = worker(treename)
       merge.start()
