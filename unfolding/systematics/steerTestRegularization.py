@@ -88,8 +88,10 @@ def sortPlots(triggers, jetradii):
 
 def creadeRegulatizationGroup(datalocation):
     resultgroup = VariationGroup("regularization", "Regularization", datalocation)
-    resultgroup.addvariation(Variation("lower", "Lower", 3, 4))
-    resultgroup.addvariation(Variation("upper", "Upper", 3, 4))
+    resultgroup.addvariation(Variation("stronglower", "Stron lower", 8, 10))
+    resultgroup.addvariation(Variation("weaklower", "Weak lower", 9, 10))
+    resultgroup.addvariation(Variation("weakupper", "Weak upper", 11, 10))
+    resultgroup.addvariation(Variation("stronupper", "Strong upper", 12, 10))
     return resultgroup
 
 if __name__ == "__main__":

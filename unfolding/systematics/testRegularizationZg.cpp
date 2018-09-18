@@ -36,7 +36,7 @@ std::vector<ptbindata> getCorrected(const std::string_view filename, const std::
     auto h2d = static_cast<TH2 *>(gDirectory->Get(Form("zg_unfolded_iter%d", iteration)));
     for(auto b : ROOT::TSeqI(0, h2d->GetYaxis()->GetNbins())){
         double ptmin = h2d->GetYaxis()->GetBinLowEdge(b+1), ptmax = h2d->GetYaxis()->GetBinUpEdge(b+1);
-        auto projected = h2d->ProjectionX(Form("projectionIter%dzg_%s_pt%d_%d", iteration, varname.data(), int(ptmin), int(ptmax)));
+        auto projected = h2d->ProjectionX(Form("projectionIter%dzg_%s_pt%d_%d", iteration, varname.data(), int(ptmin), int(ptmax)), b+1, b+1);
         projected->SetDirectory(nullptr);
         auto eff = efffinder(ptmin, ptmax);
         if(eff) {
@@ -45,8 +45,8 @@ std::vector<ptbindata> getCorrected(const std::string_view filename, const std::
             std::cout << "Efficiency not found for pt bin " << ptmin << " to  " << ptmax << std::endl;
         }
         // Correct for the bin width
-        normalizeBinWidth(projected);
         projected->Scale(1./projected->Integral());
+        normalizeBinWidth(projected);
         result.push_back({ptmin, ptmax, projected});
     }
     return result;
@@ -99,7 +99,7 @@ void testRegularizationZg(const std::string_view varname, const std::string_view
         auto varspec = binfinder(spectraVariation, spec.ptmin, spec.ptmax);
 
         compplot->cd(ipad);
-        (new ROOT6tools::TAxisFrame(Form("compframe%d", ipad), "z_{g}", "1/N_{jet} dN/dz_{g}", 0., 0.6, 0., 0.6))->Draw("axis");
+        (new ROOT6tools::TAxisFrame(Form("compframe%d", ipad), "z_{g}", "1/N_{jet} dN/dz_{g}", 0., 0.6, 0., 10.0))->Draw("axis");
         label->Draw();
         TLegend *leg(nullptr);
         TPaveText *jetlabel = nullptr;

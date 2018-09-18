@@ -8,10 +8,11 @@ import subprocess
 
 class Variation:
 
-    def __init__(self, name, title, datalocation):
+    def __init__(self, name, title, datalocation, triggeroption = None):
         self.__name = name
         self.__title = title
         self.__datalocation = datalocation 
+        self.__triggeroption = triggeroption 
 
     def getname(self):
         return self.__name
@@ -21,6 +22,9 @@ class Variation:
 
     def getdatalocation(self):
         return self.__datalocation
+
+    def gettriggeroption(self):
+        return self.__triggeroption
 
 
 class VariationGroup:
@@ -58,6 +62,10 @@ class VariationGroup:
             logging.info("Running variation: %s", var.getname());
             datadir = os.path.join(self.__basedir, var.getdatalocation())
             for trg in self.__triggers:
+                triggeroptions = var.gettriggeroption()
+                if triggeroptions and len(triggeroptions):
+                    if not trg in triggeroptions:
+                        continue
                 logging.info("Running trigger: %s", trg)
                 for r in self.__jetradii:
                     logging.info("Running jet Radius: %.1f", float(r)/10.)
@@ -102,45 +110,55 @@ def createPriorsGroup(basedir, defaultlocation):
     resultgroup.addvariation(Variation("weighted", "weighted", "default"))
     return resultgroup
 
+def createTriggerResponseGroup(basedir, defaultlocation):
+    resultgroup = VariationGroup("triggerresponse", "Trigger response", os.path.join(basedir, "triggerresponse"), defaultlocation)
+    resultgroup.addvariation(Variation("simresponse", "Simulated response", "default", triggeroption=["EJ1", "EJ2"]))
+    return resultgroup
+
 def createClusterTimeGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("emcaltimecut", "EMCAL time cut", basedir, defaultlocation)
-    resultgroup.addvariation(Variation("loose", "Loose", "20180823_emcalloosetimecut/unfolded_zg_sys"))
-    resultgroup.addvariation(Variation("strong", "Strong", "20180823_emcalstrongtimecut/unfolded_zg_sys"))
+    resultgroup.addvariation(Variation("loose", "Loose", "emcaltimeloose"))
+    resultgroup.addvariation(Variation("strong", "Strong", "emcaltimestrong"))
     return resultgroup
 
 def createTrackingEffGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("trackingeff", "Tracking efficiency", basedir, defaultlocation)
-    resultgroup.addvariation(Variation("strong", "Strong", "20180823_trackingeff/unfolded_zg_sys"))
+    resultgroup.addvariation(Variation("strong", "Strong", "trackingeff"))
     return resultgroup
 
 def createSeedingGroup(basedir, defaultlocation):
     resultgroup = VariationGroup("seeding", "Seedig", basedir, defaultlocation)
-    resultgroup.addvariation(Variation("strong", "Strong", "20180813_emchighthresh/unfolded_zg_sys"))
+    resultgroup.addvariation(Variation("strong", "Strong", "emcalseed"))
+    return resultgroup
+
+def createClusterizerV1Group(basedir, defaultlocation):
+    resultgroup = VariationGroup("clusterizer", "EMCAL Clusterizer", basedir, defaultlocation)
+    resultgroup.addvariation(Variation("clusterizerV1", "Clusterizer V1", "clusterizerv1"))
+    return resultgroup
+
+def createHaddCorrGroup(basedir, defaultlocation):
+    resultgroup = VariationGroup("haddCorr", "Hadronic correction", basedir, defaultlocation)
+    resultgroup.addvariation(Variation("loose", "Loose (F=0)", "hadcorrloose"))
+    resultgroup.addvariation(Variation("loose", "Intermediate (F=0.7)", "hadcorr07lead"))
+    #resultgroup.addvariation(Variation("intermediate", "Intermediate (F=0.7)", "hadcorrintermediate"))
     return resultgroup
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog = "steerTestVariation.py", description="steer evaluation of systematics")
     parser.add_argument("defaultlocation", metavar="DEFAULTLOCATION", type=str, help="location of the default output")
-    parser.add_argument("unfoldsyslocation", metavar="UNFOLDINGSYSLOCATION", type=str, help="location of the unfolding systematics output")
-    parser.add_argument("detectorsyslocation", metavar="DETECTORSYSLOCATION", type=str, help="location of the detector systematics output")
+    parser.add_argument("syslocation", metavar="SYSLOCATION", type=str, help="location of the unfolding systematics output")
     arguments = parser.parse_args()
     repo = os.path.abspath(os.path.dirname(sys.argv[0]))
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     triggers = ["INT7", "EJ1", "EJ2"]
     jetradii = [x for x in range(2,6)]
-    producers_unfolding = [creadeTruncationGroup, createBinningGroup, createPriorsGroup]
-    producers_detector = [createTrackingEffGroup, createClusterTimeGroup, createSeedingGroup]
+    producers = [creadeTruncationGroup, createBinningGroup, createPriorsGroup, createTrackingEffGroup, createTriggerResponseGroup,
+                 createClusterTimeGroup, createSeedingGroup, createClusterizerV1Group, createHaddCorrGroup]
     #producers_unfolding = []
     #producers_detector = [createSeedingGroup]
     taskgroups = []
-    for prod in producers_unfolding:
-        group = prod(arguments.unfoldsyslocation, arguments.defaultlocation)
-        group.setjetradii(jetradii)
-        group.settriggers(triggers)
-        group.setrepo(repo)
-        taskgroups.append(group)
-    for prod in producers_detector:
-        group = prod(arguments.detectorsyslocation, arguments.defaultlocation)
+    for prod in producers:
+        group = prod(arguments.syslocation, arguments.defaultlocation)
         group.setjetradii(jetradii)
         group.settriggers(triggers)
         group.setrepo(repo)

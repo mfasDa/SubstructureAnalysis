@@ -31,19 +31,18 @@ std::string getTrigger(const std::string_view filedata){
   return "";
 }
 
-void RunUnfoldingZgSys_truncation(const std::string_view filedata, const std::string_view filemc, const std::string_view systematic, double nefcut = 0.02, double fracSmearClosure = 0.5){
+void RunUnfoldingZgSys_truncation(const std::string_view filedata, const std::string_view filemc, const std::string_view systematic, double fracSmearClosure = 0.5){
   auto trigger = getTrigger(filedata);
   auto ptbinvec_smear = getPtBinningRealistic(trigger, contains(systematic, "loose")), 
        ptbinvec_true = getPtBinningPart(trigger),
-       zgbins_smear = getZgBinningCoarse(),
-       zgbins_true = getZgBinningCoarse();
-  auto dataextractor = [nefcut](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw, TList *optionals) {
+       zgbins_smear = getZgBinningFine(),
+       zgbins_true = getZgBinningFine();
+  auto dataextractor = [](const std::string_view filedata, double ptsmearmin, double ptsmearmax, TH2D *hraw, TList *optionals) {
     ROOT::RDataFrame recframe(GetNameJetSubstructureTree(filedata), filedata);
-    //auto datahist = recframe.Filter(Form("NEFRec < 1-%f && NEFRec > %f && PtJetRec > %f && PtJetRec < %f", nefcut, nefcut, ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
     auto datahist = recframe.Filter(Form("PtJetRec > %f && PtJetRec < %f", ptsmearmin, ptsmearmax)).Histo2D(*hraw, "ZgMeasured", "PtJetRec");
     *hraw = *datahist;
   };
-  auto mcextractor = [fracSmearClosure, nefcut](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure, TList *optionals){
+  auto mcextractor = [fracSmearClosure](const std::string_view filename, double ptsmearmin, double ptsmearmax, TH2 *h2true, TH2 *h2trueClosure, TH2 *h2trueNoClosure, TH2 *h2smeared, TH2 *h2smearedClosure, TH2 *h2smearedNoClosure, TH2 *h2smearednocuts, TH2 *h2fulleff, RooUnfoldResponse &response, RooUnfoldResponse &responsenotrunc, RooUnfoldResponse &responseClosure, TList *optionals){
     std::unique_ptr<TFile> mcfilereader(TFile::Open(filename.data(), "READ"));
     TTreeReader mcreader(GetDataTree(*mcfilereader));
 
@@ -56,9 +55,7 @@ void RunUnfoldingZgSys_truncation(const std::string_view filedata, const std::st
     TTreeReaderValue<int>     pthardbin(mcreader, "PtHardBin");
     TRandom samplesplitter;
     for(auto en : mcreader){
-      //if(*nefrec >= 1- nefcut) continue;
-      //if(*nefrec < nefcut) continue;
-      if(IsOutlier(*ptsim, *pthardbin, 10.)) continue;
+      if(IsOutlierFast(*ptsim, *pthardbin)) continue;
       h2fulleff->Fill(*zgSim, *ptsim, *weight);
       h2smearednocuts->Fill(*zgRec, *ptrec, *weight);
       responsenotrunc.Fill(*zgRec, *ptrec, *zgSim, *ptsim, *weight);

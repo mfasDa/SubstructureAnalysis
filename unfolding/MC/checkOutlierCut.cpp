@@ -1,12 +1,5 @@
-#ifndef __CLING__ 
-#include "ROOT/RDataFrame.hxx"
-
-#include "TAxisFrame.h"
-#include "TDefaultLegend.h"
-#include "TNDCLabel.h"
-#include "TSavableCanvas.h"
-#endif
-
+#include "../../meta/root.C"
+#include "../../meta/root6tools.C"
 #include "../../helpers/graphics.C"
 #include "../../helpers/math.C"
 #include "../../helpers/pthard.C"
@@ -17,26 +10,34 @@
 void checkOutlierCut(const std::string_view mcfile){
   ROOT::EnableImplicitMT(8);
 
-  auto ptbinning = getMinBiasPtBinningPart();
+  auto ptbinning = getPtBinningPart("EJ1");
   ROOT::RDataFrame df(GetNameJetSubstructureTree(mcfile), mcfile);
 
   // Apply outlier cuts
-  auto dataCutNoCut = df.Filter("NEFRec < 0.98");
-  auto dataCut2 = dataCutNoCut.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 2.); }, {"PtJetSim", "PtHardBin"});
-  auto dataCut3 = dataCutNoCut.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 3.); }, {"PtJetSim", "PtHardBin"});
-  auto dataCut5 = dataCutNoCut.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 5.); }, {"PtJetSim", "PtHardBin"});
-  auto dataCut10 = dataCutNoCut.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 10.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut2 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 2.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut3 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 3.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut5 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 5.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut6 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 6.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut7 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 7.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut8 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 8.); }, {"PtJetSim", "PtHardBin"});
+  auto dataCut10 = df.Filter([](double ptsim, int pthardbin) { return !IsOutlier(ptsim, pthardbin, 10.); }, {"PtJetSim", "PtHardBin"});
 
-  auto histNoCut = dataCutNoCut.Histo1D({"specTrueNoOutlierCut", "true spectrum no outlier cut", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
+  auto histNoCut = df.Histo1D({"specTrueNoOutlierCut", "true spectrum no outlier cut", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
        histCut2 = dataCut2.Histo1D({"specTrueOutlierCut2", "true spectrum outlier cut 2", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
        histCut3 = dataCut3.Histo1D({"specTrueOutlierCut3", "true spectrum outlier cut 3", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
        histCut5 = dataCut5.Histo1D({"specTrueOutlierCut5", "true spectrum outlier cut 5", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
+       histCut6 = dataCut6.Histo1D({"specTrueOutlierCut6", "true spectrum outlier cut 6", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
+       histCut7 = dataCut7.Histo1D({"specTrueOutlierCut7", "true spectrum outlier cut 7", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
+       histCut8 = dataCut8.Histo1D({"specTrueOutlierCut8", "true spectrum outlier cut 8", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight"),
        histCut10 = dataCut10.Histo1D({"specTrueOutlierCut10", "true spectrum outlier cut 10", static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtJetSim", "PythiaWeight");
 
   normalizeBinWidth(histNoCut.GetPtr());
   normalizeBinWidth(histCut2.GetPtr());
   normalizeBinWidth(histCut3.GetPtr());
   normalizeBinWidth(histCut5.GetPtr());
+  normalizeBinWidth(histCut6.GetPtr());
+  normalizeBinWidth(histCut7.GetPtr());
+  normalizeBinWidth(histCut8.GetPtr());
   normalizeBinWidth(histCut10.GetPtr());
 
   auto tag = getFileTag(mcfile);
@@ -74,9 +75,27 @@ void checkOutlierCut(const std::string_view mcfile){
   specCut5->Draw("epsame");
   leg->AddEntry(specCut5, "Outlier cut 5", "lep");
 
+  auto specCut6 = histcopy(histCut6.GetPtr());
+  specCut6->SetDirectory(nullptr);
+  Style{kMagenta, 27}.SetStyle<TH1>(*specCut6);
+  specCut6->Draw("epsame");
+  leg->AddEntry(specCut6, "Outlier cut 6", "lep");
+
+  auto specCut7 = histcopy(histCut7.GetPtr());
+  specCut7->SetDirectory(nullptr);
+  Style{kOrange, 28}.SetStyle<TH1>(*specCut7);
+  specCut7->Draw("epsame");
+  leg->AddEntry(specCut7, "Outlier cut 7", "lep");
+
+  auto specCut8 = histcopy(histCut8.GetPtr());
+  specCut8->SetDirectory(nullptr);
+  Style{kGray, 29}.SetStyle<TH1>(*specCut8);
+  specCut8->Draw("epsame");
+  leg->AddEntry(specCut8, "Outlier cut 8", "lep");
+
   auto specCut10 = histcopy(histCut10.GetPtr());
   specCut10->SetDirectory(nullptr);
-  Style{kViolet, 27}.SetStyle<TH1>(*specCut10);
+  Style{kViolet, 30}.SetStyle<TH1>(*specCut10);
   specCut10->Draw("epsame");
   leg->AddEntry(specCut10, "Outlier cut 10", "lep");
 
@@ -96,6 +115,21 @@ void checkOutlierCut(const std::string_view mcfile){
   rat5->SetDirectory(nullptr);
   rat5->Divide(rat5, specNoCut, 1., 1., "b");
   rat5->Draw("epsame");
+
+  auto rat6 = histcopy(specCut6);
+  rat6->SetDirectory(nullptr);
+  rat6->Divide(rat6, specNoCut, 1., 1., "b");
+  rat6->Draw("epsame");
+
+  auto rat7 = histcopy(specCut7);
+  rat7->SetDirectory(nullptr);
+  rat7->Divide(rat6, specNoCut, 1., 1., "b");
+  rat7->Draw("epsame");
+
+  auto rat8 = histcopy(specCut8);
+  rat8->SetDirectory(nullptr);
+  rat8->Divide(rat6, specNoCut, 1., 1., "b");
+  rat8->Draw("epsame");
 
   auto rat10 = histcopy(specCut10);
   rat10->SetDirectory(nullptr);

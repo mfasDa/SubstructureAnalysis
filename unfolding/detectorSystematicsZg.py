@@ -129,7 +129,7 @@ class TestRunner:
         subprocess.call("%s/sortPlotsIter.py | tee %s" %(self.__repo, logfile_monitor), shell = True)
 
 if __name__ == "__main__":
-    defaulttests = ["trackingeff", "emcalseed", "emcaltimeloose", "emcaltimestrong", "clusterizerv1", "hadcorrloose"]
+    defaulttests = ["trackingeff", "emcalseed", "emcaltimeloose", "emcaltimestrong", "clusterizerv1", "hadcorrloose", "hadcorr07lead"]
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     parser = argparse.ArgumentParser(prog="detectorSystematics.py", description="Running detector systematics for zg")
@@ -155,7 +155,8 @@ if __name__ == "__main__":
                  "emcaltimeloose" : Testcase("emcaltimeloose", "20180823_emcalloosetimecut"),
                  "emcaltimestrong" : Testcase("emcaltimestrong", "20180823_emcalstrongtimecut"),
                  "clusterizerv1": Testcase("clusterizerv1", "20180907_clusterizerv1"),
-                 "hadcorrloose" : Testcase("hadcorrloose", "20180907_hadcorrf0")}
+                 "hadcorrloose" : Testcase("hadcorrloose", "20180907_hadcorrf0"),
+                 "hadcorr07lead" : Testcase("hadcorr07lead", "20180912_haddcorrf07")}
     #             "hadcorrintermediate" : Testcase("hadcorrintermediate", "20180912_haddcorrf07")
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
     testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")

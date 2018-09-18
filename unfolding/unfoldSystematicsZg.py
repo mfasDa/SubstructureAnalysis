@@ -164,7 +164,7 @@ class TestRunner:
 
 
 if __name__ == "__main__":
-    defaulttests = ["truncation", "binning", "priors", "closure"]
+    defaulttests = ["truncation", "binning", "priors", "closure", "fakebin0", "triggerresponse"]
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.INFO)
     repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     parser = argparse.ArgumentParser(prog="unfoldSystematics.py", description="Running unfolding systematics for zg")
@@ -191,8 +191,8 @@ if __name__ == "__main__":
                  "binning" : Testcase("binning", os.path.join(repo, "RunUnfoldingZgSys_binning.cpp"), os.path.join(outputbase, "binning"), ["option1", "option2", "option3", "option4"]),
                  "priors" : Testcase("priors", os.path.join(repo, "RunUnfoldingZgSys_priors.cpp"), os.path.join(outputbase, "priors"), ["default"]),
                  "closure" : Testcase("closure", os.path.join(repo, "RunUnfoldingZg_weightedClosure.cpp"), os.path.join(outputbase, "closure"), ["standard", "smeared"]),
-                 "fakebin0" : Testcase("fakebin0", os.path.join(os.path.join("RunUnfoldingZg_fakebin0_v2.cpp")), os.path.join(outputbase, "fakebin0"), ["default"]),
-                 "triggerresponse" : Testcase("triggerresponse", os.path.join(repo, "RunUnfoldingZg.cpp"), os.path.join(outputbase, "triggerresponse"), ["default"], triggeroption = ["EJ1", "EJ2"], mcresponsetrigger = True)}
+                 "fakebin0" : Testcase("fakebin0", os.path.join(os.path.join(repo, "RunUnfoldingZgV1_fakebin0_V2.cpp")), os.path.join(outputbase, "fakebin0"), ["default"]),
+                 "triggerresponse" : Testcase("triggerresponse", os.path.join(repo, "RunUnfoldingZgV1.cpp"), os.path.join(outputbase, "triggerresponse"), ["default"], triggeroption = ["EJ1", "EJ2"], mcresponsetrigger = True)}
     caselogger = lambda tc : logging.info("Adding test case \"%s\"", tc)
     testadder = lambda tc : testmanager.addtest(testcases[tc]) if not dryrun else logging.info("Not adding test due to dry run")
     for t in defaulttests:

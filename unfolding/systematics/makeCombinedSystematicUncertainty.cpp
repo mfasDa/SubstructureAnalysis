@@ -1,5 +1,6 @@
 #include "../../meta/stl.C"
 #include "../../meta/root.C"
+#include "../../meta/root6tools.C"
 #include "../../helpers/string.C"
 #include "../../helpers/root.C"
 
@@ -232,7 +233,7 @@ std::vector<VariationResults> getVariations(const std::string_view variation, co
     for(auto &t : gettestfiles(vardir.str(), tag)) {
         bool doignore = false;
         for(auto ignore : gIgnore){
-            if(variation == ignore.first && contains(t, ignore.second)) {
+            if(static_cast<std::string>(variation) == ignore.first && contains(t, ignore.second)) {
                 doignore = true;
                 break;
             } 
@@ -267,7 +268,9 @@ std::vector<sysbin> evaluateSystematics(std::vector<VariationResults> &variation
 }
 
 std::set<SystematicsDistribution> createResult(const std::map<std::string, std::vector<sysbin>> errorsources){
-    const std::map<std::string, Color_t> colors = {{"binning", kRed}, {"emcaltimecut", kBlue}, {"priors", kGreen+2}, {"regularization", kOrange+5}, {"seeding", kMagenta+1}, {"trackingeff", kCyan+1}, {"truncation", kViolet+1}};
+    const std::map<std::string, Color_t> colors = {{"binning", kRed}, {"emcaltimecut", kBlue}, {"priors", kGreen+2}, {"regularization", kOrange+5}, 
+                                                   {"seeding", kMagenta+1}, {"trackingeff", kCyan+1}, {"truncation", kViolet+1}, {"clusterizer", kTeal+ 3}, 
+                                                   {"hadCorr", kGray+2}, {"triggerresponse", kRed-6}};
     std::set<SystematicsDistribution> result;
     for(auto b : errorsources.begin()->second) {
         Range findrange{b.fPtMin, b.fPtMax};
@@ -283,10 +286,11 @@ std::set<SystematicsDistribution> createResult(const std::map<std::string, std::
 
 void makeCombinedSystematicUncertainty(double radius, const std::string_view trigger){
     std::string tag = Form("R%02d_%s", int(radius * 10.), trigger.data()); 
-    std::vector<std::string> sources = {"binning", "emcaltimecut", "priors", "regularization", "seeding", "trackingeff", "truncation"};
+    std::vector<std::string> sources = {"binning", "emcaltimecut", "priors", "regularization", "seeding", "trackingeff", "truncation", "clusterizer", "hadCorr"};//, "triggerresponse"};
     std::string basedir = gSystem->GetWorkingDirectory();
     std::map<std::string, std::vector<sysbin>> errors;
     for(auto s : sources) {
+        if(s == "triggerresponse" && trigger == "INT7") continue;
         auto variations = getVariations(s, basedir, tag);
         auto sysbins = evaluateSystematics(variations);
         errors[s] = sysbins;
