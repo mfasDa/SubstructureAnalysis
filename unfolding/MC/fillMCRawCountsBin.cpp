@@ -1,12 +1,5 @@
-#ifndef __CLING__
-#include "ROOT/RDataFrame.hxx"
-#include "RStringView.h"
-#include "TROOT.h"
-
-#include "TDefaultLegend.h"
-#include "TSavableCanvas.h"
-#endif
-
+#include "../../meta/root.C"
+#include "../../meta/root6tools.C"
 #include "../../helpers/graphics.C"
 #include "../../helpers/math.C"
 #include "../../helpers/substructuretree.C"
@@ -23,9 +16,9 @@ std::vector<double> getLinearBinning(int nbins, double xmin, double xmax) {
 void fillMCRawCountsBin(const std::string_view filename){
   ROOT::EnableImplicitMT(8);
 
-  auto ptbinning = getMinBiasPtBinningPart(), pthardbinning = getLinearBinning(21, -0.5, 20.5);
+  auto ptbinning = getPtBinningPart("EJ1"), pthardbinning = getLinearBinning(21, -0.5, 20.5);
   ROOT::RDataFrame df(GetNameJetSubstructureTree(filename), filename);
-  auto selected = df.Filter("NEFRec < 0.98 && PtJetRec > 20. && PtJetRec < 120. && ZgTrue >= 0.25 && ZgTrue < 0.3");
+  auto selected = df.Filter("ZgTrue >= 0.20 && ZgTrue < 0.25");
   auto weighted = selected.Histo2D({"hweighted", "weighted; pt-hard bin; p_{t,j} (GeV/c)", static_cast<int>(pthardbinning.size()-1), pthardbinning.data(), static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtHardBin", "PtJetSim", "PythiaWeight");
   auto unweighted = selected.Histo2D({"hunweighted", "weighted; pt-hard bin; p_{t,j} (GeV/c)", static_cast<int>(pthardbinning.size()-1), pthardbinning.data(), static_cast<int>(ptbinning.size()-1), ptbinning.data()}, "PtHardBin", "PtJetSim");
 
