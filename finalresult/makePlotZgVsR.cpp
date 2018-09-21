@@ -36,11 +36,13 @@ std::set<PtBin> makeSysResult(const std::string_view inputfile, double ptmin, do
         std::unique_ptr<TH1> min(static_cast<TH1 *>(gDirectory->Get("lowsysrel"))), 
                             max(static_cast<TH1 *>(gDirectory->Get("upsysrel")));
 
-        for(auto b : ROOT::TSeqI(0, reference->GetNbinsX())){
-            stat->SetPoint(b, reference->GetXaxis()->GetBinCenter(b+1), reference->GetBinContent(b+1));
-            sys->SetPoint(b, reference->GetXaxis()->GetBinCenter(b+1), reference->GetBinContent(b+1));
-            stat->SetPointError(b, reference->GetXaxis()->GetBinWidth(b+1)/2., reference->GetBinError(b+1));
-            sys->SetPointError(b, reference->GetXaxis()->GetBinWidth(b+1)/2., reference->GetXaxis()->GetBinWidth(b+1)/2., reference->GetBinContent(b+1) * TMath::Abs(min->GetBinContent(b+1)), reference->GetBinContent(b+1) * TMath::Abs(max->GetBinContent(b+1)));
+        int np(0);
+        for(auto b : ROOT::TSeqI(1, reference->GetNbinsX())){
+            stat->SetPoint(np, reference->GetXaxis()->GetBinCenter(b+1), reference->GetBinContent(b+1));
+            sys->SetPoint(np, reference->GetXaxis()->GetBinCenter(b+1), reference->GetBinContent(b+1));
+            stat->SetPointError(np, reference->GetXaxis()->GetBinWidth(b+1)/2., reference->GetBinError(b+1));
+            sys->SetPointError(np, reference->GetXaxis()->GetBinWidth(b+1)/2., reference->GetXaxis()->GetBinWidth(b+1)/2., reference->GetBinContent(b+1) * TMath::Abs(min->GetBinContent(b+1)), reference->GetBinContent(b+1) * TMath::Abs(max->GetBinContent(b+1)));
+            np++;
         }
         result.insert({binlimits.first, binlimits.second, stat, sys});
     }
