@@ -199,7 +199,7 @@ void MergeResponseppNewV1(std::string_view inputdir, std::string_view treename, 
     substructuretree->SetBranchAddress("ZLeadingSim", &zleadingsim); 
     substructuretree->SetBranchAddress("ZLeadingChargedSim", &zleadingchargedsim); 
     substructuretree->SetBranchAddress("ZLeadingNeutralSim", &zleadingneutralsim);
-    for(auto en : ROOT::TSeqI(0, substructuretree->GetEntriesFast())){
+    for(auto en : ROOT::TSeq<Long64_t>(0, substructuretree->GetEntriesFast())){
       //printf("Doing entry %d\n", en);
       substructuretree->GetEntry(en);
       outtree->Fill();
