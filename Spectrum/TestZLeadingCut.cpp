@@ -26,8 +26,8 @@ void TestZLeadingCut(){
     const std::map<std::string, Style_t> markers = {{"data", 20}, {"mc", 24}};
     std::vector<double> jetradii = {0.2, 0.3, 0.4, 0.5};
     for(auto r : jetradii) {
-        auto plotR  = new ROOT6tools::TSavableCanvas(Form("ZleadingDistsDataMCR%02d", int(r*10.)), Form("z_{leading} dists for R=%.1f", r), 1200, 1000);
-        plotR->Divide(3,2);
+        auto plotR  = new ROOT6tools::TSavableCanvas(Form("ZleadingDistsDataMCR%02d", int(r*10.)), Form("z_{leading} dists for R=%.1f", r), 1200, 800);
+        plotR->Divide(5,2);
 
         auto histsData = getZLeadingDist(r,true),
              histsMC   = getZLeadingDist(r,false);
@@ -37,13 +37,13 @@ void TestZLeadingCut(){
             plotR->cd(ipad);
             gPad->SetLeftMargin(0.15);
             gPad->SetRightMargin(0.05);
-            (new ROOT6tools::TAxisFrame(Form("ZframeR%02d", int(r*10.)), "z_{leading}", "1/N_{jet} N(z_{leading})", 0., 1., 0., 0.1))->Draw();
+            double ptmin = histsData.first->GetXaxis()->GetBinLowEdge(b+1), ptmax = histsData.first->GetXaxis()->GetBinUpEdge(b+1);
+            (new ROOT6tools::TAxisFrame(Form("ZframeR%02d_%d_%d", int(r*10.), int(ptmin), int(ptmax)), "z_{leading}", "1/N_{jet} N(z_{leading})", 0., 1., 0., 0.1))->Draw();
             if(ipad == 1){
                 leg = new ROOT6tools::TDefaultLegend(0.55, 0.65, 0.94, 0.89);
                 leg->Draw();
                 (new ROOT6tools::TNDCLabel(0.75, 0.5, 0.94, 0.6, Form("R=%.1f", r)))->Draw("epsame");
             }
-            double ptmin = histsData.first->GetXaxis()->GetBinLowEdge(b+1), ptmax = histsData.first->GetXaxis()->GetBinUpEdge(b+1);
             (new ROOT6tools::TNDCLabel(0.2, 0.8, 0.6, 0.89, Form("%.1f GeV/c < p_{t} < %.1f GeV/c", ptmin, ptmax)))->Draw();
             auto proChargedData = histsData.first->ProjectionY(Form("sliceZLeadingChargedDataR%02d_%d_%d", int(r*10.), int(ptmin), int(ptmax)), b+1, b+1),
                  proNeutralData = histsData.second->ProjectionY(Form("sliceZLeadingNeutralDataR%02d_%d_%d", int(r*10.), int(ptmin), int(ptmax)), b+1, b+1),
@@ -70,6 +70,21 @@ void TestZLeadingCut(){
                 leg->AddEntry(proNeutralData, "neutral, data (EJ1)", "lep");
                 leg->AddEntry(proNeutralMC, "neutral, MC (INT7)", "lep");
             }
+
+            plotR->cd(ipad+5);
+            (new ROOT6tools::TAxisFrame(Form("RatioDataMCFrame_R%d_%d_%d", int(r*10.), int(ptmin), int(ptmax)), "z_{leading}", "Ratio Data MC", 0.,1, 0.1, 1.5))->Draw("axis");
+            auto ratioCharged = histcopy(proChargedData), ratioNeutral = histcopy(proNeutralData);
+            ratioCharged->Rebin(4);
+            ratioNeutral->Rebin(4);
+            std::unique_ptr<TH1> tmpneutral(histcopy(proNeutralMC)), tmpcharged(histcopy(proChargedMC));
+            tmpneutral->Rebin(4);
+            tmpcharged->Rebin(4);
+            ratioCharged->Divide(tmpcharged.get());
+            ratioNeutral->Divide(tmpneutral.get());
+            Style{colors.find("charged")->second, markers.find("mc")->second}.SetStyle<TH1>(*ratioCharged);
+            Style{colors.find("neutral")->second, markers.find("mc")->second}.SetStyle<TH1>(*ratioNeutral);
+            ratioCharged->Draw("epsame");
+            ratioNeutral->Draw("epsame");
             ipad++;
         }
         plotR->cd();

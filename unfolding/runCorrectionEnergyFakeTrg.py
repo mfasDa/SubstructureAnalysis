@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument("datadir", metavar="DATADIR", help="Location where to find the data")
     parser.add_argument("-z", "--zleading", type=float, default=1.1, help="Cut on the leading neutral constituent")
     args = parser.parse_args()
-    SCRIPTS = ["runCorrectionChain1DBayes.cpp", "runCorrectionChain1DSVD.cpp"] 
+    SCRIPTS = ["runCorrectionChain1DBayes_SysFakeTrg.cpp", "runCorrectionChain1DSVD_SysFakeTrg.cpp"] 
     DATADIR = args.datadir
     ZCUT= args.zleading
     #SCRIPTS = ["runCorrectionChain1DBayes.cpp"]
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     for RADIUS in range(2, 6):
         print("Unfolding R=%.1f" %(float(RADIUS)/10.))
         for SCRIPT in SCRIPTS:
-            cmd="root -l -b -q \'%s(%f, \"%s\")'" %(os.path.join(REPO, SCRIPT), float(RADIUS)/10., DATADIR)
+            cmd="root -l -b -q \'%s(%f, %f, \"%s\")'" %(os.path.join(REPO, SCRIPT), float(RADIUS)/10., ZCUT, DATADIR)
             print("Command: %s" %cmd)
             WORKQUEUE.insert(cmd)
 

@@ -48,23 +48,33 @@ if __name__ == "__main__":
     parser.add_argument("datadir", metavar="DATADIR", help="Location where to find the data")
     parser.add_argument("-z", "--zleading", type=float, default=1.1, help="Cut on the leading neutral constituent")
     args = parser.parse_args()
-    SCRIPTS = ["runCorrectionChain1DBayes.cpp", "runCorrectionChain1DSVD.cpp"] 
+    SCRIPTS = ["runCorrectionChain1DBayes_SysFakeTrgSwap.cpp"] 
+    #SCRIPTS = ["runCorrectionChain1DBayes_SysRegTrgSwap.cpp"] 
     DATADIR = args.datadir
     ZCUT= args.zleading
-    #SCRIPTS = ["runCorrectionChain1DBayes.cpp"]
-    #SCRIPTS = ["runCorrectionChain1DSVD.cpp"]
-    WORKQUEUE = workpool()
-    for RADIUS in range(2, 6):
-        print("Unfolding R=%.1f" %(float(RADIUS)/10.))
-        for SCRIPT in SCRIPTS:
-            cmd="root -l -b -q \'%s(%f, \"%s\")'" %(os.path.join(REPO, SCRIPT), float(RADIUS)/10., DATADIR)
-            print("Command: %s" %cmd)
-            WORKQUEUE.insert(cmd)
+    #CUTOFFS = [50., 60., 70., 80., 90., 100., 120.]
+    CUTOFFS = [120.]
+    BASEDIR = os.getcwd()
+    for CUT in CUTOFFS:
+        cutoffdir = os.path.join(BASEDIR, "cutoff%d" %(int(CUT)))
+        if not os.path.exists(cutoffdir):
+            os.makedirs(cutoffdir, 0755)
+        os.chdir(cutoffdir)
 
-    WORKERS = []
-    for IWORK in range(0, 10):
-        WORKER = Processor(WORKQUEUE)
-        WORKER.start()
-        WORKERS.append(WORKER)
-    for WORKER in WORKERS:
-        WORKER.join()
+        WORKQUEUE = workpool()
+        for RADIUS in range(2, 6):
+            print("Unfolding R=%.1f" %(float(RADIUS)/10.))
+            for SCRIPT in SCRIPTS:
+                cmd="root -l -b -q \'%s(%f, %f, %f, \"%s\")'" %(os.path.join(REPO, SCRIPT), float(RADIUS)/10., ZCUT, CUT, DATADIR)
+                print("Command: %s" %cmd)
+                WORKQUEUE.insert(cmd)
+
+        WORKERS = []
+        for IWORK in range(0, 4):
+            WORKER = Processor(WORKQUEUE)
+            WORKER.start()
+            WORKERS.append(WORKER)
+        for WORKER in WORKERS:
+            WORKER.join()
+
+        os.chdir(BASEDIR)

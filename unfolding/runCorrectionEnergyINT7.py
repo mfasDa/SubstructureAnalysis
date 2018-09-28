@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument("datadir", metavar="DATADIR", help="Location where to find the data")
     parser.add_argument("-z", "--zleading", type=float, default=1.1, help="Cut on the leading neutral constituent")
     args = parser.parse_args()
-    SCRIPTS = ["runCorrectionChain1DBayes.cpp", "runCorrectionChain1DSVD.cpp"] 
+    SCRIPTS = ["runCorrectionChain1DBayesINT7.cpp", "runCorrectionChain1DSVDINT7.cpp"] 
     DATADIR = args.datadir
     ZCUT= args.zleading
     #SCRIPTS = ["runCorrectionChain1DBayes.cpp"]
