@@ -8,6 +8,8 @@
 #include <TMath.h>
 #endif
 
+#include "root.C"
+
 int getDigits(int number) {
   int ndigits(0);
   while(true){
@@ -40,5 +42,28 @@ void invert(TH1 *hist){
       hist->SetBinError(b+1, err/(val*val));
     }
   }
+}
+
+TH1 *rebinPtSpectrum(TH1 *hinput, std::vector<double> xBins){
+  std::unique_ptr<TH1> htmp(histcopy(hinput));
+  htmp->Sumw2();
+  for(auto ib : ROOT::TSeqI(0, htmp->GetNbinsX())){
+    auto value = htmp->GetBinContent(ib+1);
+    auto width = htmp->GetBinWidth(ib+1);
+    auto center = htmp->GetBinCenter(ib+1);
+    auto error = htmp->GetBinError(ib+1);
+    htmp->SetBinContent(ib+1,value*width);
+    htmp->SetBinError(ib+1,error*width);
+  }
+  auto hrebinned = htmp->Rebin(xBins.size()-1, Form("%sRebinned", hinput->GetName()), xBins.data());   
+  for(auto ib : ROOT::TSeqI(0, hrebinned->GetNbinsX())){
+    auto value = hrebinned->GetBinContent(ib+1);
+    auto width = hrebinned->GetBinWidth(ib+1);
+    auto center = hrebinned->GetBinCenter(ib+1);
+    auto error = hrebinned->GetBinError(ib+1);
+    hrebinned->SetBinContent(ib+1,value/width);
+    hrebinned->SetBinError(ib+1,error/width);
+  }
+  return hrebinned;
 }
 #endif
