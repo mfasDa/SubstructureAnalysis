@@ -66,4 +66,10 @@ TH1 *rebinPtSpectrum(TH1 *hinput, std::vector<double> xBins){
   }
   return hrebinned;
 }
+
+Double_t EtaToTheta(Double_t eta) 
+{
+  //Converts Theta (Radians) to Eta(Radians)
+  return (2.*TMath::ATan(TMath::Exp(-eta)));
+}
 #endif

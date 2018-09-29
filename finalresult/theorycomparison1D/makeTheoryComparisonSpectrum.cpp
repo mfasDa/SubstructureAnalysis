@@ -88,9 +88,8 @@ std::set<TheoryRBin> readTheorySpectra(const std::string_view theory){
     return spectra;
 }
 
-DataRBin makeRatioDataOverTheory(const DataRBin &data, const TheoryRBin &theory) {
-    TGraphErrors *stat = new TGraphErrors;
-    TGraphAsymmErrors *sys = new TGraphAsymmErrors;
+TGraphErrors *makeRatioTheoryOverData(const DataRBin &data, const TheoryRBin &theory) {
+    TGraphErrors *result = new TGraphErrors;
 
     auto pointfinder = [](double pt, const TGraphErrors *graph) {
         int result = -1;
@@ -104,17 +103,17 @@ DataRBin makeRatioDataOverTheory(const DataRBin &data, const TheoryRBin &theory)
         return result;
     };
 
-    for(auto p : ROOT::TSeqI(0, data.fStat->GetN())){
-        int ntheo = pointfinder(data.fStat->GetX()[p], theory.fData);
-        if(ntheo < 0) continue;
-        auto pointTheory = theory.fData->GetY()[ntheo];
-        stat->SetPoint(p, data.fStat->GetX()[p], data.fStat->GetY()[p]/pointTheory);
-        stat->SetPointError(p, data.fStat->GetEX()[p], data.fStat->GetEY()[p]/pointTheory);
-        sys->SetPoint(p, data.fSys->GetX()[p], data.fSys->GetY()[p]/pointTheory);
-        sys->SetPointError(p, data.fSys->GetEXlow()[p], data.fSys->GetEXhigh()[p], data.fSys->GetEYlow()[p]/pointTheory, data.fSys->GetEYhigh()[p]/pointTheory);
+    int np(0);
+    for(auto p : ROOT::TSeqI(0, theory.fData->GetN())){
+        int ndata = pointfinder(theory.fData->GetX()[p], data.fStat);
+        if(ndata < 0) continue;
+        auto pointData = data.fStat->GetY()[ndata];
+        result->SetPoint(np, theory.fData->GetX()[p], theory.fData->GetY()[p]/pointData);
+        result->SetPointError(np, theory.fData->GetEX()[p], theory.fData->GetEY()[p]/pointData);
+        np++;
     }
 
-    return {data.fRadius, stat, sys};
+    return result;
 }
 
 TGraph *makeLineGraph(const TGraphErrors *in) {
@@ -123,8 +122,19 @@ TGraph *makeLineGraph(const TGraphErrors *in) {
     return result;
 }
 
+TGraphAsymmErrors *makeErrorRel(TGraphErrors *stat, TGraphAsymmErrors *sys){
+    TGraphAsymmErrors *result = new TGraphAsymmErrors;
+    for(auto p : ROOT::TSeqI(0, stat->GetN())){
+        double elow = TMath::Sqrt(TMath::Power(sys->GetEYlow()[p], 2) + TMath::Power(stat->GetEY()[p], 2)) / stat->GetY()[p],
+               ehigh = TMath::Sqrt(TMath::Power(sys->GetEYhigh()[p], 2) + TMath::Power(stat->GetEY()[p], 2)) / stat->GetY()[p];
+        result->SetPoint(p, stat->GetX()[p], 1);
+        result->SetPointError(p, sys->GetEXlow()[p], sys->GetEXhigh()[p], elow, ehigh);
+    }
+    return result;
+}
+
 void makeTheoryComparisonSpectrum(){
-    auto plot = new ROOT6tools::TSavableCanvas("comparisonSpectraTheory", "Comparison spectra to theory",1000, 1200);
+    auto plot = new ROOT6tools::TSavableCanvas("comparisonSpectraTheory", "Comparison spectra to theory",900, 1000);
     plot->Divide(2,2);
 
     auto dataspectra = readDataSpectra();
@@ -134,73 +144,163 @@ void makeTheoryComparisonSpectrum(){
     std::map<double, Color_t> colors = {{0.2, kRed}, {0.3, kGreen+2}, {0.4, kBlue}, {0.5, kViolet}};
     std::map<double, Style_t> markers = {{0.2, 24}, {0.3, 25}, {0.4, 26}, {0.5, 27}};
 
+    std::map<std::string, Style> theorystyles = {{"pythia6", {kBlue, 24}}, {"powheg", {kRed, 25}}};
+    double fracdown  = 0.51;
+    std::vector<TPad *> pads = { 
+        new TPad("Pad0", "Pad0", 0., fracdown, 0.52, 1.), 
+        new TPad("Pad1", "Pad1", 0.52, fracdown, 1., 1.), 
+        new TPad("Pad2", "Pad2", 0., 0.0, 0.52, fracdown), 
+        new TPad("Pad3", "Pad3", 0.52, 0., 1., fracdown)
+    };
+
     for(auto irad : ROOT::TSeqI(0, 4)){
         auto databin =  dataspectra.find({kJetRadii[irad], nullptr, nullptr});
         auto perugiabin = perugiaspectra.find({kJetRadii[irad], nullptr});
         auto powhegbin =  powhegspectra.find({kJetRadii[irad], nullptr});
-        plot->cd(irad + 1);
+        
+        plot->cd();
+        pads[irad]->Draw();
+        pads[irad]->cd();
         auto parent = gPad;
-        auto specpad = new TPad(Form("specpadR%02d", int(kJetRadii[irad] * 10.)), Form("Spectrum pad R=%.1f", kJetRadii[irad]), 0., 0.35, 1., 1.);
+        double splitterSpec = irad < 2 ? 0.27 : 0.35;
+        auto specpad = new TPad(Form("specpadR%02d", int(kJetRadii[irad] * 10.)), Form("Spectrum pad R=%.1f", kJetRadii[irad]), 0., splitterSpec, 1., 1.);
         specpad->Draw();
         specpad->cd();
+        switch(irad){
+            case 0: {
+                gPad->SetRightMargin(0.);
+                gPad->SetLeftMargin(0.18);
+                gPad->SetTopMargin(0.05);
+                break;
+            }
+            case 1 :{
+                gPad->SetLeftMargin(0.);
+                gPad->SetRightMargin(0.11);
+                gPad->SetTopMargin(0.05);
+                break;
+            }
+            case 2: {
+                gPad->SetTopMargin(0.);
+                gPad->SetRightMargin(0.);
+                gPad->SetLeftMargin(0.18);
+                break;
+            }
+            case 3: {
+                gPad->SetTopMargin(0.);
+                gPad->SetLeftMargin(0.);
+                gPad->SetRightMargin(0.11);
+                break;
+            }
+        };
         specpad->SetLogy();
         specpad->SetBottomMargin(0);
-        specpad->SetLeftMargin(0.13);
-        auto specframe = new ROOT6tools::TAxisFrame(Form("specframeR%02d", int(kJetRadii[irad] * 10.)), "p_{t} (GeV/c)", "d#sigma/dp_{t}d#eta (mb/(GeV/c))", 0., 250., 5e-8, 1e-1);
-        specframe->GetYaxis()->SetLabelSize(0.04);
-        specframe->GetYaxis()->SetTitleSize(0.04);
-        specframe->GetYaxis()->SetTitleOffset(1.4);
+        gPad->SetTicks();
+        auto specframe = new ROOT6tools::TAxisFrame(Form("specframeR%02d", int(kJetRadii[irad] * 10.)), "p_{t}^{jet} (GeV/c)", "d#sigma/dp_{t}^{jet}d#eta (mb/(GeV/c))", 0.001, 260., 5e-8, 5e-1);
+        auto specysize = irad < 2 ? 0.055 : 0.06;
+        auto specyoffset = irad < 2 ? 1.4 : 1.2;
+        specframe->GetYaxis()->SetLabelSize(specysize);
+        specframe->GetYaxis()->SetTitleSize(specysize);
+        specframe->GetYaxis()->SetTitleOffset(specyoffset);
         specframe->Draw("axis");
         TLegend *leg(nullptr);
         if(irad == 0) {
-            //(new ROOT6tools::TNDCLabel(0.2, 0.8, 0.89, 0.89, "ALICE preliminary, pp, #sqrt{s} = 13 TeV, #intLdt = 3.5 pb^{-1}"))->Draw();
-            (new ROOT6tools::TNDCLabel(0.2, 0.78, 0.55, 0.85, "pp, #sqrt{s} = 13 TeV, #intLdt = 3.5 pb^{-1}"))->Draw();
-            (new ROOT6tools::TNDCLabel(0.2, 0.71, 0.4, 0.77, "jets, anti-k_{t}"))->Draw();
-            leg = new ROOT6tools::TDefaultLegend(0.55, 0.65, 0.89, 0.79);
+            (new ROOT6tools::TNDCLabel(0.2, 0.8, 0.98, 0.89, "ALICE preliminary, pp, #sqrt{s} = 13 TeV, #intLdt = 4 pb^{-1}"))->Draw();
+            //(new ROOT6tools::TNDCLabel(0.2, 0.78, 0.55, 0.85, "pp, #sqrt{s} = 13 TeV, #intLdt = 3.5 pb^{-1}"))->Draw();
+            auto jetlabel = new ROOT6tools::TNDCLabel(0.3, 0.55, 0.94, 0.8, "jets, FastJet, anti-k_{t}");
+            jetlabel->SetTextAlign(12);
+            jetlabel->AddText("p_{t}^{track} > 0.15 GeV/c, E^{cluster} > 0.3 GeV");
+            jetlabel->AddText("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - R");
+            jetlabel->Draw();
+        }
+        if(irad == 1) {
+            leg = new ROOT6tools::TDefaultLegend(0.25, 0.65, 0.89, 0.89);
             leg->Draw();
         }
-        (new ROOT6tools::TNDCLabel(0.2, 0.05, 0.35, 0.12, Form("R=%.1f", kJetRadii[irad])))->Draw();
+        (new ROOT6tools::TNDCLabel(gPad->GetLeftMargin() +0.05, gPad->GetBottomMargin()+0.1, gPad->GetLeftMargin()+0.25, gPad->GetBottomMargin() + 0.17, Form("R=%.1f", kJetRadii[irad])))->Draw();
 
-        Style{colors[kJetRadii[irad]], markers[kJetRadii[irad]]}.SetStyle<TGraphErrors>(*databin->fStat);
+        Style{kBlack, 20}.SetStyle<TGraphErrors>(*databin->fStat);
         databin->fStat->Draw("epsame");
         if(leg) leg->AddEntry(databin->fStat, "data", "lep");
-        databin->fSys->SetFillColor(colors[kJetRadii[irad]]);
-        databin->fSys->SetFillStyle(3001);
+        databin->fSys->SetLineColor(kBlack);
+        databin->fSys->SetFillStyle(0);
         databin->fSys->Draw("2same");
 
+        /*
         auto perugialine = makeLineGraph(perugiabin->fData);
         perugialine->SetLineColor(kBlack);
-        perugialine->SetLineWidth(2);
         perugialine->Draw("lsame");
-        if(leg) leg->AddEntry(perugialine, "PYTHIA6, Perugia 2011", "l");
+        perugialine->SetLineWidth(2);
+        */
+        theorystyles["pythia6"].SetStyle<TGraphErrors>(*perugiabin->fData);
+        perugiabin->fData->Draw("epsame");
+        if(leg) leg->AddEntry(perugiabin->fData, "PYTHIA6, Perugia 2011", "lep");
+        //if(leg) leg->AddEntry(perugialine, "PYTHIA6, Perugia 2011", "l");
 
+        /*
         auto powhegline = makeLineGraph(powhegbin->fData);
         powhegline->SetLineColor(kBlack);
         powhegline->SetLineWidth(2);
         powhegline->SetLineStyle(2);
         powhegline->Draw("lsame");
-        if(leg) leg->AddEntry(powhegline, "POWHEG+PYTHIA", "l");
+        */
+        theorystyles["powheg"].SetStyle<TGraphErrors>(*powhegbin->fData);
+        powhegbin->fData->Draw("epsame");
+        if(leg) leg->AddEntry(powhegbin->fData, "POWHEG+PYTHIA", "lep");
+        //if(leg) leg->AddEntry(powhegline, "POWHEG+PYTHIA", "l");
 
         parent->cd();
-        auto ratiopad = new TPad(Form("ratiopadR%02d", int(kJetRadii[irad] * 10.)), Form("Ratio pad R=%.1f", kJetRadii[irad]), 0., 0.0, 1., 0.35);
+        auto ratiopad = new TPad(Form("ratiopadR%02d", int(kJetRadii[irad] * 10.)), Form("Ratio pad R=%.1f", kJetRadii[irad]), 0., 0.0, 1., splitterSpec);
         ratiopad->Draw();
         ratiopad->cd();
+        switch(irad){
+            case 0: {
+                gPad->SetRightMargin(0.);
+                gPad->SetLeftMargin(0.18);
+                gPad->SetBottomMargin(0.);
+                break;
+            }
+            case 1 :{
+                gPad->SetLeftMargin(0.);
+                gPad->SetRightMargin(0.11);
+                gPad->SetBottomMargin(0.);
+                break;
+            }
+            case 2: {
+                gPad->SetTopMargin(0.);
+                gPad->SetRightMargin(0.);
+                gPad->SetLeftMargin(0.18);
+                gPad->SetBottomMargin(0.25);
+                break;
+            }
+            case 3: {
+                gPad->SetTopMargin(0.);
+                gPad->SetLeftMargin(0.);
+                gPad->SetRightMargin(0.11);
+                gPad->SetBottomMargin(0.25);
+                break;
+            }
+        };
         ratiopad->SetTopMargin(0.);
-        ratiopad->SetBottomMargin(0.2);
-        ratiopad->SetLeftMargin(0.13);
-        auto ratioframe = new ROOT6tools::TAxisFrame(Form("ratframeR%02d", int(kJetRadii[irad] * 10.)), "p_{t} (GeV/c)", "Data / Theory", 0., 250., 0.51, 1.49);
-        ratioframe->GetXaxis()->SetTitleSize(0.08);
-        ratioframe->GetXaxis()->SetLabelSize(0.08);
-        ratioframe->GetYaxis()->SetTitleSize(0.08);
-        ratioframe->GetYaxis()->SetLabelSize(0.08);
-        ratioframe->GetYaxis()->SetTitleOffset(0.5);
+        gPad->SetTicks();
+        auto ratioframe = new ROOT6tools::TAxisFrame(Form("ratframeR%02d", int(kJetRadii[irad] * 10.)), "p_{t} (GeV/c)", "Theory / Data", 0.001, 260., 0.51, 1.49);
+        double ratframesizey = irad < 2 ? 0.13 : 0.105,
+               ratframeoffsety = irad < 2 ? 0.6 : 0.7;
+        ratioframe->GetXaxis()->SetTitleSize(0.1);
+        ratioframe->GetXaxis()->SetLabelSize(0.1);
+        ratioframe->GetYaxis()->SetTitleSize(ratframesizey);
+        ratioframe->GetYaxis()->SetLabelSize(ratframesizey);
+        ratioframe->GetYaxis()->SetTitleOffset(ratframeoffsety);
         ratioframe->Draw("axis");
-        auto ratio = makeRatioDataOverTheory(*databin, *powhegbin);
-        Style{colors[kJetRadii[irad]], markers[kJetRadii[irad]]}.SetStyle<TGraphErrors>(*ratio.fStat);
-        ratio.fStat->Draw("epsame");
-        ratio.fSys->SetFillColor(colors[kJetRadii[irad]]);
-        ratio.fSys->SetFillStyle(3001);
-        ratio.fSys->Draw("2same");
+        auto datarel = makeErrorRel(databin->fStat, databin->fSys);
+        datarel->SetFillColor(kGray);
+        datarel->SetFillStyle(3001);
+        datarel->Draw("2same");
+        auto ratioPowheg = makeRatioTheoryOverData(*databin, *powhegbin);
+        theorystyles["powheg"].SetStyle<TGraphErrors>(*ratioPowheg);
+        ratioPowheg->Draw("epsame");
+        auto ratioPythia = makeRatioTheoryOverData(*databin, *perugiabin);
+        theorystyles["pythia6"].SetStyle<TGraphErrors>(*ratioPythia);
+        ratioPythia->Draw("epsame");
     }
     plot->cd();
     plot->Update();
