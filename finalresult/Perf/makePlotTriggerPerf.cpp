@@ -5,13 +5,13 @@
 #include "../../helpers/string.C"
 
 struct legentryThresholds {
-    TH1         *fHist;
+    TF1         *fHist;
     std::string fTriggerText;
     double      fCentralValue;
     double      fUncertainty;
 
     void AddToLegend(TLegend *leg) {
-        leg->AddEntry(fHist, Form("%s: %.1f #pm %.1f", fTriggerText.data(), fCentralValue, fUncertainty), "lep");
+        leg->AddEntry(fHist, Form("%s: %d", fTriggerText.data(), int(fCentralValue)), "l");
     }
 };
 
@@ -24,13 +24,32 @@ void makePlotTriggerPerf(const std::string_view inputfile = "triggerturnon.root"
     auto plot = new ROOT6tools::TSavableCanvas("PerfEmcalTrigger", "Performance of the EMCAL jet trigger", 800, 600);
     plot->cd();
     gPad->SetLogy();
+    gPad->SetTicks();
+    gPad->SetRightMargin(0.04);
+    gPad->SetTopMargin(0.04);
+    gPad->SetLeftMargin(0.13);
+    gPad->SetBottomMargin(0.13);
 
-    (new ROOT6tools::TAxisFrame("EJ1frame", "p_{t,jet} (GeV/c)", "Triggered / Min. bias", 0., 200., 0.8, 100000))->Draw("axis");
-    (new ROOT6tools::TNDCLabel(0.15, 0.79, 0.87, 0.87, "ALICE preliminary, pp #sqrt{s} = 13 TeV, #intLdt = 4 pb^{-1}, jets, anti-k_{t}"))->Draw();
-    auto legR = new ROOT6tools::TDefaultLegend(0.7, 0.15, 0.89, 0.4);
-    auto legT = new ROOT6tools::TDefaultLegend(0.15, 0.15, 0.6, 0.23);
+    auto frame = new ROOT6tools::TAxisFrame("EJ1frame", "#it{p}_{T,jet} (GeV/#it{c})", "Yield triggered / Min. bias", 0., 200., 0.8, 700000);
+    auto axissize = 0.045;
+    frame->GetXaxis()->SetTitleSize(axissize);
+    frame->GetYaxis()->SetTitleSize(axissize);
+    frame->GetXaxis()->SetLabelSize(axissize);
+    frame->GetYaxis()->SetLabelSize(axissize);
+    frame->GetXaxis()->SetTitleOffset(1.3);
+    frame->Draw("axis");
+    auto label  = new ROOT6tools::TNDCLabel(0.15, 0.69, 0.93, 0.90, "ALICE Performance, pp #sqrt{s} = 13 TeV, #intLdt = 4 pb^{-1}");
+    label->AddText("Full jets, Anti-#it{k}_{T}, #it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV")->Draw();
+    label->AddText("|#it{#eta}^{track,cluster}| < 0.7, |#it{#eta}^{jet}| < 0.7 - #it{R}");
+    label->SetTextAlign(12);
+    label->Draw();
+
+    auto legR = new ROOT6tools::TDefaultLegend(0.8, 0.15, 0.94, 0.5);
+    auto legT = new ROOT6tools::TDefaultLegend(0.15, 0.15, 0.6, 0.27);
     legR->Draw();
     legT->Draw();
+    legT->SetTextSize(0.045);
+    legR->SetTextSize(0.045);
     legentryThresholds ej1entry, ej2entry; 
     reader->cd("ej1turnon");
     auto histsj1 = CollectionToSTL<TKey>(gDirectory->GetListOfKeys());
@@ -40,17 +59,17 @@ void makePlotTriggerPerf(const std::string_view inputfile = "triggerturnon.root"
         hist->SetDirectory(nullptr);
         stylesHigh.find(int(r*10))->second.SetStyle<TH1>(*hist);
         hist->Draw("epsame");
-        legR->AddEntry(hist, Form("R=%.1f", r), "lep");
+        legR->AddEntry(hist, Form("#it{R} = %.1f", r), "lep");
         if(TMath::Abs(r-0.2) < DBL_EPSILON) {
-          ej1entry.fHist = hist;
-          ej1entry.fTriggerText = "high threshold";
+          ej1entry.fTriggerText = "high threshold (#it{E} = 20 GeV)";
         }
         if(TMath::Abs(r-0.3) < DBL_EPSILON) {
             auto model = new TF1("modelEJ1", "pol0", 0., 200.);
-            model->SetLineColor(kRed);
+            model->SetLineColor(kGreen+2);
             model->SetLineStyle(2);
             hist->Fit(model, "N", "", 80., 200.);
             model->Draw("lsame");
+            ej1entry.fHist = model;
             ej1entry.fCentralValue = model->GetParameter(0);
             ej1entry.fUncertainty  = model->GetParError(0);
         }
@@ -65,15 +84,15 @@ void makePlotTriggerPerf(const std::string_view inputfile = "triggerturnon.root"
         stylesLow.find(int(r*10.))->second.SetStyle<TH1>(*hist);
         hist->Draw("epsame");
         if(TMath::Abs(r-0.2) < DBL_EPSILON)  {
-          ej2entry.fHist = hist;
-          ej2entry.fTriggerText = "low threshold";
+          ej2entry.fTriggerText = "low threshold (#it{E} = 16 GeV)";
         }
         if(TMath::Abs(r-0.3) < DBL_EPSILON) {
             auto model = new TF1("modelEJ2", "pol0", 0., 200.);
-            model->SetLineColor(kRed);
+            model->SetLineColor(kGreen+2);
             model->SetLineStyle(3);
             hist->Fit(model, "N", "", 60., 200.);
             model->Draw("lsame");
+            ej2entry.fHist = model;
             ej2entry.fCentralValue = model->GetParameter(0);
             ej2entry.fUncertainty  = model->GetParError(0);
         }

@@ -40,8 +40,8 @@ void makeComparisonCorrectionMethods(){
     auto plot = new ROOT6tools::TSavableCanvas("methodcomp1D", "method comparison 1D", 1400, 800);
     plot->Divide(4,2);
     std::vector<double> jetradii = {0.2, 0.3, 0.4, 0.5};
-    std::map<std::string, Style> styles = {{"combined", {kBlack, 20}}, {"onlyINT7", {kRed, 24}}, {"onlyEJ1", {kBlue, 25}}, {"POWHEG", {kViolet, 26}}};
-    std::vector<std::string> datacomb = {"combined", "onlyINT7", "onlyEJ1"}, theorycomp = {"POWHEG"};
+    std::map<std::string, Style> styles = {{"combined", {kBlack, 20}}, {"newNonLinCorr", {kViolet, 28}}, {"onlyINT7", {kRed, 24}}, {"onlyEJ1", {kBlue, 25}}, {"POWHEG", {kViolet, 26}}};
+    std::vector<std::string> datacomb = {"combined", "newNonLinCorr", "onlyINT7", "onlyEJ1"}, theorycomp = {"POWHEG"};
     
     for(auto irad : ROOT::TSeqI(0, 4)){
         plot->cd(irad+1);
