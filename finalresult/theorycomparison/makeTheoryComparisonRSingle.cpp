@@ -89,9 +89,9 @@ std::set<PtBin> readTheory(const std::string_view theory, double r) {
     return result;
 }
 
-TGraph *makeLineGraph(TGraphErrors *input, double displacement){
+TGraph *makeLineGraph(TGraphErrors *input){
     TGraph *out = new TGraph;
-    for(auto p : ROOT::TSeqI(0, input->GetN())) out->SetPoint(p, input->GetX()[p], input->GetY()[p] * displacement);
+    for(auto p : ROOT::TSeqI(0, input->GetN())) out->SetPoint(p, input->GetX()[p], input->GetY()[p]);
     return out;
 }
 
@@ -109,34 +109,18 @@ PtBin makeRatioDataTheory(const PtBin &data, const PtBin &theory) {
     return {data.fPtmin, data.fPtmax, stat, sys};
 }
 
-TGraphErrors *makeDisplacement(TGraphErrors *in, double displacementFactor){
-    TGraphErrors *out = new TGraphErrors;
-    for(auto p : ROOT::TSeqI(0, in->GetN())){
-        out->SetPoint(p, in->GetX()[p], in->GetY()[p] * displacementFactor);
-        out->SetPointError(p, in->GetEX()[p], in->GetEY()[p] * displacementFactor);
-    }
-    return out;
-}
-
-TGraphAsymmErrors *makeDisplacement(TGraphAsymmErrors *in, double displacementFactor){
-    TGraphAsymmErrors *out = new TGraphAsymmErrors;
-    std::cout << "Displacing " << displacementFactor << std::endl;
-    for(auto p : ROOT::TSeqI(0, in->GetN())){
-        std::cout << "point in " << p << ": x " << in->GetX()[p] << ", y " << in->GetY()[p] << ", eylow " << in->GetEYlow()[p] << ", eyhigh " << in->GetEYhigh()[p] << std::endl;
-        out->SetPoint(p, in->GetX()[p], in->GetY()[p] * displacementFactor);
-        out->SetPointError(p, in->GetEXlow()[p], in->GetEXhigh()[p], in->GetEYlow()[p] * displacementFactor, in->GetEYhigh()[p] * displacementFactor);
-    }
-    return out;
-}
-
 void makeTheoryComparisonRSingle(double ptmin, double ptmax){
     std::map<double, std::set<PtBin>> dists, perugia;
     std::vector<double> jetradii = {0.2, 0.3, 0.4, 0.5};
     std::map<double, double> displacementFactors = {{0.2, 1.}, {0.3, 1.5}, {0.4, 2.0}, {0.5, 2.5}};
     std::vector<std::pair<double, double>> ptbins = {{30., 40.}, {60., 80.}, {160., 180.}};
+    std::map<std::pair<double, double>, std::string> luminosities ={{{30., 40.}, "11.5 nb^{-1}"}, {{60., 80.}, "11.5 nb^{-1}"}, {{160., 180.}, "4 pb^{-1}"}};
     std::map<double, Color_t> colors = {{0.2, kRed}, {0.3, kGreen+2}, {0.4, kBlue}, {0.5, kViolet}};
     std::map<double, Style_t> markers = {{0.2, 24}, {0.3, 25}, {0.4, 26}, {0.5, 27}};
     std::map<double, Style_t> theomarkers = {{0.2, 20}, {0.3, 21}, {0.4, 22}, {0.5, 23}};
+    TGraphErrors *pythiadummy = new TGraphErrors;
+    pythiadummy->SetLineColor(kBlack);
+    pythiadummy->SetLineWidth(2);
     for(auto r : jetradii) dists[r] = readDists(r);
     for(auto r : jetradii) perugia[r] = readTheory("Perugia11", r);
     auto plot = new ROOT6tools::TSavableCanvas(Form("zgtheorycompR_singleplanel_pt%d_%d", int(ptmin), int(ptmax)), Form("zg vs R %.1f GeV/c <  p_{t} < %.1f GeV/c", ptmin, ptmax), 700, 800);
@@ -147,61 +131,57 @@ void makeTheoryComparisonRSingle(double ptmin, double ptmax){
     specpad->SetLeftMargin(0.15);
     specpad->SetRightMargin(0.05);
     specpad->SetTicks();
-    auto specframe = new ROOT6tools::TAxisFrame(Form("rdepframe_%d_%d", int(ptmin), int(ptmax)), "z_{g}", "1/N_{jet} dN/dz_{g}", 0., 0.55, 0.0001, 25.);
+    auto specframe = new ROOT6tools::TAxisFrame(Form("rdepframe_%d_%d", int(ptmin), int(ptmax)), "#it{z}_{g}", "1/#it{N}_{jet} d#it{N}/dz_{g}", 0., 0.55, 0.0001, 12.);
     specframe->GetYaxis()->SetTitleSize(0.047);
     specframe->GetYaxis()->SetLabelSize(0.047);
     specframe->GetYaxis()->SetTitleOffset(1.3);
     specframe->Draw("axis");
     TLegend *leg(nullptr), *legtheo(nullptr);
-    auto jetlabel = new ROOT6tools::TNDCLabel(0.15, 0.60, 0.85, 0.87, "ALICE preliminary, pp #sqrt{s}= 13 TeV, #intLdt = 11.5 nb^{-1} - 4 pb^{-1}");
+    auto lumi = luminosities[{ptmin, ptmax}];
+    auto jetlabel = new ROOT6tools::TNDCLabel(0.15, 0.52, 0.85, 0.85, Form("ALICE Preliminary, pp #sqrt{s}= 13 TeV, #int#it{L}dt = %s", lumi.data()));
     jetlabel->SetTextAlign(12);
-    jetlabel->AddText(Form("jets, anti-#it{k}_{T}, %.1f GeV/c < #it{p}_{T}^{jet} < %.1f GeV/c", ptmin, ptmax));
-    jetlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/c, #it{E}^{cluster}  > 0.3 GeV");
-    jetlabel->AddText("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta| < 0.7 - R ");
-    jetlabel->AddText("Soft drop: z_{cut} = 0.1, #beta = 0");
+    jetlabel->AddText(Form("Anti-#it{k}_{T}, %d GeV/c < #it{p}_{T}^{jet} < %d GeV/c", int(ptmin), int(ptmax)));
+    jetlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster}  > 0.3 GeV");
+    jetlabel->AddText("|#it{#eta}^{track}| < 0.7, |#it{#eta}^{cluster}| < 0.7, |#it{#eta}^{jet}| < 0.7 - #it{R} ");
+    jetlabel->AddText("SoftDrop: #it{z}_{cut} = 0.1, #it{#beta} = 0");
     jetlabel->Draw();
 
-    leg = new ROOT6tools::TDefaultLegend(0.6, 0.36, 0.89, 0.67);
+    leg = new ROOT6tools::TDefaultLegend(0.74, 0.32, 0.94, 0.63);
     leg->Draw();
-    legtheo = new ROOT6tools::TDefaultLegend(0.48, 0.27, 0.91, 0.35);
+    legtheo = new ROOT6tools::TDefaultLegend(0.48, 0.23, 0.91, 0.31);
+    legtheo->AddEntry(pythiadummy, "PYTHIA Perugia 2011", "l");
     legtheo->Draw();
     std::vector<PtBin> ratios;
+    int icase = 0;
     for(auto r : jetradii){
         auto ptbin = dists.find(r)->second.find({ptmin, ptmax, nullptr, nullptr});
-        auto displacement = displacementFactors.find(r)->second;
-        auto stat = makeDisplacement(ptbin->fStat, displacement);
-        auto sys = makeDisplacement(ptbin->fSys, displacement);
-        Style{colors[r], markers[r]}.SetStyle<TGraphErrors>(*stat);
-        stat->Draw("epsame");
+        Style{colors[r], markers[r]}.SetStyle<TGraphErrors>(*ptbin->fStat);
+        ptbin->fStat->Draw("epsame");
         if(leg){
             std::stringstream legentry;
-            legentry << "R=" << std::fixed << std::setprecision(1) << r;
-            if(displacement != 1) legentry << " (x" << std::fixed << std::setprecision(1) << displacement << ")";
-            leg->AddEntry(stat, legentry.str().data(), "lep");
+            legentry << "#it{R} = " << std::fixed << std::setprecision(1) << r;
+            leg->AddEntry(ptbin->fStat, legentry.str().data(), "lep");
         }
-        sys->SetFillColor(colors[r]);
-        sys->SetLineColor(colors[r]);
-        sys->SetFillStyle(0);
-        sys->Draw("2same");
+        ptbin->fSys->SetFillColorAlpha(colors[r], 0.45 - static_cast<double>(icase) * 0.1);
+        ptbin->fSys->SetFillStyle(1001);
+        ptbin->fSys->Draw("2same");
 
         auto perugiabin = perugia.find(r)->second.find({ptmin, ptmax, nullptr, nullptr});
-        auto perugialine = makeLineGraph(perugiabin->fStat, displacement);
+        auto perugialine = makeLineGraph(perugiabin->fStat);
         perugialine->SetLineColor(colors[r]);
         perugialine->SetLineStyle(1);
         perugialine->SetLineWidth(2);
         perugialine->Draw("lsame");
-        auto theostat  = makeDisplacement(perugiabin->fStat, displacement);
-        Style{colors[r], theomarkers[r]}.SetStyle<TGraphErrors>(*theostat);
         //theostat->Draw("epsame");
-        if(r == 0.2 && legtheo) legtheo->AddEntry(perugialine, "PYTHIA6 Perugia2011", "l");
         //if(r == 0.2 && legtheo) legtheo->AddEntry(theostat, "PYTHIA6 Perugia2011", "lp");
             
         auto ratio = makeRatioDataTheory(*ptbin, *perugiabin);
         Style{colors[r], markers[r]}.SetStyle<TGraphErrors>(*ratio.fStat);
         // ratio.fSys->SetLineColor(colors[r]);
-        ratio.fSys->SetFillColor(colors[r]);
-        ratio.fSys->SetFillStyle(3003);
+        ratio.fSys->SetFillColorAlpha(colors[r], 0.45 - static_cast<double>(icase) * 0.1);
+        ratio.fSys->SetFillStyle(1001);
         ratios.push_back(ratio);
+        icase++;
     }
 
     plot->cd();

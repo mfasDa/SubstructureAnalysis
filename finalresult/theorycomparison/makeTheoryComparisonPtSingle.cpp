@@ -15,7 +15,7 @@ struct PtBin {
 
     void AddToLegend(TLegend * leg) {
         std::stringstream legentry;
-        legentry << std::fixed << std::setprecision(1) << fPtmin << " GeV/c < #it{p}_{T}^{jet} < " << fPtmax  << " GeV/c";
+        legentry << std::fixed << std::setprecision(0) << fPtmin << " GeV/#it{c} < #it{p}_{T,jet} < " << fPtmax  << " GeV/#it{c}";
         leg->AddEntry(this->fStat, legentry.str().data(), "lep");
     }
 };
@@ -119,9 +119,12 @@ void makeTheoryComparisonPtSingle(double r){
     std::array<Color_t, 3> colors = {{kBlue, kGreen+2, kRed}};
     std::array<Style_t, 3> markers = {{26, 25, 24}};
     std::vector<std::pair<double, double>> ptbins = {{160., 180.}, {60., 80.}, {30., 40.}};
-    auto plot = new ROOT6tools::TSavableCanvas("zgtheorycomppt_multi", "zg vs pt", 800, 1000);
+    auto plot = new ROOT6tools::TSavableCanvas(Form("zgtheorycomppt_R%02d", int(10.*r)), "zg vs pt", 800, 1000);
     plot->cd();
     auto distpad = new TPad(Form("distpad%d", int(r*10.)), Form("distpad %d", int(r*10.)), 0., 0.35, 1., 1.);
+    TGraphErrors *pythiadummy = new TGraphErrors;
+    pythiadummy->SetLineColor(kBlack);
+    pythiadummy->SetLineWidth(2);
     distpad->Draw();
     distpad->cd();
     distpad->SetBottomMargin(0);
@@ -136,14 +139,15 @@ void makeTheoryComparisonPtSingle(double r){
     TLegend *leg(nullptr), *legtheo(nullptr);
     auto jetlabel = new ROOT6tools::TNDCLabel(0.15, 0.65, 0.85, 0.92, "ALICE Preliminary, pp #sqrt{s}= 13 TeV, #int#it{L}dt = 11.5 nb^{-1} - 4 pb^{-1}");
     jetlabel->SetTextAlign(12);
-    jetlabel->AddText(Form("Anti-#it{k}_{T}, R=%.1f", r));
-    jetlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/c, #it{E}^{cluster}  > 0.3 GeV");
-    jetlabel->AddText("|#it{#eta}^{track}| < 0.7, |#it{#eta}^{cluster}| < 0.7, |#it{#eta}^{jet}| < 0.7 - R ");
+    jetlabel->AddText(Form("Anti-#it{k}_{T}, #it{R}=%.1f", r));
+    jetlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster}  > 0.3 GeV");
+    jetlabel->AddText("|#it{#eta}^{track}| < 0.7, |#it{#eta}^{cluster}| < 0.7, |#it{#eta}^{jet}| < 0.7 - #it{R} ");
     jetlabel->AddText("SoftDrop: #it{z}_{cut} = 0.1, #it{#beta} = 0");
     jetlabel->Draw();
-    leg = new ROOT6tools::TDefaultLegend(0.4, 0.45, 0.94, 0.64);
+    leg = new ROOT6tools::TDefaultLegend(0.35, 0.45, 0.89, 0.64);
     leg->Draw();
-    legtheo = new ROOT6tools::TDefaultLegend(0.45, 0.35, 0.94, 0.43);
+    legtheo = new ROOT6tools::TDefaultLegend(0.5, 0.37, 0.94, 0.43);
+    legtheo->AddEntry(pythiadummy, "PYTHIA Perugia 2011", "l");
     legtheo->Draw();
     auto rdata = readDists(r),
          rperugia = readTheory("Perugia11", r);
@@ -157,22 +161,18 @@ void makeTheoryComparisonPtSingle(double r){
         Style{colors[icase], markers[icase]}.SetStyle<TGraphErrors>(*(bindata->fStat));
         bindata->fStat->Draw("epsame");
         bindata->fSys->SetLineColor(colors[icase]);
-        //bindata->fSys->SetFillColor(colors[icase]);
-        //bindata->fSys->SetFillStyle(3001);
-        bindata->fSys->SetFillStyle(0);
-        //bindata->fSys->SetFillColorAlpha(colors[icase], 0.6-(double)icase*0.2);
+        bindata->fSys->SetFillStyle(1001);
+        bindata->fSys->SetFillColorAlpha(colors[icase], 0.35-static_cast<double>(icase)*0.1);
         bindata->fSys->Draw("2same");
         auto lineperugia = makeLineGraph(binperugia->fStat);
         lineperugia->SetLineColor(colors[icase]);
         lineperugia->SetLineStyle(1);
         lineperugia->SetLineWidth(2);
         lineperugia->Draw("lsame");
-        if(legtheo && icase == 2) legtheo->AddEntry(lineperugia, "PYTHIA6, Perugia 2011", "l");
         auto ratiodataperugia = makeRatioDataTheory(*bindata, *binperugia);
         Style{colors[icase], markers[icase]}.SetStyle<TGraphErrors>(*(ratiodataperugia.fStat));
-        //ratiodataperugia.fSys->SetLineColor(colors[icase]);
-        ratiodataperugia.fSys->SetFillColor(colors[icase]);
-        ratiodataperugia.fSys->SetFillStyle(fillstyle);
+        ratiodataperugia.fSys->SetFillStyle(1001);
+        ratiodataperugia.fSys->SetFillColorAlpha(colors[icase], 0.35-static_cast<double>(icase)*0.1);
         ratiosPerugia.push_back(ratiodataperugia);
         legentries.insert(*bindata);
         //fillstyle++;
