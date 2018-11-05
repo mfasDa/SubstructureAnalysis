@@ -22,6 +22,7 @@ ClusterExotics:
 ClusterNonLinearity:
     enabled: true
     createHistos: true
+    nonLinFunct: kPi0MCv3
 ClusterTrackMatcher:
     enabled: true
     createHistos: true
