@@ -33,6 +33,7 @@
 #include "TSavableCanvas.h"
 #endif
 
+#include "../../helpers/cdb.C"
 #include "../../helpers/graphics.C"
 #include "../../helpers/math.C"
 #include "../../helpers/string.C"
@@ -146,30 +147,24 @@ std::pair<int, int> getNumberOfMaskedFastors(const std::string_view textfile) {
   return {nemcal, ndcal};
 }
 
-int determineYear(int runnumber){
-  int year = 2015;
-  if(runnumber < 247171) year = 2015;
-  else if(runnumber >= 247171 && runnumber < 267255) year = 2016;
-  else if(runnumber >= 267255 && runnumber < 282901) year = 2017;
-  else year = 2018;
-  return year;
-}
-
 std::pair<int, int> getNumberOfMaskedFastorsOCDB(int run){
   AliCDBManager *cdb = AliCDBManager::Instance();
   if(!cdb->IsDefaultStorageSet()){
-    cdb->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", determineYear(run)));
+    cdb->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", getYearForRunNumber(run)));
   }
   cdb->SetRun(run);
+  
+  bool run2 = run > 200000;
 
   auto en = cdb->Get("EMCAL/Calib/Trigger");
   auto trgcfg = static_cast<AliEMCALTriggerDCSConfig *>(en->GetObject());
   auto emcregion = std::bitset<sizeof(int) * 8>(trgcfg->GetSTUDCSConfig(false)->GetRegion()),
-       dmcregion = std::bitset<sizeof(int) * 8>(trgcfg->GetSTUDCSConfig(false)->GetRegion());
+       dmcregion = std::bitset<sizeof(int) * 8>(run2 ? trgcfg->GetSTUDCSConfig(false)->GetRegion() : 0);
   int nemcal(0), ndcal(0);
-  for(auto itru : ROOT::TSeqI(0, 46)){
+  bool checkregion = false;
+  for(auto itru : ROOT::TSeqI(0, run2 ? 46 : 30)){
     bool isDCAL = itru >= 32;
-    if((isDCAL && !dmcregion.test(itru - 32)) || (!isDCAL && !emcregion.test(itru))){
+    if(checkregion && ((isDCAL && !dmcregion.test(itru - 32)) || (!isDCAL && !emcregion.test(itru)))){
       // TRU dead
       if(isDCAL) ndcal += 92;
       else nemcal += 92;
@@ -206,13 +201,14 @@ runinfo getRunInfo(int run) {
   auto l0data = getNumberOfMaskedFastors(Form("%09d/maskedFastorsFreq_L0_EG1.txt", run)),
        l1data = getNumberOfMaskedFastors(Form("%09d/maskedFastorsFreq_L1_EG1.txt", run)),
        ocdbdata = getNumberOfMaskedFastorsOCDB(run);
+  bool run2 = run > 200000;
   return {
     run, 
-    static_cast<double>(l0data.first) / 2944., 
+    static_cast<double>(l0data.first) / (run2 ? 2944. : 2880.), 
     static_cast<double>(l0data.second) / 1288., 
-    static_cast<double>(l1data.first) / 2944., 
+    static_cast<double>(l1data.first) / (run2 ? 2944. : 2880.), 
     static_cast<double>(l1data.second) / 1288.,
-    static_cast<double>(ocdbdata.first) / 2944., 
+    static_cast<double>(ocdbdata.first) / (run2 ? 2944. : 2880.), 
     static_cast<double>(ocdbdata.second) / 1288.
   };
 }
@@ -227,15 +223,15 @@ std::set<runinfo> getRunInfoParallel(std::vector<int> runlist) {
   return result; 
 }
 
-void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = ""){  
+void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = "", bool usegood = false){  
   Runlists goodruns;
-  goodruns.Initialize("/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL");
+  if(usegood) goodruns.Initialize("/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL");
   std::cout << "Using the following good runs: " << std::endl;
   goodruns.Print();
   AliCDBManager *cdb = AliCDBManager::Instance();
   std::vector<int> runstocheck;
   for(auto r : getListOfRuns(inputdir)){
-    if(!goodruns.findRun(r)) {
+    if(usegood && !goodruns.findRun(r)) {
       std::cout << "run " << r << " not good - skipping ..." << std::endl;
       continue;        // Handle only good runs from the EMCAL good runlist 
     }

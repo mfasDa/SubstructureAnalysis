@@ -56,9 +56,13 @@ int GetTRUChannelRun1(int ifield, int ibit){
   return ifield * 16 + ibit;
 }
 
-int RemapTRUIndex(int itru) {
-  int map[46] = {0,1,2,5,4,3,6,7,8,11,10,9,12,13,14,17,16,15,18,19,20,23,22,21,24,25,26,29,28,27,30,31,32,33,37,36,38,39,43,42,44,45,49,48,50,51};
-  return map[itru];
+int RemapTRUIndex(int itru, bool run2) {
+  const int map[46] = {0,1,2,5,4,3,6,7,8,11,10,9,12,13,14,17,16,15,18,19,20,23,22,21,24,25,26,29,28,27,30,31,32,33,37,36,38,39,43,42,44,45,49,48,50,51};
+  if(run2){
+    return map[itru];
+  } else {    
+    return egeo->GetTriggerMapping()->GetTRUIndexFromOnlineIndex(itru);
+  }
 }
 
 std::set<int> ReadMaskedFastorsOCDB(int runnumber){
@@ -66,17 +70,21 @@ std::set<int> ReadMaskedFastorsOCDB(int runnumber){
   auto cdb = AliCDBManager::Instance();
   cdb->SetRun(runnumber);
 
+  bool run2 = egeo->GetTriggerMappingVersion() == 2;
+
   auto en = cdb->Get("EMCAL/Calib/Trigger");
   auto trgcfg = static_cast<AliEMCALTriggerDCSConfig *>(en->GetObject());
-  std::bitset<sizeof(int) *8> emcalregion(trgcfg->GetSTUDCSConfig(false)->GetRegion()), dcalregion(trgcfg->GetSTUDCSConfig(true)->GetRegion());
+  std::bitset<sizeof(int) *8> emcalregion(trgcfg->GetSTUDCSConfig(false)->GetRegion()), dcalregion(run2 ? trgcfg->GetSTUDCSConfig(true)->GetRegion() : 0);
   int nmaskedEMCAL(0), nmaskedDCAL(0);
-  for(auto itru : Range(0, 46)) {
+  bool checkregion = false;
+  for(auto itru : Range(0, run2 ? 46 : 30)) {
     bool isDCAL = itru >= 32;
-    if((isDCAL && !dcalregion.test(itru-32)) || (!isDCAL && !emcalregion.test(itru))){
+    if(checkregion && ((isDCAL && !dcalregion.test(itru-32)) || (!isDCAL && !emcalregion.test(itru)))) {
+      std::cout << "TRU " << itru << " dead ..." << std::endl;
       // TRU dead - mark all channels of the TRU as masked
       for(auto ichan : ROOT::TSeqI(0, 96)) {
         int fastOrAbsID(-1);
-        egeo->GetTriggerMapping()->GetAbsFastORIndexFromTRU(RemapTRUIndex(itru), ichan, fastOrAbsID);
+        egeo->GetTriggerMapping()->GetAbsFastORIndexFromTRU(RemapTRUIndex(itru, run2), ichan, fastOrAbsID);
         fastorabsids.insert(fastOrAbsID);
       }
     } else {
@@ -85,13 +93,19 @@ std::set<int> ReadMaskedFastorsOCDB(int runnumber){
       for(auto imask : Range(0, 6)){
         auto regmask = truconf->GetMaskReg(imask);
         std::bitset<sizeof(decltype(regmask)) * 8> mask(regmask);
+        std::cout << "Reg mask for TRU " << itru << ": " << imask << " [" << mask << "]" << std::endl;
         for(auto ibit : Range(0, mask.size())){
           if(mask.test(ibit)){
             if(itru < 32) nmaskedEMCAL++;
             else nmaskedDCAL++;
-            auto chantru = (itru == 30 || itru == 31 || itru == 44 || itru == 45) ? GetTRUChannelRun1(imask, ibit) : GetTRUChannelRun2(imask, ibit);  
+            int chantru = -1;
+            if(run2) {
+              chantru = (itru == 30 || itru == 31 || itru == 44 || itru == 45) ? GetTRUChannelRun1(imask, ibit) : GetTRUChannelRun2(imask, ibit);  
+            } else {
+              chantru = GetTRUChannelRun1(imask, ibit);
+            }
             int fastOrAbsID(-1);
-            egeo->GetTriggerMapping()->GetAbsFastORIndexFromTRU(RemapTRUIndex(itru), chantru, fastOrAbsID);
+            egeo->GetTriggerMapping()->GetAbsFastORIndexFromTRU(RemapTRUIndex(itru, run2), chantru, fastOrAbsID);
             fastorabsids.insert(fastOrAbsID);
           }
         }
@@ -128,7 +142,8 @@ void DrawAllFastOrs(const std::set<int> &fastors, Color_t mycolor) {
 TCanvas *PlotMaskedChannels(int runnumber, const std::set<int> &ocdb, const std::set<int> &l0, const std::set<int> &l1){
   // first three helper functions to draw the
   // of course in functional style (lambda functions)
-  std::function<void()> DrawSupermoduleGrid = [](){
+  bool run2 = egeo->GetTriggerMappingVersion() == 2;
+  std::function<void()> DrawSupermoduleGrid = [run2](){
     TLine *l(nullptr);
     // EMCAL
     for(int i = 12; i <= 60; i += 12) {
@@ -142,30 +157,43 @@ TCanvas *PlotMaskedChannels(int runnumber, const std::set<int> &ocdb, const std:
     l = new TLine(0, 64, 48, 64);
     l->SetLineWidth(2);
     l->Draw();
-    //DCAL
-    for(int i = 76; i < 100; i+=12){
-      l = new TLine(0, i, 16, i);
+    if(run2) {
+      //DCAL
+      for(int i = 76; i < 100; i+=12){
+        l = new TLine(0, i, 16, i);
+        l->SetLineWidth(2);
+        l->Draw();
+        l = new TLine(32, i, 48, i);
+        l->SetLineWidth(2);
+        l->Draw();
+      }
+      l = new TLine(16, 64, 16, 100);
       l->SetLineWidth(2);
       l->Draw();
-      l = new TLine(32, i, 48, i);
+      l = new TLine(32, 64, 32, 100);
+      l->SetLineWidth(2);
+      l->Draw();
+      l = new TLine(0, 100, 48, 100);
+      l->SetLineWidth(2);
+      l->Draw();
+      l = new TLine(24, 100, 24, 104);
       l->SetLineWidth(2);
       l->Draw();
     }
-    l = new TLine(16, 64, 16, 100);
-    l->SetLineWidth(2);
-    l->Draw();
-    l = new TLine(32, 64, 32, 100);
-    l->SetLineWidth(2);
-    l->Draw();
-    l = new TLine(0, 100, 48, 100);
-    l->SetLineWidth(2);
-    l->Draw();
-    l = new TLine(24, 100, 24, 104);
-    l->SetLineWidth(2);
-    l->Draw();
   };
 
-  std::function<void()> DrawTRUGrid = [](){
+  std::function<void()> DrawTRUGridRun1 = [](){
+    TLine *l(nullptr);
+    for(int r = 4; r < 64; r += 4) {
+      if((r % 12) == 0) continue;
+      l = new TLine(0, r, 48, r);
+      l->SetLineWidth(1);
+      l->SetLineStyle(2);
+      l->Draw();
+    }
+  };
+
+  std::function<void()> DrawTRUGridRun2 = [](){
     TLine *l(nullptr);
     // EMCAL
     for(int r = 0; r < 60; r += 12) {
@@ -189,7 +217,6 @@ TCanvas *PlotMaskedChannels(int runnumber, const std::set<int> &ocdb, const std:
     }
   };
 
-
   TCanvas *result = new TCanvas("maskedFastorGrid", "Masked Fastors", 800, 600);
   result->cd();
   gPad->SetRightMargin(0.25);
@@ -197,11 +224,12 @@ TCanvas *PlotMaskedChannels(int runnumber, const std::set<int> &ocdb, const std:
   TH1 *axis = new TH1F("axis", "Masked FastORs; col; row", 48, 0., 48.);
   axis->SetStats(false);
   axis->SetDirectory(nullptr);
-  axis->GetYaxis()->SetRangeUser(0, 104);
+  axis->GetYaxis()->SetRangeUser(0, run2 ? 104 : 64);
   axis->Draw("axis");
 
   DrawSupermoduleGrid();
-  DrawTRUGrid();
+  if(run2) DrawTRUGridRun2();
+  else DrawTRUGridRun1();
 
   std::set<int> channelsAll, channelsOCDBL0, channelsOCDBL1, channelsL0L1, channelsOCDB, channelsL0, channelsL1,
                 l0work = l0, l1work = l1;

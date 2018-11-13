@@ -20,7 +20,7 @@ def extract_fastors(basedir, trigger):
     logging.info("Extracting dead FastORs or run %d ..." %int(r))
     os.chdir(rundir)
     for level in range(0, 2):
-      os.system("root -l -b -q \'%s(%d, \"%s\")\'" %(rootmacro, level, trigger))
+      os.system("root -l -b -q \'%s(%d, \"%s\", \"AnalysisResults.root\", %d)\'" %(rootmacro, level, trigger, int(r)))
     os.chdir(base)
 
 if __name__ == "__main__":
