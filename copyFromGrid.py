@@ -339,7 +339,7 @@ class CopyHandler(threading.Thread):
             myarchive = zipfile.ZipFile(os.path.basename(filename))
             myarchive.extractall()
         except Exception:
-            raise UnzipException(filename)
+            raise self.UnzipException(filename)
         finally:
             os.chdir(cwd)
 
@@ -375,7 +375,7 @@ class CopyHandler(threading.Thread):
                     # Copy successfull - extract the zipfile (if it is a zipfile)
                     try:
                         self.__extractZipfile(nextfile.target())
-                    except UnzipException as e:
+                    except self.UnzipException as e:
                         # Failed unzipping
                         logging.error(e)
                         # remove target
