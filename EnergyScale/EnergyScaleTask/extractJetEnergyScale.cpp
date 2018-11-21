@@ -1,5 +1,6 @@
 #ifndef __CLING__
 #include <array>
+#include <iomanip>
 #include <memory>
 #include <string>
 #include <ROOT/TSeq.hxx>
@@ -17,15 +18,23 @@
 
 #include "../../helpers/graphics.C"
 
+double Median(const TH1 * h1) { 
+  int n = h1->GetXaxis()->GetNbins();  
+  std::vector<double>  x(n), y(n);
+  for (int i = 0; i < n; i++) {
+    x[i] = h1->GetBinCenter(i);
+    y[i] = h1->GetBinContent(i);
+  }
+  // exclude underflow/overflows from bin content array y
+  return TMath::Median(n, &x[0], &y[1]); 
+}
+
 std::array<double, 6> extractQuantiles(TH1 *slice){
   std::array<double, 6> result;
   result[0] = slice->GetMean();
   result[1] = slice->GetMeanError();
 
-  double quantile = 0.5;
-  double median;
-  slice->GetQuantiles(1, &quantile, &median);
-  result[2] = median;
+  result[2] = Median(slice);
   result[3] = 0;
 
   result[4] = slice->GetRMS();
@@ -33,9 +42,9 @@ std::array<double, 6> extractQuantiles(TH1 *slice){
   return result;
 }
 
-std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, double r){
+std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, const std::string_view jettype, double r){
   TGraphErrors *mean = new TGraphErrors, *median = new TGraphErrors, *width = new TGraphErrors;
-  reader.cd(Form("EnergyScaleResults_FullJet_R%02d_INT7", int(r*10.)));
+  reader.cd(Form("EnergyScaleResults_%s_R%02d_INT7", jettype.data(), int(r*10.)));
   auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
   auto hdiffRaw = static_cast<THnSparse *>(histlist->FindObject("hPtDiff"));
   // Make NEF cut
@@ -49,13 +58,13 @@ std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, double r){
     median->SetPoint(ib, h2d->GetXaxis()->GetBinCenter(ib+1), quantiles[2]);
     median->SetPointError(ib, h2d->GetXaxis()->GetBinWidth(ib+1)/2., quantiles[3]);
     width->SetPoint(ib, h2d->GetXaxis()->GetBinCenter(ib+1), quantiles[4]);
-    width->SetPointError(ib, h2d->GetXaxis()->GetBinWidth(ib+1)/2., quantiles[6]);
+    width->SetPointError(ib, h2d->GetXaxis()->GetBinWidth(ib+1)/2., quantiles[5]);
   }
   std::array<TGraphErrors *, 3> result = {{mean, median, width}};
   return result;
 }
 
-void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.root"){
+void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.root", const std::string_view jettype = "FullJet"){
   auto plot = new TCanvas("energyscaleplot", "Energy scale", 1200,  600);
   plot->Divide(3,1);
 
@@ -90,16 +99,24 @@ void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.ro
   widthframe->GetYaxis()->SetRangeUser(0., 1.);
   widthframe->Draw("axis");;
 
-  auto reader = std::unique_ptr<TFile>(TFile::Open(filename.data(), "READ"));
+  auto reader = std::unique_ptr<TFile>(TFile::Open(filename.data(), "READ")),
+       writer = std::unique_ptr<TFile>(TFile::Open("EnergyScaleResults.root", "RECREATE"));
+  std::array<std::string, 3> observables = {{"mean", "median", "width"}};
   std::map<double, Style> radii = {{0.2, {kRed, 24}}, {0.3, {kBlue, 25}}, {0.4, {kGreen, 26}}, {0.5, {kViolet, 27}}};
   for(const auto r : radii){
-    auto enscale = getEnergyScaleForRadius(*reader, r.first);
+    auto enscale = getEnergyScaleForRadius(*reader, jettype, r.first);
 
     for(auto i : ROOT::TSeqI(0,3)){
       plot->cd(i+1);
       r.second.SetStyle<TGraph>(*enscale[i]);
       enscale[i]->Draw("epsame");
       if(i==0) leg->AddEntry(enscale[i], Form("R=%.1f", r.first), "lep");  
+      std::stringstream keyname;
+      keyname << "EnergyScale_R" << std::setw(2) << std::setfill('0') << int(r.first*10.) << "_" << observables[i];
+      auto bkpdir = gDirectory;
+      writer->cd();
+      enscale[i]->Write(keyname.str().data()); 
+      gDirectory = bkpdir;
     }
   }
   plot->cd();
