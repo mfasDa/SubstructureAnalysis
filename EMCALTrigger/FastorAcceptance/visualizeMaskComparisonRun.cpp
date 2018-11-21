@@ -76,10 +76,11 @@ std::set<int> ReadMaskedFastorsOCDB(int runnumber){
   auto trgcfg = static_cast<AliEMCALTriggerDCSConfig *>(en->GetObject());
   std::bitset<sizeof(int) *8> emcalregion(trgcfg->GetSTUDCSConfig(false)->GetRegion()), dcalregion(run2 ? trgcfg->GetSTUDCSConfig(true)->GetRegion() : 0);
   int nmaskedEMCAL(0), nmaskedDCAL(0);
-  bool checkregion = false;
+  bool checkregion = true;
   for(auto itru : Range(0, run2 ? 46 : 30)) {
     bool isDCAL = itru >= 32;
-    if(checkregion && ((isDCAL && !dcalregion.test(itru-32)) || (!isDCAL && !emcalregion.test(itru)))) {
+    std::cout << "Region: " << (isDCAL ? dcalregion : emcalregion) << std::endl;
+    if(checkregion && ((isDCAL && !dcalregion.test(itru-32)) || (!isDCAL && !emcalregion.test( egeo->GetTriggerMapping()->GetTRUIndexFromSTUIndex(itru, isDCAL ? 1 : 0))))) {
       std::cout << "TRU " << itru << " dead ..." << std::endl;
       // TRU dead - mark all channels of the TRU as masked
       for(auto ichan : ROOT::TSeqI(0, 96)) {
