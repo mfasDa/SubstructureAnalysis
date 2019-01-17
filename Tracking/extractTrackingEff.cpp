@@ -30,8 +30,8 @@ TH1 *getEfficiency(const std::string_view filename, const std::string_view track
     if(restrictEMCAL){
       det->GetAxis(1)->SetRangeUser(-0.6, 0.6);
       det->GetAxis(2)->SetRangeUser(1.4, 3.1);
-      det->GetAxis(1)->SetRangeUser(-0.6, 0.6);
-      det->GetAxis(2)->SetRangeUser(1.4, 3.1);
+      part->GetAxis(1)->SetRangeUser(-0.6, 0.6);
+      part->GetAxis(2)->SetRangeUser(1.4, 3.1);
     } else {
       det->GetAxis(1)->SetRangeUser(-0.8, 0.8);
       part->GetAxis(1)->SetRangeUser(-0.8, 0.8);
@@ -66,4 +66,8 @@ void extractTrackingEff(const std::string_view tracktype, const std::string_view
   effhist->Draw("epsame");
   (new ROOT6tools::TNDCLabel(0.15, 0.82, 0.55, 0.89, Form("Track type %s, %s, %s acceptance", tracktype.data(), trigger.data(), acctype)))->Draw();
   plot->SaveCanvas(plot->GetName());
+
+  // export to root file
+  std::unique_ptr<TFile> writer(TFile::Open(Form("effTracking_%s_%s_%s.root", tracktype.data(), trigger.data(), (restrictEMCAL ? "EMCAL" : "full")), "RECREATE"));
+  effhist->Write("efficiency");
  }

@@ -70,7 +70,7 @@ def extractWeight(inputobject):
       if xsechist.GetBinContent(i+1) > 0:
         binid = i+1
         print("Non-0 bin is %d" %(binid-1))
-        break
+        #break
     if binid == -1:
       return 1.
     return xsechist.GetBinContent(binid) / ntrialshist.GetBinContent(binid)
@@ -96,9 +96,9 @@ def reweightObject(inputobject, weight):
 def mergeAnalysisTaskLight(outputfile, mergefiles):
   mergeobjects = []
   handles = []
-  for m in sorted(mergefiles):
-    print("Reading %s" %m)
-    reader = TFile.Open(m, "READ")
+  for m in sorted(int(b.rsplit('/')[1]) for b in mergefiles):
+    print("Reading %02d/AnalysisResults.root" %m)
+    reader = TFile.Open("%02d/AnalysisResults.root" %m, "READ")
     for k in reader.GetListOfKeys():
       scaled = ScaleObject(k.GetName(), k.ReadObj().IsA().GetName(), reweightObject(k.ReadObj(), 1.))
       print("scaled %s, has content: %s" %(scaled.name(), "Yes" if scaled.hascontent() else "No"))

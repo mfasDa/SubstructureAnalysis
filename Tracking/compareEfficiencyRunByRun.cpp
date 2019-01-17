@@ -1,30 +1,6 @@
-#ifndef __CLING__
-#include <array>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <set>
-#include <string>
-#include <thread>
-#include <vector>
-
-#include "RStringView.h"
-#include <TFile.h>
-#include <TGraphErrors.h>
-#include <TH1.h>
-#include <THnSparse.h>
-#include <TKey.h>
-#include <TList.h>
-#include <TROOT.h>
-#include <TSystem.h>
-
-#include <TAxisFrame.h>
-#include <TDefaultLegend.h>
-#include <TNDCLabel.h>
-#include <TSavableCanvas.h>
-#endif
-
+#include "../meta/stl.C"
+#include "../meta/root.C"
+#include "../meta/root6tools.C"
 #include "../helpers/filesystem.C"
 #include "../helpers/graphics.C"
 #include "../helpers/math.C"

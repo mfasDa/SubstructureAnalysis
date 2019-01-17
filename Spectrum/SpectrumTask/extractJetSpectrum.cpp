@@ -1,35 +1,21 @@
-#ifndef __CLING__
-#include <array>
-#include <iostream>
-#include <iomanip>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <ROOT/TSeq.hxx>
-#include <RStringView.h>
-#include <TFile.h>
-#include <THnSparse.h>
-#include <TH1.h>
-#include <TKey.h>
-#include <TList.h>
-#endif
-
+#include "../../meta/stl.C"
+#include "../../meta/root.C"
 #include "../../helpers/filesystem.C"
 
 TH1 *makeJetSparseProjection(THnSparse *hsparse, int triggercluster, bool nefcut) {
-  auto clusterbin = hsparse->GetAxis(4)->FindBin(triggercluster);
+  auto clusterbin = hsparse->GetAxis(5)->FindBin(triggercluster);
   std::cout << "Found cluster bin for projection " << clusterbin << std::endl;
-  hsparse->GetAxis(4)->SetRange(clusterbin, clusterbin);
+  hsparse->GetAxis(5)->SetRange(clusterbin, clusterbin);
   if(nefcut){
-    hsparse->GetAxis(3)->SetRangeUser(0., 0.98);
+    hsparse->GetAxis(4)->SetRangeUser(0., 0.98);
   }
 
-  auto projected = hsparse->Projection(0);
+  auto projected = hsparse->Projection(1);
   projected->SetDirectory(nullptr);
 
   // Unzoom
-  hsparse->GetAxis(4)->UnZoom();
-  if(nefcut) hsparse->GetAxis(3)->UnZoom();
+  hsparse->GetAxis(5)->UnZoom();
+  if(nefcut) hsparse->GetAxis(4)->UnZoom();
   return projected;
 }
 
@@ -89,7 +75,7 @@ std::array<TH1 *, 3> getNormalizedJetSpectrum(TFile &reader, double radius, cons
   eventcounter->SetBinContent(1, norm->GetBinContent(clusterbin));
   result[0] = eventcounter;
 
-  auto projected = makeJetSparseProjection(jetsparse, triggercluster, jettype == std::string_view("FullJets"));
+  auto projected = makeJetSparseProjection(jetsparse, triggercluster, false);
   normalizedname << dirname << "_" << getClusterName(triggercluster);
   rawname << "Raw" << normalizedname.str(); 
   projected->SetName(rawname.str().data());

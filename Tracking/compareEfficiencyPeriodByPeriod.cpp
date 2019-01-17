@@ -1,27 +1,7 @@
-#ifndef __CLING__
-#include <array>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
-#include <vector>
 
-#include "RStringView.h"
-#include <TFile.h>
-#include <TGraphErrors.h>
-#include <TH1.h>
-#include <THnSparse.h>
-#include <TKey.h>
-#include <TList.h>
-#include <TSystem.h>
-
-#include <TAxisFrame.h>
-#include <TDefaultLegend.h>
-#include <TNDCLabel.h>
-#include <TSavableCanvas.h>
-#endif
-
+#include "../meta/stl.C"
+#include "../meta/root.C"
+#include "../meta/root6tools.C"
 #include "../helpers/filesystem.C"
 #include "../helpers/graphics.C"
 #include "../helpers/math.C"
@@ -60,78 +40,45 @@ private:
   std::set<Trendpoint>      fData;
 };
 
-std::set<std::string> getListOfPeriods(const std::string_view inputdir){
+std::set<std::string> getListOfPeriods(const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, const std::string_view acceptance){
   std::set<std::string> result;
   for(auto d : tokenize(gSystem->GetFromPipe(Form("ls -1 %s", inputdir.data())).Data())){
     if(d.find("LHC") != std::string::npos){
-      if(!gSystem->AccessPathName(Form("%s/%s/AnalysisResults.root", inputdir.data(), d.data()))) result.insert(d);
+      if(!gSystem->AccessPathName(Form("%s/%s/effTracking_%s_%s_%s.root", inputdir.data(), d.data(), tracktype.data(), trigger.data(), acceptance.data()))) result.insert(d);
     }
   }
   return result;
 }
 
-TH1 *getNormalizedSpectrum(const std::string_view filename, const std::string_view tracktype, const std::string_view trigger, bool restrictEMCAL){
-  std::cout << "Reading " << filename << std::endl;
-  try {
+TH1 *readEfficiency(const std::string_view filename) {
+    TH1 *result(nullptr);
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-    auto dir = static_cast<TDirectoryFile *>(reader->Get(Form("ChargedParticleQA_%s_nocorr", tracktype.data())));
-    auto histlist = static_cast<TList *>(static_cast<TKey *>(dir->GetListOfKeys()->At(0))->ReadObj());
-    auto norm = static_cast<TH1 *>(histlist->FindObject(Form("hEventCount%s", trigger.data())));
-    auto spec = std::unique_ptr<THnSparse>(static_cast<THnSparse *>(histlist->FindObject(Form("hPtEtaPhiAll%s", trigger.data()))));
-    // Look in front of EMCAL
-    if(restrictEMCAL){
-      spec->GetAxis(1)->SetRangeUser(-0.6, 0.6);
-      spec->GetAxis(2)->SetRangeUser(1.4, 3.1);
-    }
-    auto projected = spec->Projection(0);
-    projected->SetDirectory(nullptr);
-    projected->Scale(1./norm->GetBinContent(1));
-    normalizeBinWidth(projected);
-    return projected;
-  } catch (...) {
-    std::cout << "Failure ... " << std::endl;
-    return nullptr;
-  }
-}
-
-double getmin(const TGraphErrors *g){
-  auto result = DBL_MAX;
-  for(auto p : ROOT::TSeqI(g->GetN())) {
-    auto test = g->GetY()[p] - g->GetEY()[p];
-    if(test < result) result = test;
-  }
-  return result;
-}
-
-double getmax(const TGraphErrors *g) {
-  auto result = DBL_MIN;
-  for(auto p : ROOT::TSeqI(g->GetN())) {
-    auto test = g->GetY()[p] + g->GetEY()[p];
-    if(test > result) result = test;
-  }
-  return result;
+    result = static_cast<TH1 *>(reader->Get("efficiency"));
+    result->SetDirectory(nullptr);
+    return result;
 }
 
 ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<std::string> &listofruns, const std::string_view inputdir, const std::string_view tracktype, const std::string_view trigger, const std::string_view acceptance, std::map<double, PeriodTrending> &trendgraphs){
-  auto plot = new ROOT6tools::TSavableCanvas(Form("TrackComparison_%s_%s_%s_%d", tracktype.data(), trigger.data(), acceptance.data(), index), Form("Track comparison %s track (%s, %s) %d", tracktype.data(), trigger.data(), acceptance.data(), index), 800, 600);
+  std::cout << "Acceptance: " << acceptance << std::endl;
+  auto plot = new ROOT6tools::TSavableCanvas(Form("efficiencyComparison_%s_%s_%s_%d", tracktype.data(), trigger.data(), acceptance.data(), index), Form("Efficiency comparison %s track (%s, %s) %d", tracktype.data(), trigger.data(), acceptance.data(), index), 800, 600);
   plot->cd();
-  plot->SetLogy();
 
-  (new ROOT6tools::TAxisFrame(Form("spectrumframe%s%s%d", tracktype.data(), trigger.data(), index), "p_{t} (GeV/c)", "1/N_{trg} dN_{trk}/dp_{t} ((GeV/c)^{-1}", 0., 100., 1e-9, 100.))->Draw("axis");
+  (new ROOT6tools::TAxisFrame(Form("spectrumframe%s%s%d", tracktype.data(), trigger.data(), index), "p_{t} (GeV/c)", "Tracking efficiency", 0., 20., 0, 1.1))->Draw("axis");
   auto trklab =new ROOT6tools::TNDCLabel(0.15, 0.84, 0.5, 0.89, Form("Track type: %s", tracktype.data()));
   trklab->SetTextAlign(12);
   trklab->Draw();
   auto trglab = new ROOT6tools::TNDCLabel(0.15, 0.78, 0.4, 0.83, Form("Trigger: %s", trigger.data()));
   trglab->SetTextAlign(12);
   trglab->Draw();
-  auto leg = new ROOT6tools::TDefaultLegend(0.75, 0.45, 0.89, 0.89);
+  auto leg = new ROOT6tools::TDefaultLegend(0.2, 0.15, 0.65, 0.45);
+  leg->SetNColumns(2);
   leg->Draw();
-  
+
   const std::array<Color_t, 10> colors = {{kRed,kBlue, kGreen, kViolet, kOrange, kMagenta, kTeal, kGray, kAzure, kBlack}};
   const std::array<Style_t, 7> markers = {{24, 25, 26, 27, 28, 29, 30}};
   int ispec = 0, icol = 0, imrk = 0;
   for(auto p : listofruns){
-    auto spec = getNormalizedSpectrum(Form("%s/%s/AnalysisResults.root", inputdir.data(), p.data()), tracktype, trigger, acceptance == "EMCAL");
+    auto spec = readEfficiency(Form("%s/%s/effTracking_%s_%s_%s.root", inputdir.data(), p.data(), tracktype.data(), trigger.data(), acceptance.data()));
     if(!spec)
     spec->SetName(Form("%s_%s_%s", trigger.data(), tracktype.data(), p.data()));
     Style{colors[icol++], markers[imrk++]}.SetStyle<TH1>(*spec);
@@ -149,10 +96,11 @@ ROOT6tools::TSavableCanvas *MakePlot(int index, const std::vector<std::string> &
   plot->Update();
   return plot;
 }
-void compareTracksPeriodByPeriod(const std::string_view track_type, const std::string_view trigger, const std::string_view acceptance, const std::string_view inputdir){
+
+void compareEfficiencyPeriodByPeriod(const std::string_view track_type, const std::string_view trigger, const std::string_view acceptance, const std::string_view inputdir){
   std::map<double, PeriodTrending> trending = {{0.5, PeriodTrending()}, {1., PeriodTrending()}, {2., PeriodTrending()}, 
                                                {5., PeriodTrending()}, {10., PeriodTrending()}, {20., PeriodTrending()}};
-  auto periods = getListOfPeriods(inputdir);
+  auto periods = getListOfPeriods(inputdir, track_type, trigger, acceptance);
   if(!periods.size()){
     std::cout << "No periods found in input dir " << inputdir << ", skipping ..." << std::endl;
     return; 
@@ -190,7 +138,8 @@ void compareTracksPeriodByPeriod(const std::string_view track_type, const std::s
     gPad->SetLeftMargin(0.18);
     gPad->SetRightMargin(0.1);
     auto trendhist = trending.find(pt)->second.CreateTrendingHistogram(Form("trending_pt%03d_%s_%s", int(pt * 10.), track_type.data(), trigger.data()), Form("Track trending %s tracks p_{t} = %.1f GeV/c %s", track_type.data(), pt, trigger.data()));
-    trendhist->GetYaxis()->SetTitle(Form("1/N_{trg} dN/dp_{t}|_{p_{t} = 5 GeV/c} ((GeV/c)^{-1}"));
+    trendhist->GetYaxis()->SetTitle(Form("Tracking efficiency"));
+    trendhist->GetYaxis()->SetRangeUser(0.6, 1.);
     trendstyle.SetStyle<TH1>(*trendhist);
     trendhist->Draw("pe");
     if(ipad == 2){
