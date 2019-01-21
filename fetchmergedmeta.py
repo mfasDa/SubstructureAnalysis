@@ -10,7 +10,12 @@ if __name__ == "__main__":
     childmap17 = {"LHC17h": "child_4", "LHC17i": "child_5", "LHC17j": "child_6", 
                   "LHC17k": "child_7", "LHC17l": "child_8", "LHC17m": "child_9", 
                   "LHC17o": "child_10", "LHC17r": "child_10"}
-    childmaps = {"16": childmap16, "17": childmap17}
+    childmap18 = {"LHC18d": "child_1", "LHC18e": "child_2", "LHC18f": "child_3",
+                  "LHC18g": "child_4", "LHC18h": "child_5", "LHC18i": "child_6",
+                  "LHC18j": "child_7", "LHC18k": "child_8", "LHC18l": "child_9",
+                  "LHC18m": "child_10", "LHC18n": "child_11", "LHC18o": "child_12",
+                  "LHC18p": "child_13"}
+    childmaps = {"16": childmap16, "17": childmap17, "18": childmap18}
     year = sys.argv[1]
     trainrun = sys.argv[2]
     basedir = os.getcwd()
