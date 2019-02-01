@@ -383,7 +383,7 @@ class CopyHandler(threading.Thread):
                             os.remove(nextfile.target)
                         except Exception:
                             pass
-                        trials += 1
+                        trials = nextfile.getntrials() + 1
                         if trials >= self.__maxtrials:
                             logging.error("File %s failed copying in %d trials - giving up", nextfile.source(), self.__maxtrials)
                         else:
