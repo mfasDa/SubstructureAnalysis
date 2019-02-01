@@ -44,7 +44,23 @@ void invert(TH1 *hist){
   }
 }
 
-TH1 *rebinPtSpectrum(TH1 *hinput, std::vector<double> xBins){
+TH2 *makeRebinned2D(const TH2 *input, const std::vector<double> &xBins, const std::vector<double> &yBins){
+  auto result = new TH2D(Form("%s_rebinned", input->GetName()), input->GetTitle(), xBins.size()-1, xBins.data(), yBins.size()-1, yBins.data());
+  for(auto x : ROOT::TSeqI(0, input->GetXaxis()->GetNbins())) {
+    // Truncation
+    if(input->GetXaxis()->GetBinCenter(x+1) < result->GetXaxis()->GetBinLowEdge(1)) continue;
+    if(input->GetXaxis()->GetBinCenter(x+1) > result->GetXaxis()->GetBinUpEdge(result->GetXaxis()->GetNbins()+1)) continue;
+    for(auto y : ROOT::TSeqI(0, input->GetYaxis()->GetNbins())) {
+      // Truncation
+      if(input->GetYaxis()->GetBinCenter(y+1) < result->GetYaxis()->GetBinLowEdge(1)) continue;
+      if(input->GetYaxis()->GetBinCenter(y+1) > result->GetYaxis()->GetBinUpEdge(result->GetYaxis()->GetNbins()+1)) continue;
+      result->Fill(input->GetXaxis()->GetBinCenter(x+1), input->GetYaxis()->GetBinCenter(y+1), input->GetBinContent(x+1, y+1));
+    }
+  }
+  return result;
+}
+
+TH1 *rebinPtSpectrum(const TH1 *hinput, const std::vector<double> &xBins){
   std::unique_ptr<TH1> htmp(histcopy(hinput));
   htmp->Sumw2();
   for(auto ib : ROOT::TSeqI(0, htmp->GetNbinsX())){
