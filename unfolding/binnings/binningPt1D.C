@@ -105,7 +105,7 @@ std::vector<double> getJetPtBinningNonLinTrueLarge(){
     current += 40.;
     result.push_back(current);
   }
-  result.emplace_back(600.);
+  result.emplace_back(500.);
   return result;
 }
 
