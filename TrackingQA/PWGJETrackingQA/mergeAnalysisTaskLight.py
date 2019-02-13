@@ -97,8 +97,9 @@ def mergeAnalysisTaskLight(outputfile, mergefiles):
   mergeobjects = []
   handles = []
   for m in sorted(int(b.rsplit('/')[1]) for b in mergefiles):
-    print("Reading %02d/AnalysisResults.root" %m)
-    reader = TFile.Open("%02d/AnalysisResults.root" %m, "READ")
+    filename = [x for x in mergefiles if ("%02d" %m) in x][0]
+    print("Reading %s" %filename)
+    reader = TFile.Open(filename, "READ")
     for k in reader.GetListOfKeys():
       scaled = ScaleObject(k.GetName(), k.ReadObj().IsA().GetName(), reweightObject(k.ReadObj(), 1.))
       print("scaled %s, has content: %s" %(scaled.name(), "Yes" if scaled.hascontent() else "No"))
