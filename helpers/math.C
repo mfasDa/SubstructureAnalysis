@@ -57,6 +57,7 @@ TH2 *makeRebinned2D(const TH2 *input, const std::vector<double> &xBins, const st
       result->Fill(input->GetXaxis()->GetBinCenter(x+1), input->GetYaxis()->GetBinCenter(y+1), input->GetBinContent(x+1, y+1));
     }
   }
+  for(int ib = 0; ib < result->GetNcells(); ib++) result->SetBinError(ib+1, 0);
   return result;
 }
 
