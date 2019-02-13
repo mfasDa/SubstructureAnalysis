@@ -207,6 +207,21 @@ void Normalize2D(TH2 *h) {
   }
 }
 
+TH2 *makeNormalizedResponse(TH2 *responsein) {
+    auto normalised = static_cast<TH2 *>(histcopy(responsein));
+    std::unique_ptr<TH1> projected(responsein->ProjectionY("_py", 1, responsein->GetNbinsX()));
+    for(auto ptpart : ROOT::TSeqI(0, responsein->GetNbinsY())) {
+        auto weight = projected->GetBinContent(ptpart+1);
+        if(weight){
+            for(auto ptdet : ROOT::TSeqI(0, responsein->GetNbinsX())){
+                auto bc = responsein->GetBinContent(ptdet+1, ptpart+1);
+                normalised->SetBinContent(ptdet+1, ptpart+1, bc/weight);
+            }
+        }
+    }
+    return normalised;
+}
+
 TH1D *TruncateHisto(TH1D *gr, Int_t nbinsold, Int_t lowold, Int_t highold, Int_t nbinsnew, Int_t lownew, Int_t highnew, Int_t lim) {
   TH1D *hTruncate = new TH1D("hTruncate", "", nbinsnew, lownew, highnew);
   hTruncate->Sumw2();
