@@ -194,6 +194,14 @@ class AlienTool:
             if errorstate:
                 continue
             return result
+    
+    def pathexists(self, inputpath):
+        lsresult = commands.getstatusoutput("alien_ls %s" inputpath)
+        # alien_ls returns 0 in case the path exists and something 
+        # larger than 0 if the path does not exist
+        if lsresult[0] != 0:
+            return False
+        return True
 
     def fetchtokeninfo(self):
         try:
@@ -304,7 +312,7 @@ class CopyHandler(threading.Thread):
         def __init__(self, filename):
             self.__filename = filename
         
-        def getFilename(filename):
+        def getFilename(self, filename):
             return self.__filename
 
         def __str__(self):
@@ -490,7 +498,12 @@ class PoolFiller(threading.Thread):
                         mylegotrain = t
                         break
                 logging.debug("Extracted train run %s", mylegotrain)
+                if not len(mylegotrain):
+                    # lego train not found for the given run
+                    continue
                 inputfile = os.path.join(legotrainsdir, mylegotrain, self.__targetfile)
+                if not self.__alientool.pathexists(inputfile):
+                    continue
                 outputdir = os.path.join(os.path.abspath(self.__outputlocation), "%02d" %pthardbin, "%d" %run)
                 outputfile = os.path.join(outputdir, self.__targetfile)
                 if not os.path.exists(outputfile):
