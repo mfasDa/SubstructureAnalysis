@@ -1,6 +1,8 @@
 #! /usr/bin/env python 
 
 from ROOT import TFile, TList, TObject
+import argparse
+import logging
 import sys
 
 class MergeObject():
@@ -16,12 +18,15 @@ class MergeObject():
     self.__objects.append(scaleobject)
 
   def getMerged(self):
+    logging.debug("Start mergeing %s" %self.__name)    
     result = None
     for o in self.__objects:
       if not result:
         result = o
       else:
+        logging.debug("addding next")    
         result.Add(o)
+    logging.debug("Merging done")
     return result
 
 
@@ -44,8 +49,8 @@ class ScaleObject:
   def Add(self, other):
     if self.__outputtype == "TDirectoryFile":
       othercontent = other.content()
-      print("self scaled %s, has content: %s" %(self.name(), "Yes" if self.hascontent() else "No"))
-      print("other scaled %s, has content: %s" %(other.name(), "Yes" if other.hascontent() else "No"))
+      logging.info("self scaled %s, has content: %s" %(self.name(), "Yes" if self.hascontent() else "No"))
+      logging.info("other scaled %s, has content: %s" %(other.name(), "Yes" if other.hascontent() else "No"))
       for c in self.__content.GetListOfKeys():
         for o in othercontent.GetListOfKeys():
           if c.GetName() == o.GetName():
@@ -63,13 +68,13 @@ def extractWeight(inputobject):
     ntrialshist = inputobject.FindObject("fHistTrialsExternalFile")
     if not xsechist or not ntrialshist:
       return 1.
-    print("Scalehist found")
+    logging.info("Scalehist found")
     # find non-zero bin
     binid = -1
     for i in range(0, xsechist.GetXaxis().GetNbins()):
       if xsechist.GetBinContent(i+1) > 0:
         binid = i+1
-        print("Non-0 bin is %d" %(binid-1))
+        logging.info("Non-0 bin is %d" %(binid-1))
         #break
     if binid == -1:
       return 1.
@@ -89,7 +94,7 @@ def reweightObject(inputobject, weight):
       reweightObject(o, weight)
   else:
     if weight != 1.:
-      print("found non-0 weight %e" %weight)
+      logging.info("found non-0 weight %e" %weight)
       inputobject.Scale(weight)
   return inputobject
 
@@ -98,11 +103,11 @@ def mergeAnalysisTaskLight(outputfile, mergefiles):
   handles = []
   for m in sorted(int(b.rsplit('/')[1]) for b in mergefiles):
     filename = [x for x in mergefiles if ("%02d" %m) in x][0]
-    print("Reading %s" %filename)
+    logging.info("Reading %s" %filename)
     reader = TFile.Open(filename, "READ")
     for k in reader.GetListOfKeys():
       scaled = ScaleObject(k.GetName(), k.ReadObj().IsA().GetName(), reweightObject(k.ReadObj(), 1.))
-      print("scaled %s, has content: %s" %(scaled.name(), "Yes" if scaled.hascontent() else "No"))
+      logging.info("scaled %s, has content: %s" %(scaled.name(), "Yes" if scaled.hascontent() else "No"))
       mymerge = None
       for o in mergeobjects:
         if o.name() == k.GetName():
@@ -115,17 +120,31 @@ def mergeAnalysisTaskLight(outputfile, mergefiles):
         mergeobjects.append(mymerge)
     handles.append(reader)
 
+  logging.debug("start writing to file")
   writer = TFile.Open(outputfile, "RECREATE")
+  logging.debug("output file open")
   for m in mergeobjects:
     merged = m.getMerged().content()
+    logging.debug("writing %s", m.name())
     merged.Write(m.name(), TObject.kSingleKey)
   writer.cd()
 
+  logging.debug("closing output file")
   writer.Close()
+  logging.debug("closing input handles")
   for h in handles:
     h.Close()
 
 if __name__ == "__main__":
-  mergeAnalysisTaskLight(sys.argv[1], sys.argv[2:])
+  parser = argparse.ArgumentParser(prog = "mergeAnalysisTaskLight.py", description = "Merge and scale output from AnalysisTaskLight")
+  parser.add_argument("outputfile", metavar = "OUTPUTFILE", help = "Resulting output file")
+  parser.add_argument('inputfiles', metavar='INPUTFILES', type=str, nargs='+', help='List of input files')
+  parser.add_argument("-d", "--debug", action = "store_true",  help = "Run with increased debug level")
+  args = parser.parse_args()
+  loglevel=logging.INFO
+  if args.debug:
+    loglevel = logging.DEBUG
+  logging.basicConfig(format='[%(levelname)s]: %(message)s', level=loglevel)
+  mergeAnalysisTaskLight(args.outputfile, args.inputfiles)
 
 
