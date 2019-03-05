@@ -187,6 +187,30 @@ TH2D *CorrelationHistShape(const TMatrixD &cov, const char *name, const char *ti
   return pearson;
 }
 
+TH2 *CorrelationHist1D(const TMatrixD &covariance, const char *name, const char *title) {
+  int nbinsx = covariance.GetNrows(),
+      nbinsy = covariance.GetNcols();
+
+  TH2 *result = new TH2D(name, title, nbinsx, 0, nbinsx, nbinsy, 0., nbinsy);
+  result->SetDirectory(nullptr);
+  for(auto xb : ROOT::TSeqI(0, nbinsx)) {
+    auto varX = covariance(xb, xb);
+    auto sigmaX = TMath::Sqrt(varX);
+    for(auto yb : ROOT::TSeqI(0, nbinsy)) {
+      auto varY = covariance(yb, yb);
+      auto sigmaY = TMath::Sqrt(varY);
+
+      auto covXY = covariance(xb, yb);
+      if(sigmaX  && sigmaY) {
+        covXY /= (sigmaX * sigmaY);
+        result->SetBinContent(xb+1, yb+1, covXY);
+      }
+    }
+  }
+
+  return result;
+}
+
 void Normalize2D(TH2 *h) {
   std::vector<double> norm(h->GetYaxis()->GetNbins());
   for(auto biny : ROOT::TSeqI(0, h->GetYaxis()->GetNbins())) {
