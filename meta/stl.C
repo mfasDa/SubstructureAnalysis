@@ -21,7 +21,6 @@
 #include <condition_variable>
 #include <csetjmp>
 #include <csignal>
-#include <cstdalign>
 #include <cstdarg>
 #include <cstdbool>
 #include <cstddef>
@@ -31,7 +30,6 @@
 #include <cstring>
 #include <ctgmath>
 #include <ctime>
-#include <cuchar>
 #include <cwchar>
 #include <cwctype>
 #include <cxxabi.h>
@@ -84,4 +82,8 @@
 #include <utility>
 #include <valarray>
 #include <vector>
+#ifndef darwin
+#include <cstdalign>
+#include <cuchar>
+#endif
 #endif

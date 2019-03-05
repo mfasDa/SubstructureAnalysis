@@ -367,7 +367,6 @@
 #include <TASImagePlugin.h>
 #include <TASPaletteEditor.h>
 #include <TASPluginGS.h>
-#include <TAtomicCountGcc.h>
 #include <TAtomicCount.h>
 #include <TAtomicCountPthread.h>
 #include <TAtt3D.h>
@@ -630,10 +629,6 @@
 #include <TF2.h>
 #include <TF3.h>
 #include <TFeldmanCousins.h>
-#include <TFFTComplex.h>
-#include <TFFTComplexReal.h>
-#include <TFFTRealComplex.h>
-#include <TFFTReal.h>
 #include <TFileCacheRead.h>
 #include <TFileCacheWrite.h>
 #include <TFileCollection.h>
@@ -959,8 +954,6 @@
 #include <TGView.h>
 #include <TGWidget.h>
 #include <TGWindow.h>
-#include <TGX11.h>
-#include <TGX11TTF.h>
 #include <TGXYLayout.h>
 #include <TH1C.h>
 #include <TH1D.h>
@@ -1481,7 +1474,6 @@
 #include <TVersionCheck.h>
 #include <TView3D.h>
 #include <TViewer3DPad.h>
-#include <TViewerX3D.h>
 #include <TView.h>
 #include <TVirtualArray.h>
 #include <TVirtualAuth.h>
@@ -1525,8 +1517,6 @@
 #include <TVirtualX.h>
 #include <TWbox.h>
 #include <TWebFile.h>
-#include <TX11GL.h>
-#include <TX3DFrame.h>
 #include <TXHandler.h>
 #include <TXMLAttr.h>
 #include <TXMLDocument.h>
@@ -1597,4 +1587,16 @@
 #include <ROOT/TTreeProcessorMP.hxx>
 #include <ROOT/TTreeProcessorMT.hxx>
 #include <ROOT/TypeTraits.hxx>
+#ifndef darwin
+#include <TAtomicCountGcc.h>
+#include <TGX11.h>
+#include <TGX11TTF.h>
+#include <TX11GL.h>
+#include <TX3DFrame.h>
+#include <TViewerX3D.h>
+#include <TFFTComplex.h>
+#include <TFFTComplexReal.h>
+#include <TFFTRealComplex.h>
+#include <TFFTReal.h>
+#endif
 #endif
