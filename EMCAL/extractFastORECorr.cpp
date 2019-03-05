@@ -25,7 +25,7 @@ void extractFastORECorr(const std::string_view inputfile = "AnalysisResults.root
             projected->SetTitle(Form("Supermodule %d", ism));
             projected->SetStats(false);
             projected->SetXTitle("FEE energy (GeV)");
-            projected->SetXTitle("FastOR energy (GeV)");
+            projected->SetYTitle("FastOR energy (GeV)");
             projectionSM[ism] = projected;
         }
     }
