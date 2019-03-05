@@ -196,7 +196,7 @@ class AlienTool:
             return result
     
     def pathexists(self, inputpath):
-        lsresult = commands.getstatusoutput("alien_ls %s" inputpath)
+        lsresult = commands.getstatusoutput("alien_ls %s" %inputpath)
         # alien_ls returns 0 in case the path exists and something 
         # larger than 0 if the path does not exist
         if lsresult[0] != 0:
