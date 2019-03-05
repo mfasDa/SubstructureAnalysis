@@ -50,15 +50,20 @@ std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, const std::
   // Make NEF cut
   hdiffRaw->GetAxis(1)->SetRangeUser(0., 0.98);
   auto h2d = std::unique_ptr<TH2>(hdiffRaw->Projection(2,0));
-  for(auto ib : ROOT::TSeqI(0, h2d->GetXaxis()->GetNbins())){
-    auto projected = std::unique_ptr<TH1>(h2d->ProjectionY("py", ib+1, ib+1));
+  int current(0);
+  // Make 5 GeV binning
+  for(int ib = 0; ib < h2d->GetXaxis()->GetNbins(); ib += 5){
+    auto projected = std::unique_ptr<TH1>(h2d->ProjectionY("py", ib+1, ib+5));
     auto quantiles = extractQuantiles(projected.get());
-    mean->SetPoint(ib, h2d->GetXaxis()->GetBinCenter(ib+1), quantiles[0]);
-    mean->SetPointError(ib, h2d->GetXaxis()->GetBinWidth(ib+1)/2., quantiles[1]);
-    median->SetPoint(ib, h2d->GetXaxis()->GetBinCenter(ib+1), quantiles[2]);
-    median->SetPointError(ib, h2d->GetXaxis()->GetBinWidth(ib+1)/2., quantiles[3]);
-    width->SetPoint(ib, h2d->GetXaxis()->GetBinCenter(ib+1), quantiles[4]);
-    width->SetPointError(ib, h2d->GetXaxis()->GetBinWidth(ib+1)/2., quantiles[5]);
+    double center = (h2d->GetXaxis()->GetBinLowEdge(ib+1) + h2d->GetXaxis()->GetBinUpEdge(ib+5))/2.,
+           error = (h2d->GetXaxis()->GetBinUpEdge(ib+5) - h2d->GetXaxis()->GetBinLowEdge(ib+1))/2;
+    mean->SetPoint(current, center, quantiles[0]);
+    mean->SetPointError(current, error, quantiles[1]);
+    median->SetPoint(current, center, quantiles[2]);
+    median->SetPointError(current, error, quantiles[3]);
+    width->SetPoint(current, center, quantiles[4]);
+    width->SetPointError(current, error, quantiles[5]);
+    current++;
   }
   std::array<TGraphErrors *, 3> result = {{mean, median, width}};
   return result;
