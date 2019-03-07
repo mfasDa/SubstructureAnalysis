@@ -14,7 +14,6 @@ struct unfoldingResults {
     TH1 *fDvector;
     TH1 *fDvectorClosure;
     TH2 *fPearson;
-    TH2 *fPearsonClosure;
 
     bool operator<(const unfoldingResults &other) const { return fReg < other.fReg; }
     bool operator==(const unfoldingResults &other) const { return fReg == other.fReg; }
@@ -84,12 +83,12 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
     return combined;
 }
 
-void runCorrectionChain1DSVD_SpectrumTask(const std::string_view datafile, const std::string_view mcfile){
+void runCorrectionChain1DSVD_SpectrumTaskFine(const std::string_view datafile, const std::string_view mcfile){
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
-                           writer(TFile::Open("correctedSVD.root", "RECREATE"));
-    auto binningpart = getJetPtBinningNonLinTrueLarge(),
-         binningdet = getJetPtBinningNonLinSmearLarge();
+                           writer(TFile::Open("correctedSVD_fine.root", "RECREATE"));
+    auto binningpart = getJetPtBinningNonLinTrueLargeFine(),
+         binningdet = getJetPtBinningNonLinSmearLargeFine();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader);
     RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
     const double kSizeEmcalPhi = 1.88,
@@ -180,7 +179,7 @@ void runCorrectionChain1DSVD_SpectrumTask(const std::string_view datafile, const
 
             // run closure test
             std::cout << "[SVD unfolding] Running closure test" << std::endl;
-            RooUnfoldSvd unfolderClosure(&responsematrixClosure, detclosure, ireg);
+            RooUnfoldSvd unfolderClosure(&responsematrixClosure, detclosure);
             auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", ireg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", radius, ireg));
@@ -188,16 +187,13 @@ void runCorrectionChain1DSVD_SpectrumTask(const std::string_view datafile, const
             imp = unfolderClosure.Impl();
             if(imp) {
                 dvecClosure = histcopy(imp->GetD());
-                dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", ireg), Form("D-vector closure test reg %d", ireg));
+                dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", ireg), Form("D-vector of the closure test reg %d", ireg));
                 dvecClosure->SetDirectory(nullptr);
             }
-            unfolding_results.insert({ireg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
-                                        CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", ireg), Form("Pearson coefficients regularization %d", ireg)),
-                                        CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", ireg), Form("Pearson coefficients of the closure test regularization %d", ireg))});
+            unfolding_results.insert({ireg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", ireg), Form("Pearson coefficients regularization %d", ireg))});
         }
 
         // Write everything to file
-        std::cout << "[SVD unfolding] Writing to file ..." << std::endl;
         writer->mkdir(Form("R%02d", int(radius*10)));
         writer->cd(Form("R%02d", int(radius*10)));
         auto basedir = gDirectory;
@@ -238,8 +234,6 @@ void runCorrectionChain1DSVD_SpectrumTask(const std::string_view datafile, const
             if(reg.fPearson) reg.fPearson->Write();
             if(reg.fUnfoldedClosure) reg.fUnfoldedClosure->Write();
             if(reg.fDvectorClosure) reg.fDvectorClosure->Write();
-            if(reg.fPearsonClosure) reg.fPearsonClosure->Write();
         }
-        std::cout << "[SVD unfolding] Radius " << radius << " done ..." << std::endl;
     }
 }
