@@ -14,6 +14,7 @@ struct unfoldingResults {
     TH1 *fDvector;
     TH1 *fDvectorClosure;
     TH2 *fPearson;
+    TH2 *fPearsonClosure;
 
     bool operator<(const unfoldingResults &other) const { return fReg < other.fReg; }
     bool operator==(const unfoldingResults &other) const { return fReg == other.fReg; }
@@ -190,7 +191,9 @@ void runCorrectionChain1DSVD_SpectrumTaskFine(const std::string_view datafile, c
                 dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", ireg), Form("D-vector of the closure test reg %d", ireg));
                 dvecClosure->SetDirectory(nullptr);
             }
-            unfolding_results.insert({ireg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", ireg), Form("Pearson coefficients regularization %d", ireg))});
+            unfolding_results.insert({ireg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
+                                        CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", ireg), Form("Pearson coefficients regularization %d", ireg)),
+                                        CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", ireg), Form("Pearson coefficients of the closure test regularization %d", ireg))});
         }
 
         // Write everything to file
@@ -234,6 +237,7 @@ void runCorrectionChain1DSVD_SpectrumTaskFine(const std::string_view datafile, c
             if(reg.fPearson) reg.fPearson->Write();
             if(reg.fUnfoldedClosure) reg.fUnfoldedClosure->Write();
             if(reg.fDvectorClosure) reg.fDvectorClosure->Write();
+            if(reg.fPearsonClosure) reg.fPearsonClosure->Write();
         }
     }
 }
