@@ -82,12 +82,12 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
     return combined;
 }
 
-void runCorrectionChain1DBayes_SpectrumTask(const std::string_view datafile, const std::string_view mcfile){
+void runCorrectionChain1DBayes_SpectrumTaskFine(const std::string_view datafile, const std::string_view mcfile){
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
-                           writer(TFile::Open("correctedBayes.root", "RECREATE"));
-    auto binningpart = getJetPtBinningNonLinTrueLarge(),
-         binningdet = getJetPtBinningNonLinSmearLarge();
+                           writer(TFile::Open("correctedBayes_fine.root", "RECREATE"));
+    auto binningpart = getJetPtBinningNonLinTrueLargeFine(),
+         binningdet = getJetPtBinningNonLinSmearLargeFine();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader);
     RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
     const double kSizeEmcalPhi = 1.88,
