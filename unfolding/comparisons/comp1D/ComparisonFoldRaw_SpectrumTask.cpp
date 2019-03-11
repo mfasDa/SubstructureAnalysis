@@ -13,7 +13,9 @@ void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile){
     std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ"));
     auto nradius = reader->GetListOfKeys()->GetEntries();
 
-    auto plot = new ROOT6tools::TSavableCanvas("comparisonFoldRaw", "Comparison back-folded raw", nradius * 300., 700.);
+    bool isSVD = (inputfile.find("Svd") != std::string::npos);
+
+    auto plot = new ROOT6tools::TSavableCanvas(Form("comparisonFoldRaw%s", (isSVD ? "Svd" : "Bayes")), Form("Comparison back-folded raw (%s unfolding)", (isSVD ? "SVD" : "Bayes")), nradius * 300., 700.);
     plot->Divide(nradius, 2);
 
     std::array<Color_t, 10> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kMagenta, kGray, kAzure, kCyan};
