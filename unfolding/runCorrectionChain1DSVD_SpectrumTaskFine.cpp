@@ -20,6 +20,102 @@ struct unfoldingResults {
     bool operator==(const unfoldingResults &other) const { return fReg == other.fReg; }
 };
 
+struct UnfoldingConfiguration {
+    int fReg;
+    double fRadius;
+    TH1 *fRaw;
+    RooUnfoldResponse *fResponseMatrix;
+    TH1 *fDetLevelClosure;
+    RooUnfoldResponse *fResponseMatrixClosure;
+};
+
+class UnfoldingPool {
+public:
+    UnfoldingPool() = default;
+    ~UnfoldingPool() = default;
+
+    void InsertWork(UnfoldingConfiguration config) {
+        std::lock_guard<std::mutex> insert_lock(fAccessLock);
+        fData.push(config);
+    }
+
+    UnfoldingConfiguration next() {
+        std::lock_guard<std::mutex> pop_lock(fAccessLock);
+        UnfoldingConfiguration result = fData.front();
+        fData.pop();
+        return result;
+    }
+
+    bool empty() { return fData.empty(); }
+
+private:
+    std::mutex                              fAccessLock;
+    std::queue<UnfoldingConfiguration>      fData;              
+};
+
+class UnfoldingRunner {
+    public:
+        UnfoldingRunner(UnfoldingPool *work) : fOutputData(), fInputData(work) {}
+        ~UnfoldingRunner() = default;
+
+        void DoWork() {
+            while(!fInputData->empty()) {
+                fOutputData.push_back(runUnfolding(fInputData->next()));
+            }
+        }
+
+        const std::vector<unfoldingResults> &getUnfolded() const { return fOutputData; }
+
+    private:
+        unfoldingResults runUnfolding(const UnfoldingConfiguration &config){
+            RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
+            const double kSizeEmcalPhi = 1.88,
+                         kSizeEmcalEta = 1.4;
+            auto acceptance = (kSizeEmcalPhi - 2 * config.fRadius) * (kSizeEmcalEta - 2 * config.fRadius) / (TMath::TwoPi());
+            std::cout << "[SVD unfolding] Regularization " << config.fReg << "\n================================================================\n";
+            std::cout << "[SVD unfolding] Running unfolding" << std::endl;
+            RooUnfoldSvd unfolder(config.fResponseMatrix, config.fRaw, config.fReg);
+            auto specunfolded = unfolder.Hreco(errorTreatment);
+            specunfolded->SetNameTitle(Form("unfolded_reg%d", config.fReg), Form("Unfolded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
+            specunfolded->SetDirectory(nullptr);
+            auto backfolded = MakeRefolded1D(config.fRaw, specunfolded, *config.fResponseMatrix);
+            backfolded->SetNameTitle(Form("backfolded_reg%d", config.fReg), Form("back-folded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
+            backfolded->SetDirectory(nullptr);
+            normalizeBinWidth(specunfolded);
+            auto specnormalized = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedReg%d", config.fReg)));
+            specnormalized->SetNameTitle(Form("normalized_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
+            specnormalized->SetDirectory(nullptr);
+            specnormalized->Scale(1. / (acceptance));
+            TH1 *dvec(nullptr);
+            auto imp = unfolder.Impl();
+            if(imp){
+                dvec = histcopy(imp->GetD());
+                dvec->SetNameTitle(Form("dvector_Reg%d", config.fReg), Form("D-vector reg %d", config.fReg));
+                dvec->SetDirectory(nullptr);
+            }
+
+            // run closure test
+            std::cout << "[SVD unfolding] Running closure test" << std::endl;
+            RooUnfoldSvd unfolderClosure(config.fResponseMatrixClosure, config.fDetLevelClosure, config.fReg);
+            auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
+            specunfoldedClosure->SetDirectory(nullptr);
+            specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
+            TH1 *dvecClosure(nullptr);
+            imp = unfolderClosure.Impl();
+            if(imp) {
+                dvecClosure = histcopy(imp->GetD());
+                dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", config.fReg), Form("D-vector of the closure test reg %d", config.fReg));
+                dvecClosure->SetDirectory(nullptr);
+            }
+            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
+                    CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
+                    CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
+        }
+
+        std::vector<unfoldingResults>   fOutputData;       
+        UnfoldingPool                   *fInputData;
+};
+
 std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, double R, const std::string_view trigger, const std::string_view triggercluster) {
     int clusterbin = 0;
     if(triggercluster == "ANY") clusterbin = 1;
@@ -153,48 +249,24 @@ void runCorrectionChain1DSVD_SpectrumTaskFine(const std::string_view datafile, c
                           responsematrixClosure(nullptr, priorsclosure, rebinnedresponseclosure);
         responsematrix.UseOverflow(false);
         responsematrixClosure.UseOverflow(false);
-        std::set<unfoldingResults> unfolding_results;
-        auto acceptance = (kSizeEmcalPhi - 2 * radius) * (kSizeEmcalEta - 2 * radius) / (TMath::TwoPi());
-        for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
-            std::cout << "[SVD unfolding] Regularization " << ireg << "\n================================================================\n";
-            std::cout << "[SVD unfolding] Running unfolding" << std::endl;
-            RooUnfoldSvd unfolder(&responsematrix, hraw, ireg);
-            auto specunfolded = unfolder.Hreco(errorTreatment);
-            specunfolded->SetNameTitle(Form("unfolded_reg%d", ireg), Form("Unfolded jet spectrum R=%.1f reg %d", radius, ireg));
-            specunfolded->SetDirectory(nullptr);
-            auto backfolded = MakeRefolded1D(hraw, specunfolded, responsematrix);
-            backfolded->SetNameTitle(Form("backfolded_reg%d", ireg), Form("back-folded jet spectrum R=%.1f reg %d", radius, ireg));
-            backfolded->SetDirectory(nullptr);
-            normalizeBinWidth(specunfolded);
-            auto specnormalized = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedReg%d", ireg)));
-            specnormalized->SetNameTitle(Form("normalized_reg%d", ireg), Form("Normalized jet spectrum R=%.1f reg %d", radius, ireg));
-            specnormalized->SetDirectory(nullptr);
-            specnormalized->Scale(1. / (acceptance));
-            TH1 *dvec(nullptr);
-            auto imp = unfolder.Impl();
-            if(imp){
-                dvec = histcopy(imp->GetD());
-                dvec->SetNameTitle(Form("dvector_Reg%d", ireg), Form("D-vector reg %d", ireg));
-                dvec->SetDirectory(nullptr);
-            }
 
-            // run closure test
-            std::cout << "[SVD unfolding] Running closure test" << std::endl;
-            RooUnfoldSvd unfolderClosure(&responsematrixClosure, detclosure);
-            auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
-            specunfoldedClosure->SetDirectory(nullptr);
-            specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", ireg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", radius, ireg));
-            TH1 *dvecClosure(nullptr);
-            imp = unfolderClosure.Impl();
-            if(imp) {
-                dvecClosure = histcopy(imp->GetD());
-                dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", ireg), Form("D-vector of the closure test reg %d", ireg));
-                dvecClosure->SetDirectory(nullptr);
-            }
-            unfolding_results.insert({ireg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
-                                        CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", ireg), Form("Pearson coefficients regularization %d", ireg)),
-                                        CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", ireg), Form("Pearson coefficients of the closure test regularization %d", ireg))});
+        UnfoldingPool work;
+        for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
+            work.InsertWork({ireg, radius, hraw, &responsematrix, detclosure, &responsematrixClosure});
         }
+
+        std::vector<std::thread> workthreads;
+        std::set<unfoldingResults> unfolding_results;
+        std::mutex combinemutex;
+        for(auto i : ROOT::TSeqI(0, 8)){
+            workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results](){
+                UnfoldingRunner worker(&work);
+                worker.DoWork();
+                std::unique_lock<std::mutex> combinelock(combinemutex);
+                for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
+            }));
+        }
+        for(auto &th : workthreads) th.join();
 
         // Write everything to file
         writer->mkdir(Form("R%02d", int(radius*10)));

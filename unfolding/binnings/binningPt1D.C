@@ -42,10 +42,56 @@ std::vector<double> getJetPtBinningNonLinSmearLarge(){
   return result;
 }
 
+std::vector<double> getJetPtBinningNonLinSmearLargeLow(){
+  std::vector<double> result;
+  result.emplace_back(10.);
+  double current = 10.;
+  while(current < 40.) {
+    current += 2.;
+    result.push_back(current);
+  }
+  while(current < 60){
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 120){
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 200){
+    current += 20.;
+    result.push_back(current);
+  }
+  return result;
+}
+
 std::vector<double> getJetPtBinningNonLinSmearLargeFine(){
   std::vector<double> result;
   result.emplace_back(20.);
   double current = 20.;
+  while(current < 40.) {
+    current += 2.;
+    result.push_back(current);
+  }
+  while(current < 60){
+    current += 4.;
+    result.push_back(current);
+  }
+  while(current < 120){
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 200){
+    current += 10.;
+    result.push_back(current);
+  }
+  return result;
+}
+
+std::vector<double> getJetPtBinningNonLinSmearLargeFineLow(){
+  std::vector<double> result;
+  result.emplace_back(10.);
+  double current = 10.;
   while(current < 40.) {
     current += 2.;
     result.push_back(current);
@@ -159,11 +205,57 @@ std::vector<double> getJetPtBinningNonLinTrueLarge(){
   return result;
 }
 
+std::vector<double> getJetPtBinningNonLinTrueLargeLow(){
+  std::vector<double> result;
+  result.emplace_back(5.);
+  result.emplace_back(10.);
+  double current = 10.;
+  while(current < 80.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 200){
+    current += 20;
+    result.push_back(current);
+  }
+  while(current < 280.){
+    current += 40.;
+    result.push_back(current);
+  }
+  result.emplace_back(500.);
+  return result;
+}
+
 std::vector<double> getJetPtBinningNonLinTrueLargeFine(){
   std::vector<double> result;
   result.emplace_back(5.);
   result.emplace_back(20.);
   double current = 20.;
+  while(current < 60.) {
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 140.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 200){
+    current += 20;
+    result.push_back(current);
+  }
+  while(current < 280.){
+    current += 40.;
+    result.push_back(current);
+  }
+  result.emplace_back(500.);
+  return result;
+}
+
+std::vector<double> getJetPtBinningNonLinTrueLargeFineLow(){
+  std::vector<double> result;
+  result.emplace_back(5.);
+  result.emplace_back(10.);
+  double current = 10.;
   while(current < 60.) {
     current += 5.;
     result.push_back(current);
