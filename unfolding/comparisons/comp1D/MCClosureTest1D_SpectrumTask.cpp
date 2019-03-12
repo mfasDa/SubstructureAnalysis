@@ -11,7 +11,7 @@
 void MCClosureTest1D_SpectrumTask(const std::string_view inputfile) {
     std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ"));
     auto nradius = reader->GetListOfKeys()->GetEntries();
-    bool isSVD = (inputfile.find("Svd") != std::string::npos);
+    bool isSVD = (inputfile.find("SVD") != std::string::npos);
 
     auto plot = new ROOT6tools::TSavableCanvas(Form("MCClosureTest1D%s", (isSVD ? "Svd" : "Bayes")), Form("Monte-Calro closure test (%s unfolding)", (isSVD ? "SVD" : "Bayes")), nradius * 300., 700.);
     plot->Divide(nradius, 2);
