@@ -181,6 +181,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
 }
 
 void runCorrectionChain1DSVD_SpectrumTaskLow(const std::string_view datafile, const std::string_view mcfile){
+    ROOT::EnableThreadSafety();
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open("correctedSVD_lowpt.root", "RECREATE"));

@@ -181,15 +181,13 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
 }
 
 void runCorrectionChain1DSVD_SpectrumTaskFine(const std::string_view datafile, const std::string_view mcfile){
+    ROOT::EnableThreadSafety();
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open("correctedSVD_fine.root", "RECREATE"));
     auto binningpart = getJetPtBinningNonLinTrueLargeFine(),
          binningdet = getJetPtBinningNonLinSmearLargeFine();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader);
-    RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
-    const double kSizeEmcalPhi = 1.88,
-                 kSizeEmcalEta = 1.4;
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
         std::cout << "Doing jet radius " << radius << std::endl;
