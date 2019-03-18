@@ -146,11 +146,15 @@ class AlienTool:
         return gbout.split('\t')[0]
 
     def checkconsistency(self, gridfile, localfile):
-        gmd5 = self.gridmd5sum(gridfile)
-        lmd5 = self.md5(localfile)
-        if lmd5 == gmd5:
-            return True
-        return False
+        try:
+            gmd5 = self.gridmd5sum(gridfile)
+            lmd5 = self.md5(localfile)
+            if lmd5 == gmd5:
+                return True
+            return False
+        except:
+            logging.error("Error checking md5 for %s/%s, assuming corrupted ...", gridfile, localfile)
+            return False
 
     def copy(self, inputfile, outputfile):
         logging.info("Copying %s to %s", inputfile, outputfile)
