@@ -4,16 +4,22 @@ import argparse
 import os
 import subprocess
 import sys
+from shutil import which
 
 repository = os.path.abspath(os.path.dirname(sys.argv[0]))
 
-def createJobscript(jobscriptname, repo, mcsample, trainrun, outputdir):
+def createJobscript(jobscriptname, slurm, repo, mcsample, trainrun, outputdir):
     if not os.path.exists(os.path.dirname(jobscriptname)):
         os.makedirs(os.path.dirname(jobscriptname), 0755)
     with open(jobscriptname, 'w') as writer:
         writer.write("#! /bin/bash\n")
-        writer.write("#PBS -o %s/transfer.log\n", outputdir)
-        writer.write("#PBS -j oe\n")
+        if isSlurm:
+            # Slurm specific settings
+            writer.write("#SBATCH --output=%s/transfer.log\n", outputdir)
+        else:
+            # PBS torque specific settings
+            writer.write("#PBS -o %s/transfer.log\n", outputdir)
+            writer.write("#PBS -j oe\n")
         writer.write("if [ ! -d %s ]; then mkdir -p %s; fi\n", outputdir, outputdir)
         writer.write("if [ -f %s/run ]; then rm %s/run; fi\n", outputdir, outputdir)
         writer.write("if [ -f %s/done ]; then rm %s/done; fi\n", outputdir, outputdir)
@@ -28,9 +34,10 @@ def createJobscript(jobscriptname, repo, mcsample, trainrun, outputdir):
         writer.close()
 
 def submitCopy(mcsample, trainrun, outputdir):
+    isSlurm = which("sbatch") is not None
     jobscriptname = "%s/jobscript.sh" %outputdir
-    createJobscript(jobscriptname, repository, mcsample, trainrun, outputdir)
-    subprocess.call(["qsub", jobscriptname])
+    createJobscript(jobscriptname, isSlurm, repository, mcsample, trainrun, outputdir)
+    subprocess.call(["sbatch" if isSlurm else is"qsub", jobscriptname])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="submitCopuMC.py", description="Run copy of MC pt-hard production as PBS job")
