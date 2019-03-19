@@ -16,6 +16,9 @@ def createJobscript(jobscriptname, slurm, repo, mcsample, trainrun, outputdir):
         if isSlurm:
             # Slurm specific settings
             writer.write("#SBATCH --output=%s/transfer.log\n", outputdir)
+            writer.write("#SBATCH -N 1\n")
+            writer.write("#SBATCH -n 1\n")
+            writer.write("#SBATCH -c 1\n")
         else:
             # PBS torque specific settings
             writer.write("#PBS -o %s/transfer.log\n", outputdir)
