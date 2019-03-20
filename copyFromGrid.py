@@ -409,7 +409,7 @@ class CopyHandler(threading.Thread):
 
 class PoolFiller(threading.Thread):
     
-    def __init__(self, sample, trainrun, outputlocation, targetfile, maxpoolsize):
+    def __init__(self, sample, trainrun, outputlocation, targetfile, maxpoolsize, aodprod):
         threading.Thread.__init__(self)
         self.__datapool = None
         self.__alientool = None
@@ -419,6 +419,7 @@ class PoolFiller(threading.Thread):
         self.__outputlocation = outputlocation
         self.__targetfile = targetfile
         self.__maxpoolsize = maxpoolsize
+        self.__aodprod = aodprod
 
     def setalientool(self, alientool):
         self.__alientool = alientool
@@ -491,6 +492,8 @@ class PoolFiller(threading.Thread):
                     run = int(leveltwo)
                 logging.info("Doing %s %s", "pthard-bin" if isrun else "run", leveltwo)
                 tmppathtwo = os.path.join(tmppath, leveltwo)
+                if len(self.__aodprod):
+                    tmppathtwo = os.path.join(tmppathtwo, self.__aodprod)
                 if not self.__exist_traindir(legotrain, tmppathtwo):
                     logging.info("No train %s found in %s", legotrain, tmppathtwo)
                     continue
@@ -521,14 +524,14 @@ class PoolFiller(threading.Thread):
                         self.__datapool.insert_pool(Filepair(inputfile, outputfile))
                         self.__wait()
 
-def transfer(sample, trainrun, outputlocation, targetfile, nstream):
+def transfer(sample, trainrun, outputlocation, targetfile, nstream, aod):
     alientool = AlienTool()
     if not alientool.handletoken():
         logging.error("No valid token found. Please execute \"alien-token-init\" first")
         sys.exit(2)
     datapool = DataPool()
 
-    poolfiller = PoolFiller(sample, trainrun, outputlocation, targetfile, 1000)
+    poolfiller = PoolFiller(sample, trainrun, outputlocation, targetfile, 1000, aod)
     poolfiller.setdatapool(datapool)
     poolfiller.setalientool(alientool)
     poolfiller.start()
@@ -553,6 +556,7 @@ if __name__ == "__main__":
     parser.add_argument("sample", metavar = "SAMPLE", help="Path in alien to the sample base directory")
     parser.add_argument("trainrun", metavar = "TRAINRUN", help = "Full name of the train run (i. e. PWGJE/Jets_EMC_pp_MC/xxxx)")
     parser.add_argument("outputpath", metavar = "OUTPUTPATH", help = "Local directory where to write the output to")
+    parser.add_argument("-a", "--aod", metavar="AODPROD", default = "", help = "Dedicated AOD production")
     parser.add_argument("-d", "--debug", action = "store_true",  help = "Run with increased debug level")
     parser.add_argument("-f", "--file", type = str, default = "root_archive.zip", help = "Name of the file to be transferred (default: root_archive.zip)")
     parser.add_argument("-n", "--nstream", type = int, default = 4, help = "Number of parallel streams (default: 4)")
@@ -561,4 +565,4 @@ if __name__ == "__main__":
     if args.debug:
         loglevel = logging.DEBUG
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=loglevel)
-    transfer(args.sample, args.trainrun, args.outputpath, args.file, args.nstream)
+    transfer(args.sample, args.trainrun, args.outputpath, args.file, args.nstream, args.aod)
