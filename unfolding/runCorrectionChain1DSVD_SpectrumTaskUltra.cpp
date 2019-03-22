@@ -181,17 +181,15 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
     return combined;
 }
 
-void runCorrectionChain1DSVD_SpectrumTaskLow(const std::string_view datafile, const std::string_view mcfile){
+
+void runCorrectionChain1DSVD_SpectrumTaskUltra(const std::string_view datafile, const std::string_view mcfile){
     ROOT::EnableThreadSafety();
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
-                           writer(TFile::Open("correctedSVD_lowpt.root", "RECREATE"));
-    auto binningpart = getJetPtBinningNonLinTrueLargeLow(),
-         binningdet = getJetPtBinningNonLinSmearLargeLow();
+                           writer(TFile::Open("correctedSVD_ultra.root", "RECREATE"));
+    auto binningpart = getJetPtBinningNonLinTrueUltra(),
+         binningdet = getJetPtBinningNonLinSmearUltra();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader);
-    RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
-    const double kSizeEmcalPhi = 1.88,
-                 kSizeEmcalEta = 1.4;
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
         std::cout << "Doing jet radius " << radius << std::endl;
@@ -271,7 +269,6 @@ void runCorrectionChain1DSVD_SpectrumTaskLow(const std::string_view datafile, co
         for(auto &th : workthreads) th.join();
 
         // Write everything to file
-        std::cout << "[SVD unfolding] Writing to file ..." << std::endl;
         writer->mkdir(Form("R%02d", int(radius*10)));
         writer->cd(Form("R%02d", int(radius*10)));
         auto basedir = gDirectory;
@@ -314,6 +311,5 @@ void runCorrectionChain1DSVD_SpectrumTaskLow(const std::string_view datafile, co
             if(reg.fDvectorClosure) reg.fDvectorClosure->Write();
             if(reg.fPearsonClosure) reg.fPearsonClosure->Write();
         }
-        std::cout << "[SVD unfolding] Radius " << radius << " done ..." << std::endl;
     }
 }

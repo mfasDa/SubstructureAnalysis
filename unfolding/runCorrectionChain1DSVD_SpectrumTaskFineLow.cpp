@@ -78,10 +78,10 @@ class UnfoldingRunner {
             auto specunfolded = unfolder.Hreco(errorTreatment);
             specunfolded->SetNameTitle(Form("unfolded_reg%d", config.fReg), Form("Unfolded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specunfolded->SetDirectory(nullptr);
+            specunfolded->Scale(1., "width");
             auto backfolded = MakeRefolded1D(config.fRaw, specunfolded, *config.fResponseMatrix);
             backfolded->SetNameTitle(Form("backfolded_reg%d", config.fReg), Form("back-folded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             backfolded->SetDirectory(nullptr);
-            normalizeBinWidth(specunfolded);
             auto specnormalized = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedReg%d", config.fReg)));
             specnormalized->SetNameTitle(Form("normalized_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specnormalized->SetDirectory(nullptr);
@@ -100,6 +100,7 @@ class UnfoldingRunner {
             auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
+            specunfoldedClosure->Scale(1., "width");
             TH1 *dvecClosure(nullptr);
             imp = unfolderClosure.Impl();
             if(imp) {
