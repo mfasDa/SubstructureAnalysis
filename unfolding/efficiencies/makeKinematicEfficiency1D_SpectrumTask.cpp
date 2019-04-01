@@ -17,7 +17,7 @@ void makeKinematicEfficiency1D_SpectrumTask(const std::string_view filename = "c
 
   auto plot = new ROOT6tools::TSavableCanvas("effKine", "Kinematic efficiencies jet spectrum", 800, 600);
   plot->cd();
-  (new ROOT6tools::TAxisFrame("effFrame", "p_{t} (GeV/c)", "#epsilon_{kine}", 0., 300., 0., 1.1))->Draw("axis");
+  (new ROOT6tools::TAxisFrame("effFrame", "p_{t} (GeV/c)", "#epsilon_{kine}", 0., 400., 0., 1.1))->Draw("axis");
   auto leg = new ROOT6tools::TDefaultLegend(0.7, 0.15, 0.89, 0.5);
   leg->Draw();
   std::map<double, Style> rstyles = {{0.2, {kBlue, 24}}, {0.3, {kRed, 25}}, {0.4, {kGreen, 26}}, {0.5, {kOrange, 27}}, {0.6, {kViolet, 28}}};
