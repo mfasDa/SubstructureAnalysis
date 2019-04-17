@@ -8,7 +8,7 @@
 class GraphicsPad {
 public:
     GraphicsPad(TVirtualPad *underlyingPad) : mPad(underlyingPad), mFrame(nullptr), mLegend(nullptr) {}
-    ~GraphicsPad() = default;
+    virtual ~GraphicsPad() = default;
 
     void Margins(double left, double right, double bottom, double top){
         if(left > 0) mPad->SetLeftMargin(left);
@@ -64,6 +64,31 @@ private:
     TVirtualPad                     *mPad;
     ROOT6tools::TAxisFrame          *mFrame;
     ROOT6tools::TDefaultLegend      *mLegend;
+};
+
+class SpectrumPad : public GraphicsPad {
+public:
+    SpectrumPad(TVirtualPad *underlyingpad, double radius, const std::string_view ytitle, std::vector<double> frameranges, std::vector<double> legrange = {}) : GraphicsPad(underlyingpad) {
+        Logy();
+        Margins(0.17, 0.04, -1., 0.04);
+        Frame(Form("specframeR%02d", int(radius*10)), "p_{t} (GeV/c)", ytitle.data(), frameranges[0], frameranges[1], frameranges[2], frameranges[3]);
+        FrameTextSize(0.05);
+        FrameOffsets(-1., 1.5);
+        Label(0.2, 0.15, 0.4, 0.22, Form("R=%.1f", radius));
+        if(legrange.size()) Legend(legrange[0], legrange[1], legrange[2], legrange[3]);
+    }
+    virtual ~SpectrumPad() = default;
+};
+
+class RatioPad : public GraphicsPad {
+public:
+    RatioPad(TVirtualPad *underlyingpad, double radius, const std::string_view ytitle, std::vector<double> frameranges) : GraphicsPad(underlyingpad) {
+        Margins(0.17, 0.04, -1., 0.04);
+        Frame(Form("ratioframeR%02d", int(radius*10)), "p_{t} (GeV/c)", ytitle.data(), frameranges[0], frameranges[1], frameranges[2], frameranges[3]);
+        FrameTextSize(0.05);
+
+    }
+    virtual ~RatioPad() = default;
 };
 
 #endif
