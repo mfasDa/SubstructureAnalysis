@@ -14,11 +14,11 @@ std::map<double, TH1 *> readCorrectedSpectra(const std::string_view filename) {
     return result;
 }
 
-void comparisonFullSpectraTRD() {
-    auto specwith = readCorrectedSpectra("withTRD/correctedSVD_fine_lowpt.root"),
-         specwithout = readCorrectedSpectra("withoutTRD/correctedSVD_fine_lowpt.root");
+void comparisonFullSpectraTRD(std::string_view sysvar = "notc") {
+    auto specwith = readCorrectedSpectra(Form("withTRD/correctedSVD_fine_lowpt_%s.root", sysvar.data())),
+         specwithout = readCorrectedSpectra(Form("withoutTRD/correctedSVD_fine_lowpt_%s.root", sysvar.data()));
 
-    auto plot = new ROOT6tools::TSavableCanvas("comparisonFullJetsTRD", "Comparison full jets with TRD in reconstruction", 300 * specwith.size(), 700);
+    auto plot = new ROOT6tools::TSavableCanvas(Form("comparisonFullJetsTRD_%s", sysvar.data()), "Comparison full jets with TRD in reconstruction", 300 * specwith.size(), 700);
     plot->Divide(specwith.size(), 2);
 
     int icol = 0;
@@ -26,11 +26,18 @@ void comparisonFullSpectraTRD() {
     for(auto r = 0.2; r <= 0.6; r += 0.1){
         plot->cd(icol+1);
         gPad->SetLogy();
-        (new ROOT6tools::TAxisFrame(Form("specframeR%02d", int(r*10.)), "p_{t} (GeV/c)", "d#sigma/(dp_{t}d#eta) (mb/(GeV/c))", 0., 300., 1e-9, 100.))->Draw("axis");
-        (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.35, 0.22, Form("Full jets, R=%.1f", r)))->Draw();
+        gPad->SetRightMargin(0.04);
+        gPad->SetLeftMargin(0.17);
+        gPad->SetTopMargin(0.04);
+        gPad->SetBottomMargin(0.13);
+        auto specframe = new ROOT6tools::TAxisFrame(Form("specframeR%02d", int(r*10.)), "p_{t} (GeV/c)", "d#sigma/(dp_{t}d#eta) (mb/(GeV/c))", 0., 300., 1e-9, 100.);
+        specframe->GetXaxis()->SetTitleSize(0.06);
+        specframe->GetYaxis()->SetTitleSize(0.06);
+        specframe->Draw("axis");
+        (new ROOT6tools::TNDCLabel(0.2, 0.15, 0.7, 0.3, Form("Full jets, R=%.1f", r)))->Draw();
         TLegend *leg(nullptr);
         if(!icol) {
-            leg = new ROOT6tools::TDefaultLegend(0.65, 0.7, 0.89, 0.89);
+            leg = new ROOT6tools::TDefaultLegend(0.45, 0.6, 0.94, 0.94);
             leg->Draw();
         }
         auto wtrd = specwith.find(r)->second,
@@ -45,7 +52,14 @@ void comparisonFullSpectraTRD() {
         }
 
         plot->cd(icol + 1 + specwith.size());
-        (new ROOT6tools::TAxisFrame(Form("ratioframeR%02d", int(r*10.)), "p_{t} (GeV/c)", "without / with TRD", 0., 300., 0., 2.))->Draw("axis");
+        gPad->SetRightMargin(0.04);
+        gPad->SetLeftMargin(0.17);
+        gPad->SetTopMargin(0.04);
+        gPad->SetBottomMargin(0.13);
+        auto ratioframe = new ROOT6tools::TAxisFrame(Form("ratioframeR%02d", int(r*10.)), "p_{t} (GeV/c)", "without / with TRD", 0., 300., 0., 2.);
+        ratioframe->GetXaxis()->SetTitleSize(0.06);
+        ratioframe->GetYaxis()->SetTitleSize(0.06);
+        ratioframe->Draw("axis");
         auto ratio = static_cast<TH1 *>(wotrd->Clone(Form("RatioTRD_R%02d", int(r*10.))));
         ratio->Divide(wtrd);
         ratiostyle.SetStyle<TH1>(*ratio);
