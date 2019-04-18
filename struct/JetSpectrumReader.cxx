@@ -94,6 +94,18 @@ protected:
                         hist->SetDirectory(nullptr);
                         mData.InsertJetSpectrum(radius, type, hist);
                     }
+                } else if(contains(type, "truetrunc")){
+                    basedir->cd("response");
+                    auto responsematrix = static_cast<TH2 *>(gDirectory->Get(Form("Rawresponse_%s_fine_rebinned_standard", rstring.data())));
+                    auto hist = responsematrix->ProjectionY(Form("truetrunc_%s", rstring.data()));
+                    hist->SetDirectory(nullptr);
+                    mData.InsertJetSpectrum(radius, "truetrunc", hist);
+                } else if(contains(type, "mcdet")){
+                    basedir->cd("response");
+                    auto responsematrix = static_cast<TH2 *>(gDirectory->Get(Form("Rawresponse_%s_fine", rstring.data())));
+                    auto hist = responsematrix->ProjectionX(Form("mcdet_%s", rstring.data()));
+                    hist->SetDirectory(nullptr);
+                    mData.InsertJetSpectrum(radius, "mcdet", hist);
                 } else if(contains(type, "closure")) {
                     basedir->cd("closuretest");
                     auto keys = getKeylist(gDirectory);
