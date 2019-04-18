@@ -11,13 +11,17 @@ void ComparisonRecoScheme(int ultraoption, const std::string_view sysvar){
     std::stringstream basefile, plotname;
     basefile << "correctedSVD";
     plotname << "comparisonRecoScheme";
-    if(ultraoption > -1){
+    if(ultraoption > 0){
         basefile << "_ultra" << ultraoption;
         plotname << "_ultra" << ultraoption;
     } 
-    else{
+    else if(ultraoption < 0){
         basefile << "_fine_lowpt";
         plotname << "_fine_lowpt";
+    }
+    else{
+        basefile << "_lowpt";
+        plotname << "_lowpt";
     }
     if(sysvar.length()){
         basefile << "_" << sysvar;
