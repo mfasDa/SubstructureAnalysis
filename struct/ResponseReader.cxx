@@ -44,7 +44,7 @@ public:
     }
 
     TH2 *GetResponseMatrixFine(double r) const { return GetResponseMatrix(r, "fine"); }
-    TH2 *GetReponseMatrixTruncated(double r) const { return GetResponseMatrix(r, "truncated"); }
+    TH2 *GetResponseMatrixTruncated(double r) const { return GetResponseMatrix(r, "truncated"); }
 
     std::vector<double> getJetRadii() const {
         std::vector<double> result;
@@ -72,7 +72,7 @@ protected:
                 entry = data->second.get();
             } else {
                 entry = new ResponseData;
-                mData[rval] = std::shared_ptr<ResponseData>();
+                mData[rval] = std::shared_ptr<ResponseData>(entry);
             }
             entry->AddResponseMatrix("fine", responsefine);
             entry->AddResponseMatrix("truncated", responsetruncated);
