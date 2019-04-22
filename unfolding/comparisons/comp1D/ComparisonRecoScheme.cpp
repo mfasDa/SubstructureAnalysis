@@ -37,7 +37,7 @@ void ComparisonRecoScheme(int ultraoption, const std::string_view sysvar){
     switch(ultraoption) {
         case 240: ptmax = 320; framemax = 350; break;
         case 300: ptmax = 400; framemax = 450; break;
-        default: ptmax = 240; framemax = 300; break;
+        default: ptmax = 200; framemax = 220; break;
     };
     Restrictor rangerestrictor(10, ptmax);
 

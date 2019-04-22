@@ -188,12 +188,18 @@ TH1 *makeTriggerEfficiency(TFile &mcreader, double R, const std::string_view tri
     return eff;
 }
 
-TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap){
+TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, const TH1 &ej1, double ej1swap){
     auto combined = histcopy(&mb);
     combined->SetDirectory(nullptr);
-    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ptswap), combined->GetXaxis()->GetNbins()+1)) {
-        combined->SetBinContent(b, triggered.GetBinContent(b));
-        combined->SetBinError(b, triggered.GetBinError(b));
+    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ej2swap), combined->GetXaxis()->FindBin(ej1swap))) {
+        std::cout << "[" << combined->GetXaxis()->GetBinLowEdge(b) << " - " << combined->GetXaxis()->GetBinUpEdge(b) << "] Using EJ2" << std::endl;
+        combined->SetBinContent(b, ej2.GetBinContent(b));
+        combined->SetBinError(b, ej2.GetBinError(b));
+    }
+    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ej1swap), combined->GetXaxis()->GetNbins()+1)) {
+        std::cout << "[" << combined->GetXaxis()->GetBinLowEdge(b) << " - " << combined->GetXaxis()->GetBinUpEdge(b) << "] Using EJ1" << std::endl;
+        combined->SetBinContent(b, ej1.GetBinContent(b));
+        combined->SetBinError(b, ej1.GetBinError(b));
     }
     return combined;
 }
@@ -202,7 +208,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
 void runCorrectionChain1DSVD_SpectrumTaskSimpleLow(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
-    outputfile << "correctedSVD_fine_lowpt";
+    outputfile << "correctedSVD_lowpt";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
@@ -231,8 +237,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleLow(const std::string_view datafi
 
         // Rebin all raw level histograms
         std::unique_ptr<TH1> mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
-                             ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
-        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej1rebinned, 80.);
+                             ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
+                             ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
+        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
         hraw->SetNameTitle(Form("hraw_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f", radius));
         hraw->Scale(crosssection/mbspectrum.first);
 

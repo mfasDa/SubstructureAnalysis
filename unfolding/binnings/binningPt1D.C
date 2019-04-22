@@ -2,8 +2,8 @@
 
 std::vector<double> getJetPtBinningNonLinSmear(){
   std::vector<double> result;
-  result.emplace_back(20.);
-  double current = 20.;
+  result.emplace_back(10.);
+  double current = 10.;
   while(current < 40.) {
     current += 2.;
     result.push_back(current);
@@ -13,6 +13,10 @@ std::vector<double> getJetPtBinningNonLinSmear(){
     result.push_back(current);
   }
   while(current < 120){
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 140){
     current += 10.;
     result.push_back(current);
   }
@@ -119,14 +123,20 @@ std::vector<double> getJetPtBinningNonLinSmearUltra240(){
   return result;
 }
 
-std::vector<double> getJetPtBinningLinSmearLarge(){
+std::vector<double> getJetPtBinningNonLinTrue(){
   std::vector<double> result;
-  result.emplace_back(20.);
-  double current = 20.;
-  while(current < 200.) {
-    current += 5.;
+  result.emplace_back(5.);
+  result.emplace_back(10.);
+  double current = 10.;
+  while(current < 80.) {
+    current += 10.;
     result.push_back(current);
   }
+  while(current < 180){
+    current += 20;
+    result.push_back(current);
+  }
+  result.emplace_back(300.);
   return result;
 }
 
