@@ -26,12 +26,12 @@ void plotNonLinCorr() {
         np++;
     }
 
-    std::array<double, 7> fNonLinearityParams = {{0.976941, 0.162310, 1.08689, 0.0819592, 152.338, 30.9594, 0.9615}};
+    std::array<double, 7> fNonLinearityParams = {{0.9892, 0.1976, 0.865, 0.06775, 156.6, 47.18, 0.97}};
     auto model = [fNonLinearityParams](double *x, double *p) { return 1/(fNonLinearityParams[6]/(fNonLinearityParams[0]*(1./(1.+fNonLinearityParams[1]*TMath::Exp(-x[0]/fNonLinearityParams[2]))*1./(1.+fNonLinearityParams[3]*TMath::Exp((x[0]-fNonLinearityParams[4])/fNonLinearityParams[5]))))); };
-    auto nonlincorr = new TF1("nonlinearity", model, 0., 200., 1);
+    auto nonlincorr = new TF1("nonlinearity", model, 0., 300., 1);
     auto plotlin = new ROOT6tools::TSavableCanvas("nonlincorrlin", "Non-linearity correction (lin. scale)", 800, 600);
     plotlin->cd();
-    (new ROOT6tools::TAxisFrame("nonlinframelin", "E_{cl} (GeV/c)", "Non-linearity correction", 0., 200., 0., 1.1))->Draw("axis");
+    (new ROOT6tools::TAxisFrame("nonlinframelin", "E_{cl} (GeV/c)", "Non-linearity correction", 0., 300., 0., 1.1))->Draw("axis");
     nonlincorr->SetLineColor(kRed);
     nonlincorr->Draw("lsame");
     dp->Draw("epsame");
@@ -40,7 +40,7 @@ void plotNonLinCorr() {
     auto plotlog = new ROOT6tools::TSavableCanvas("nonlincorrlog", "Non-linearity correction (log. scale)", 800, 600);
     plotlog->cd();
     gPad->SetLogx();
-    (new ROOT6tools::TAxisFrame("nonlinframelog", "E_{cl} (GeV/c)", "Non-linearity correction", 0.2, 200., 0., 1.1))->Draw("axis");
+    (new ROOT6tools::TAxisFrame("nonlinframelog", "E_{cl} (GeV/c)", "Non-linearity correction", 0.2, 300., 0., 1.1))->Draw("axis");
     nonlincorr->Draw("lsame");
     dp->Draw("epsame");
     plotlog->SaveCanvas(plotlog->GetName());
