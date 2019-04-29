@@ -78,10 +78,10 @@ class UnfoldingRunner {
             auto specunfolded = unfolder.Hreco(errorTreatment);
             specunfolded->SetNameTitle(Form("unfolded_reg%d", config.fReg), Form("Unfolded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specunfolded->SetDirectory(nullptr);
-            specunfolded->Scale(1., "width");
             auto backfolded = MakeRefolded1D(config.fRaw, specunfolded, *config.fResponseMatrix);
             backfolded->SetNameTitle(Form("backfolded_reg%d", config.fReg), Form("back-folded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             backfolded->SetDirectory(nullptr);
+            specunfolded->Scale(1., "width");
             auto specnormalized = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedReg%d", config.fReg)));
             specnormalized->SetNameTitle(Form("normalized_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specnormalized->SetDirectory(nullptr);
@@ -274,7 +274,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleFineLow(const std::string_view da
         responsematrixClosure.UseOverflow(false);
 
         UnfoldingPool work;
-        for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
+        for(auto ireg : ROOT::TSeqI(2, 10)) {
             work.InsertWork({ireg, radius, hraw, &responsematrix, detclosure, &responsematrixClosure});
         }
 
