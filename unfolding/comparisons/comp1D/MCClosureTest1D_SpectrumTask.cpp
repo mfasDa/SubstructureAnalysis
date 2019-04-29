@@ -7,62 +7,53 @@
 #include "../../../helpers/math.C"
 #include "../../../helpers/root.C"
 #include "../../../helpers/string.C"
+#include "../../../struct/JetSpectrumReader.cxx"
+#include "../../../struct/GraphicsPad.cxx"
+#include "../../../struct/Ratio.cxx"
 
 void MCClosureTest1D_SpectrumTask(const std::string_view inputfile) {
-    std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ"));
-    auto nradius = reader->GetListOfKeys()->GetEntries();
+    std::vector<std::string> spectra = {"partclosure"};
+    for(auto i : ROOT::TSeqI(1,11)) spectra.push_back(Form("unfoldedClosure_reg%d", i));
+    auto data = JetSpectrumReader(inputfile, spectra);
+    auto jetradii = data.GetJetSpectra().GetJetRadii();
     bool isSVD = (inputfile.find("SVD") != std::string::npos);
 
-    auto plot = new ROOT6tools::TSavableCanvas(Form("MCClosureTest1D%s", (isSVD ? "Svd" : "Bayes")), Form("Monte-Calro closure test (%s unfolding)", (isSVD ? "SVD" : "Bayes")), nradius * 300., 700.);
-    plot->Divide(nradius, 2);
+    auto plot = new ROOT6tools::TSavableCanvas(Form("MCClosureTest1D%s", (isSVD ? "Svd" : "Bayes")), Form("Monte-Calro closure test (%s unfolding)", (isSVD ? "SVD" : "Bayes")), jetradii.size() * 300., 700.);
+    plot->Divide(jetradii.size(), 2);
 
     std::array<Color_t, 10> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kMagenta, kGray, kAzure, kCyan};
     std::array<Style_t, 10> markers = {24, 25, 26, 27, 28, 29, 30, 31, 32, 33};
+    Style rawstyle{kBlack, 20};
 
     int currentcol = 0;
-    for(auto k : *reader->GetListOfKeys()){
-        std::string rstring(k->GetName());
-        double rvalue = double(std::stoi(rstring.substr(1, 2)))/10.;
+    for(auto rvalue : jetradii){
+        std::string rstring(Form("R%02d", int(rvalue*10.)));
         
-        reader->cd(k->GetName());
-        auto basedir = gDirectory;
-        
-        // get truth level spectrum
-        basedir->cd("closuretest");
-        auto *htruth = static_cast<TH1 *>(gDirectory->Get("partclosure"));
-        htruth->SetDirectory(nullptr);
-        normalizeBinWidth(htruth);
-        Style{kBlack, 20}.SetStyle<TH1>(*htruth);
+        auto *htruth = data.GetJetSpectrum(rvalue, "partclosure");
+        htruth->Scale(1., "width");
 
         plot->cd(1+currentcol);
         gPad->SetLogy();
-        (new ROOT6tools::TAxisFrame(Form("specframe_%s", rstring.data()), "p_{t} (GeV/c)", "d#sigma/dp_{t} (mb/(GeV/c))", 0., 200., 1e-8, 10))->Draw("axis");
-        (new ROOT6tools::TNDCLabel(0.15, 0.15, 0.35, 0.22, Form("R = %.1f", rvalue)))->Draw();
-        TLegend *leg(nullptr);
-        if(!currentcol) {
-            leg = new ROOT6tools::TDefaultLegend(0.65, 0.45, 0.89, 0.89);
-            leg->Draw();
-        }
-        htruth->Draw("epsame");
-        if(leg) leg->AddEntry(htruth, "raw", "lep");
+        GraphicsPad specpad(gPad);
+        specpad.Margins(0.17, 0.04, -1., 0.04);
+        specpad.Frame(Form("specframe_%s", rstring.data()), "p_{t} (GeV/c)", "d#sigma/dp_{t} (mb/(GeV/c))", 0., 350., 1e-10, 10);
+        specpad.FrameTextSize(0.045);
+        specpad.Label(0.25, 0.15, 0.45, 0.22, Form("R = %.1f", rvalue));
+        if(!currentcol) specpad.Legend(0.65, 0.45, 0.94, 0.94);
+        specpad.Draw<TH1>(htruth, rawstyle, "true");
 
-        plot->cd(1 + currentcol + nradius);
-        (new ROOT6tools::TAxisFrame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Unfolded/true", 0., 200., 0.5, 1.5))->Draw("axis");   
+        plot->cd(1 + currentcol + jetradii.size());
+        GraphicsPad ratiopad(gPad);
+        ratiopad.Margins(0.17, 0.04, -1., 0.04);
+        ratiopad.Frame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Unfolded/true", 0., 350., 0.5, 1.5);
+        ratiopad.FrameTextSize(0.045);
 
         for(auto ireg : ROOT::TSeqI(1, 11)){
-            basedir->cd(Form("reg%d", ireg));
-            auto unfolded = static_cast<TH1 *>(gDirectory->Get(Form("unfoldedClosure_reg%d", ireg)));
-            unfolded->SetDirectory(nullptr);
-            normalizeBinWidth(unfolded);
-            Style{colors[ireg-1], markers[ireg-1]}.SetStyle<TH1>(*unfolded);
-            plot->cd(1+currentcol);
-            unfolded->Draw("epsame");
-            if(leg) leg->AddEntry(unfolded, Form("reg=%d", ireg), "lep");
-            plot->cd(1+currentcol+nradius);
-            auto ratio = static_cast<TH1*>(unfolded->Clone(Form("ratioUnfoldedTrue_%s_reg%d", rstring.data(), ireg)));
-            ratio->SetDirectory(nullptr);
-            ratio->Divide(htruth);
-            ratio->Draw("epsame");
+            auto unfolded = data.GetJetSpectrum(rvalue, Form("unfoldedClosure_reg%d", ireg));
+            Style varstyle{colors[ireg-1], markers[ireg-1]};
+            specpad.Draw<>(unfolded, varstyle, Form("reg=%d", ireg));
+            auto ratiotrue = new Ratio(unfolded, htruth);
+            ratiopad.Draw<Ratio>(ratiotrue, varstyle);
         }
         currentcol++;
     }
