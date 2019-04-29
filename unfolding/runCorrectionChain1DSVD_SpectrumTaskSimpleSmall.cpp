@@ -208,7 +208,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 void runCorrectionChain1DSVD_SpectrumTaskSimpleSmall(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
-    outputfile << "correctedSVD_lowpt";
+    outputfile << "correctedSVD_small";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
