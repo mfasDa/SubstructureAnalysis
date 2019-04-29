@@ -1,69 +1,69 @@
+#include "../meta/stl.C"
+#include "../meta/root.C"
+#include "../meta/root6tools.C"
 #include "../helpers/graphics.C"
+#include "../struct/GraphicsPad.cxx"
+#include "../struct/JetSpectrumReader.cxx"
+#include "../struct/Ratio.cxx"
+#include "../struct/Restrictor.cxx"
 
-std::map<double, TH1 *> readCorrectedSpectra(const std::string_view filename) {
-    std::map<double, TH1 *> result;
-    std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-    for(auto r = 0.2; r <= 0.6; r += 0.1) {
-        std::string rstring = Form("R%02d", int(r*10.));
-        reader->cd(rstring.data());
-        gDirectory->cd("reg4");
-        auto spectrum = static_cast<TH1 *>(gDirectory->Get("normalized_reg4"));
-        spectrum->SetDirectory(nullptr);
-        result[r] = spectrum;
+void comparisonFullSpectraTRD(int ultraoption, const std::string_view sysvar){
+    std::stringstream basefile, plotname;
+    basefile << "correctedSVD";
+    plotname << "comparisonRecoScheme";
+    if(ultraoption > 0){
+        basefile << "_ultra" << ultraoption;
+        plotname << "_ultra" << ultraoption;
+    } 
+    else if(ultraoption < 0){
+        basefile << "_fine_lowpt";
+        plotname << "_fine_lowpt";
     }
-    return result;
-}
+    else{
+        basefile << "_small";
+        plotname << "_small";
+	// basefile << "_lowpt";
+        // plotname << "_lowpt";
+    }
+    if(sysvar.length()){
+        basefile << "_" << sysvar;
+        plotname << "_" << sysvar;
+    }
+    basefile << ".root";
+    std::vector<std::string> branchlist = {"normalized_reg4"};
+    JetSpectrumReader withreader(Form("withTRD/%s", basefile.str().data()), branchlist), withoutreader(Form("withoutTRD/%s", basefile.str().data()), branchlist);
+    auto radii = withreader.GetDataRef().GetJetRadii();
 
-void comparisonFullSpectraTRD(std::string_view sysvar = "notc") {
-    auto specwith = readCorrectedSpectra(Form("withTRD/correctedSVD_fine_lowpt_%s.root", sysvar.data())),
-         specwithout = readCorrectedSpectra(Form("withoutTRD/correctedSVD_fine_lowpt_%s.root", sysvar.data()));
+    Style withStyle{kRed, 24}, withoutStyle{kBlue, 25}, ratioStyle{kBlack, 20};
+    double ptmax, framemax, ptdet;
+    switch(ultraoption) {
+        case 240: ptmax = 320; ptdet = 240; framemax = 350; break;
+        case 300: ptmax = 400; ptdet = 300; framemax = 450; break;
+        default: ptmax = 240; ptdet = 240; framemax = 220; break;
+    };
+    Restrictor rangerestrictor(10, ptmax);
 
-    auto plot = new ROOT6tools::TSavableCanvas(Form("comparisonFullJetsTRD_%s", sysvar.data()), "Comparison full jets with TRD in reconstruction", 300 * specwith.size(), 700);
-    plot->Divide(specwith.size(), 2);
 
-    int icol = 0;
-    Style withstyle{kRed, 24}, withoutstyle{kBlue, 25}, ratiostyle{kBlack, 20};
-    for(auto r = 0.2; r <= 0.6; r += 0.1){
+    auto plot = new ROOT6tools::TSavableCanvas(plotname.str().data(), "Comparison TRD reconstriction", 300 * radii.size(), 700);
+    plot->Divide(radii.size(), 2);
+
+    int icol(0);
+    for(auto radius : radii) {
+        std::string rstring(Form("R%02d", int(radius*10.)));
         plot->cd(icol+1);
-        gPad->SetLogy();
-        gPad->SetRightMargin(0.04);
-        gPad->SetLeftMargin(0.17);
-        gPad->SetTopMargin(0.04);
-        gPad->SetBottomMargin(0.13);
-        auto specframe = new ROOT6tools::TAxisFrame(Form("specframeR%02d", int(r*10.)), "p_{t} (GeV/c)", "d#sigma/(dp_{t}d#eta) (mb/(GeV/c))", 0., 300., 1e-9, 100.);
-        specframe->GetXaxis()->SetTitleSize(0.06);
-        specframe->GetYaxis()->SetTitleSize(0.06);
-        specframe->Draw("axis");
-        (new ROOT6tools::TNDCLabel(0.2, 0.15, 0.7, 0.3, Form("Full jets, R=%.1f", r)))->Draw();
-        TLegend *leg(nullptr);
-        if(!icol) {
-            leg = new ROOT6tools::TDefaultLegend(0.45, 0.6, 0.94, 0.94);
-            leg->Draw();
-        }
-        auto wtrd = specwith.find(r)->second,
-             wotrd = specwithout.find(r)->second;
-        withstyle.SetStyle<TH1>(*wtrd);
-        withoutstyle.SetStyle<TH1>(*wotrd);
-        wtrd->Draw("epsame");
-        wotrd->Draw("epsame");
-        if(leg) {
-            leg->AddEntry(wtrd, "with TRD", "lep");
-            leg->AddEntry(wotrd, "without TRD", "lep");
-        }
+        std::vector<double> legrange = {0.35, 0.65, 0.94, 0.85}, nolegrange = {};
+        SpectrumPad specpad(gPad, radius, "d#sigma/(dp_{t}d#eta) (mb/(GeV/c))", {0, framemax, 1e-9, 1}, icol == 0 ? legrange : nolegrange);
+        if(!icol) specpad.Label(0.15, 0.85, 0.94, 0.94, Form("10.0 GeV/c < p_{t,jet,det} < %.1f GeV/c", ptdet));
 
-        plot->cd(icol + 1 + specwith.size());
-        gPad->SetRightMargin(0.04);
-        gPad->SetLeftMargin(0.17);
-        gPad->SetTopMargin(0.04);
-        gPad->SetBottomMargin(0.13);
-        auto ratioframe = new ROOT6tools::TAxisFrame(Form("ratioframeR%02d", int(r*10.)), "p_{t} (GeV/c)", "without / with TRD", 0., 300., 0., 2.);
-        ratioframe->GetXaxis()->SetTitleSize(0.06);
-        ratioframe->GetYaxis()->SetTitleSize(0.06);
-        ratioframe->Draw("axis");
-        auto ratio = static_cast<TH1 *>(wotrd->Clone(Form("RatioTRD_R%02d", int(r*10.))));
-        ratio->Divide(wtrd);
-        ratiostyle.SetStyle<TH1>(*ratio);
-        ratio->Draw("epsame");
+        auto specwith = rangerestrictor(withreader.GetJetSpectrum(radius, branchlist[0])),
+             specwithout = rangerestrictor(withoutreader.GetJetSpectrum(radius, branchlist[0]));
+        specpad.Draw<TH1>(specwith, withStyle, "with TRD");
+        specpad.Draw<TH1>(specwithout, withoutStyle, "without TRD");
+
+        plot->cd(icol+1+radii.size());
+        RatioPad ratiopad(gPad, radius, "p_{t}-scheme / E-scheme", {0, framemax, 0.5, 1.5});
+        Ratio *rat = new Ratio(specwithout, specwith);
+        ratiopad.Draw<Ratio>(rat, ratioStyle);
         icol++;
     }
 
