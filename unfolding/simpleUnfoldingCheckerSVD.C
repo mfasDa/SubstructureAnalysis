@@ -56,7 +56,7 @@ void simpleUnfoldingCheckerSVD(const char *inputfile, const char *outputfile){
 			         kSizeEmcalEta = 1.4;
 		auto acceptance = (kSizeEmcalPhi - 2 * r) * (kSizeEmcalEta - 2 * r) / (TMath::TwoPi());
 		for(auto ireg: ROOT::TSeqI(1,11)){
-			RooUnfoldSvd unfolder(&rresponse, hraw, 4);
+			RooUnfoldSvd unfolder(&rresponse, hraw, ireg);
 		    auto specunfolded = unfolder.Hreco(errorTreatment);
 			specunfolded->SetDirectory(nullptr);
 			specunfolded->SetName(Form("unfolded_reg%d", ireg));
