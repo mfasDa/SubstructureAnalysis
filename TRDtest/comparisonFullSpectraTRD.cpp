@@ -61,7 +61,7 @@ void comparisonFullSpectraTRD(int ultraoption, const std::string_view sysvar){
         specpad.Draw<TH1>(specwithout, withoutStyle, "without TRD");
 
         plot->cd(icol+1+radii.size());
-        RatioPad ratiopad(gPad, radius, "p_{t}-scheme / E-scheme", {0, framemax, 0.5, 1.5});
+        RatioPad ratiopad(gPad, radius, "without TRD / with TRD", {0, framemax, 0.5, 1.5});
         Ratio *rat = new Ratio(specwithout, specwith);
         ratiopad.Draw<Ratio>(rat, ratioStyle);
         icol++;
