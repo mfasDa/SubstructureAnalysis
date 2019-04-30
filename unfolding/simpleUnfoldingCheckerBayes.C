@@ -1,3 +1,7 @@
+#include "../meta/stl.C"
+#include "../meta/root.C"
+#include "../meta/roounfold.C"
+
 TH1 *MakeRefolded1D(const TH1 *histtemplate, const char *name, const TH1 *unfolded, const RooUnfoldResponse &response){
 	auto refolded = (TH1 *)histtemplate->Clone(name);
 	refolded->Sumw2();
@@ -15,10 +19,10 @@ TH1 *MakeRefolded1D(const TH1 *histtemplate, const char *name, const TH1 *unfold
 	return refolded;
 }
 
-void simpleUnfoldingChecker(const char *inputfile, const char *outputfile){
+void simpleUnfoldingCheckerBayes(const char *inputfile, const char *outputfile){
 	std::unique_ptr<TFile> reader(TFile::Open(inputfile, "READ")),
-			       writer(TFile::Open(outputfile, "RECREATE"));
-        RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
+						   writer(TFile::Open(outputfile, "RECREATE"));
+    RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
 	for(auto r = 0.2; r <= 0.6; r+= 0.1){
 		std::string rstring(Form("R%02d", int(r*10.)));
 		reader->cd(rstring.data());
@@ -52,7 +56,7 @@ void simpleUnfoldingChecker(const char *inputfile, const char *outputfile){
 			     kSizeEmcalEta = 1.4;
 		auto acceptance = (kSizeEmcalPhi - 2 * r) * (kSizeEmcalEta - 2 * r) / (TMath::TwoPi());
 		for(auto ireg: ROOT::TSeqI(1,11)){
-			RooUnfoldSvd unfolder(&rresponse, hraw, 4);
+			RooUnfoldBayes unfolder(&rresponse, hraw, 4);
 		        auto specunfolded = unfolder.Hreco(errorTreatment);
 			specunfolded->SetDirectory(nullptr);
 			specunfolded->SetName(Form("unfolded_reg%d", ireg));
@@ -60,7 +64,7 @@ void simpleUnfoldingChecker(const char *inputfile, const char *outputfile){
 			auto specnormalized = (TH1 *)specunfolded->Clone(Form("normalized_reg%d", ireg));
 			specnormalized->Scale(1./acceptance);
 
-            		RooUnfoldSvd unfolderClosure(&rresponseClosure, detclosure, ireg);
+            RooUnfoldBayes unfolderClosure(&rresponseClosure, detclosure, ireg);
 			auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
 			specunfoldedClosure->SetDirectory(nullptr);
 			specunfoldedClosure->SetName(Form("unfoldedClosure_reg%d", ireg));
@@ -69,29 +73,12 @@ void simpleUnfoldingChecker(const char *inputfile, const char *outputfile){
 			specnormalized->Scale(1., "width");
 			specunfoldedClosure->Scale(1., "width");
 
-            		TH1 *dvec(nullptr), *dvecClosure(nullptr);
-            		auto imp = unfolder.Impl(),
-			     impClosure = unfolderClosure.Impl();
-            		if(imp){
-                		dvec = (TH1 *)imp->GetD()->Clone();
-               			dvec->SetNameTitle(Form("dvector_Reg%d", ireg), Form("D-vector reg %d", ireg));
-                		dvec->SetDirectory(nullptr);
-			}
-            		if(impClosure) {
-                		dvecClosure = (TH1 *)impClosure->GetD()->Clone();
-                		dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", ireg), Form("D-vector of the closure test reg %d", ireg));
-                		dvecClosure->SetDirectory(nullptr);
-           		} 
-            
 			basedir->mkdir(Form("reg%d", ireg));
 			basedir->cd(Form("reg%d", ireg));
 			specunfolded->Write();
 			specrefolded->Write();
 			specnormalized->Write();
 			specunfoldedClosure->Write();
-
-			dvec->Write();
-			dvecClosure->Write();
 		}
 
 		basedir->mkdir("rawlevel");
