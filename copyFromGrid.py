@@ -1,13 +1,11 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 from __future__ import print_function
 
 import argparse
-import commands
 import getpass
 import hashlib
 import logging
-import md5
 import os
 import subprocess
 import sys
@@ -140,7 +138,7 @@ class AlienTool:
         errorstate = True
         while errorstate:
             errorstate = False
-            gbout = commands.getstatusoutput("gbbox md5sum %s" %gridfile)[1]
+            gbout = subprocess.getstatusoutput("gbbox md5sum %s" %gridfile)[1]
             if gbout.startswith("Error") or gbout.startswith("Warning") or "CheckErrorStatus" in gbout:
                 errorstate = True
         return gbout.split('\t')[0]
@@ -160,7 +158,7 @@ class AlienTool:
         logging.info("Copying %s to %s", inputfile, outputfile)
         self.__lock.acquire(True)
         if not os.path.exists(os.path.dirname(outputfile)):
-            os.makedirs(os.path.dirname(outputfile), 0755)
+            os.makedirs(os.path.dirname(outputfile), 0o755)
         self.__lock.release()
         subprocess.call(['alien_cp', 'alien://%s'%inputfile, outputfile])
         # make check
@@ -185,7 +183,7 @@ class AlienTool:
         # request ends in error state it should retry
         errorstate = True
         while errorstate:
-            dirs = commands.getstatusoutput("alien_ls %s" %inputdir)[1]
+            dirs = subprocess.getstatusoutput("alien_ls %s" %inputdir)[1]
             errorstate = False
             result = []
             for d in dirs.split("\n"):
@@ -200,7 +198,7 @@ class AlienTool:
             return result
     
     def pathexists(self, inputpath):
-        lsresult = commands.getstatusoutput("alien_ls %s" %inputpath)
+        lsresult = subprocess.getstatusoutput("alien_ls %s" %inputpath)
         # alien_ls returns 0 in case the path exists and something 
         # larger than 0 if the path does not exist
         if lsresult[0] != 0:
@@ -466,7 +464,7 @@ class PoolFiller(threading.Thread):
 
     def __find_files(self):
         run = 0
-        ptharbin = 0
+        pthardbin = 0
         trainid = self.__get_trainid()
         legotrain = self.__get_legotrain()
         logging.info("Train ID: %d, lego train %s", trainid, legotrain)
@@ -536,15 +534,16 @@ def transfer(sample, trainrun, outputlocation, targetfile, nstream, aod):
     poolfiller.setalientool(alientool)
     poolfiller.start()
 
-    copyworkers = []
-    for i in range(0, nstream):
+    def makeWorker(pool, filler, atool, maxtrials):
         worker = CopyHandler()
-        worker.setdatapool(datapool)
-        worker.setpoolfiller(poolfiller)
-        worker.setalienhelper(alientool)
-        worker.setmaxtrials(5)
+        worker.setdatapool(pool)
+        worker.setpoolfiller(filler)
+        worker.setalienhelper(atool)
+        worker.setmaxtrials(maxtrials)
         worker.start()
-        copyworkers.append(worker)
+        return worker
+
+    copyworkers = [makeWorker(datapool, poolfiller, alientool, 5) for x in range(0, nstream)]
 
     # join all threads
     poolfiller.join()
