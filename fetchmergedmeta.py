@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 import os
 import subprocess
 import sys
@@ -22,8 +22,8 @@ if __name__ == "__main__":
     for period, child in childmaps[year].iteritems():
         outdir = os.path.join(basedir, period)
         if not os.path.exists(outdir):
-            os.makedirs(outdir, 0755)
+            os.makedirs(outdir, 0o755)
         outfile = os.path.join(outdir, "AnalysisResults.root")
-        infile = os.path.join("/alice/cern.ch/user/a/alitrain", "%s_%s" %(trainrun, child), "merge", "AnalysisResults.root")
-        command = "alien_cp alien://%s %s" %(infile, outfile)
+        infile = os.path.join("/alice/cern.ch/user/a/alitrain", "{0}_{1}".format(trainrun, child), "merge", "AnalysisResults.root")
+        command = "alien_cp alien://{0} {1}".format(infile, outfile)
         subprocess.call(command, shell=True)
