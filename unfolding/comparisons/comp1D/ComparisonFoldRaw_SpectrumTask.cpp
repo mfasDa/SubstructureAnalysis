@@ -11,8 +11,18 @@
 #include "../../../struct/GraphicsPad.cxx"
 #include "../../../struct/Ratio.cxx"
 
+std::string getSysvar(const std::string_view inputfile) {
+    auto filebase = basename(inputfile);
+    std::string sysvar;
+    if(filebase.find("_") != std::string::npos){
+        int sysstart = filebase.find_first_of("_") + 1,
+            sysend = - filebase.find_last_of(".") - 1;
+        sysvar = filebase.substr(sysstart, sysend - sysstart);
+    }
+    return sysvar;
+}
 
-void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile){
+void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile, int plotptmax = 250.){
     std::vector<std::string> spectra = {"hraw"};
     for(auto i : ROOT::TSeqI(1,11)) spectra.push_back(Form("backfolded_reg%d", i));
     auto data = JetSpectrumReader(inputfile, spectra);
@@ -20,7 +30,11 @@ void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile){
 
     bool isSVD = (inputfile.find("SVD") != std::string::npos);
 
-    auto plot = new ROOT6tools::TSavableCanvas(Form("comparisonFoldRaw%s", (isSVD ? "Svd" : "Bayes")), Form("Comparison back-folded raw (%s unfolding)", (isSVD ? "SVD" : "Bayes")), jetradii.size() * 300., 700.);
+    std::stringstream plotname;
+    auto sysvar = getSysvar(inputfile);
+    plotname << "comparisonFoldRaw" << (isSVD ? "Svd" : "Bayes");
+    plotname << "_" << sysvar;
+    auto plot = new ROOT6tools::TSavableCanvas(plotname.str().data(), Form("Comparison back-folded raw (%s unfolding)", (isSVD ? "SVD" : "Bayes")), jetradii.size() * 300., 700.);
     plot->Divide(jetradii.size(), 2);
 
     std::array<Color_t, 10> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kMagenta, kGray, kAzure, kCyan};
@@ -36,7 +50,7 @@ void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile){
         gPad->SetLogy();
         GraphicsPad specpad(gPad);
         specpad.Margins(0.17, 0.04, -1., 0.04);
-        specpad.Frame(Form("specframe_%s", rstring.data()), "p_{t} (GeV/c)", "1/N_{ev} dN/dp_{t} ((GeV/c)^{-1})", 0., 250., 1e-10, 1);
+        specpad.Frame(Form("specframe_%s", rstring.data()), "p_{t} (GeV/c)", "1/N_{ev} dN/dp_{t} ((GeV/c)^{-1})", 0., plotptmax, 1e-10, 1);
         specpad.FrameTextSize(0.045);
         specpad.Label(0.25, 0.15, 0.45, 0.22, Form("R = %.1f", rvalue));
         TLegend *leg(nullptr);
@@ -46,7 +60,7 @@ void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile){
         plot->cd(1 + currentcol + jetradii.size());
         GraphicsPad ratiopad(gPad);
         ratiopad.Margins(0.17, 0.04, -1., 0.04);
-        ratiopad.Frame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Folded/raw", 0., 250., 0.5, 1.5);
+        ratiopad.Frame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Folded/raw", 0., plotptmax, 0.5, 1.5);
         ratiopad.FrameTextSize(0.045);
 
         for(auto ireg : ROOT::TSeqI(1, 11)){
