@@ -7,6 +7,7 @@
 
 class JetSpectrumReader {
 public:
+    JetSpectrumReader() = default;
     JetSpectrumReader(const std::string_view filename, std::vector<std::string> types) : mData(), mTypes(types) { ReadFile(filename); } 
     ~JetSpectrumReader() = default;
 
