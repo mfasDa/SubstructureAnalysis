@@ -16,15 +16,16 @@ std::string getSysvar(const std::string_view inputfile) {
     std::string sysvar;
     if(filebase.find("_") != std::string::npos){
         int sysstart = filebase.find_first_of("_") + 1,
-            sysend = - filebase.find_last_of(".") - 1;
-        sysvar = filebase.substr(sysstart, sysend - sysstart);
+            sysend = filebase.find_last_of(".");
+        sysvar = std::string(filebase.substr(sysstart, sysend - sysstart));
     }
     return sysvar;
 }
 
 void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile, int plotptmax = 250.){
     std::vector<std::string> spectra = {"hraw"};
-    for(auto i : ROOT::TSeqI(1,11)) spectra.push_back(Form("backfolded_reg%d", i));
+    auto regmin = 2, regmax = 9;
+    for(auto i : ROOT::TSeqI(regmin,regmax+1)) spectra.push_back(Form("backfolded_reg%d", i));
     auto data = JetSpectrumReader(inputfile, spectra);
     auto jetradii = data.GetJetSpectra().GetJetRadii();
 
@@ -63,7 +64,7 @@ void ComparisonFoldRaw_SpectrumTask(const std::string_view inputfile, int plotpt
         ratiopad.Frame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Folded/raw", 0., plotptmax, 0.5, 1.5);
         ratiopad.FrameTextSize(0.045);
 
-        for(auto ireg : ROOT::TSeqI(1, 11)){
+        for(auto ireg : ROOT::TSeqI(regmin,regmax+1)){
             auto backfolded = data.GetJetSpectrum(rvalue, Form("backfolded_reg%d", ireg));
             backfolded->Scale(1., "width");
             Style varstyle{colors[ireg-1], markers[ireg-1]};
