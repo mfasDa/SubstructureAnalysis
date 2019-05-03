@@ -19,7 +19,7 @@ if __name__ == "__main__":
     year = sys.argv[1]
     trainrun = sys.argv[2]
     basedir = os.getcwd()
-    for period, child in childmaps[year].iteritems():
+    for period, child in childmaps[year].items():
         outdir = os.path.join(basedir, period)
         if not os.path.exists(outdir):
             os.makedirs(outdir, 0o755)

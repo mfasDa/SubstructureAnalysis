@@ -17,7 +17,7 @@ if __name__ == "__main__":
     dataset = sys.argv[2]
     script = "copyFromGrid.py"
     basedir = os.getcwd()
-    for period, sample in metamaps[dataset].iteritems():
+    for period, sample in metamaps[dataset].items():
         outtag = sample if "none" in period else "{0}_{1}".format(period, sample)
         outdir = os.path.join(basedir, outtag)
         if not os.path.exists(outdir):
