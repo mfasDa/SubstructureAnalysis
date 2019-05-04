@@ -44,7 +44,7 @@ void makeRatioCharges(){
         plot->cd(icol);
         GraphicsPad ratiopad(gPad);
         ratiopad.Frame(Form("RatioCharges%s", t.data()), "p_{t} (GeV/c)", "N(h^{+})/N(h^-})", 0., 250., 0.5, 1.5);
-        ratiopad.Label(0.15, 0.15, 0.5, 0.22, Form("Trigger: %s", t/.data()));
+        ratiopad.Label(0.15, 0.15, 0.5, 0.22, Form("Trigger: %s", t.data()));
         if(icol == 0) ratiopad.Legend(0.15, 0.7, 0.5, 0.89);
         ratiopad.Draw<TH1>(ratiosWithTRD.find(t)->second, styles["withTRD"], "With TRD");
         ratiopad.Draw<TH1>(ratiosWithoutTRD.find(t)->second, styles["withoutTRD"], "Without TRD");
