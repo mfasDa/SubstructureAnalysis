@@ -7,39 +7,42 @@
 std::map<std::string, TH1 *> loadRatios(const std::string_view filename){
     std::map<std::string, TH1 *> data;
     std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
+    reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"};
     for(const auto &t : triggers){
         std::stringstream dirname;
         dirname << "AliEmcalTrackingQATask_";
         if(t != "INT7") dirname << t << "_";
         dirname << "histos";
-        auto histlist = static_cast<TKey *>(reader->Get(dirname.str().data()))->ReadObject<TList>();
-        auto nornm = static_cast<TH1 *>(histlist->FindObject("fHistEventCount"))->GetBinContent(1);
-        auto htracks = static_cast<THnSparse *>(histlist->FindObject("fTracks"));
+	std::cout << "Reading " << dirname.str() << std::endl;
+        auto histlist = dynamic_cast<TList *>(reader->Get(dirname.str().data()));
+	if(!histlist) std::cout << dirname.str().data() << " not found" << std::endl;
+        auto htracks = dynamic_cast<THnSparse *>(histlist->FindObject("fTracks"));
+	htracks->Sumw2();
         // negative charge
         htracks->GetAxis(6)->SetRange(1,1);
         std::unique_ptr<TH1> hneg(htracks->Projection(0)); 
         htracks->GetAxis(6)->SetRange(2,2);
         std::unique_ptr<TH1> hpos(htracks->Projection(0)); 
 
-        auto ratio = static_cast<TH1 *>(hpos->Clone(Form("ratioPosNeg_%s", t.data())));
-        ratio->SetDirectory(nullptr);
-        ratio->Divide(hneg.get());
-        data[t] = ratio;
+        TH1 *ratioC = static_cast<TH1 *>(hpos->Clone(Form("ratioPosNeg_%s", t.data())));
+        ratioC->SetDirectory(nullptr);
+        ratioC->Divide(hneg.get());
+        data[t] = ratioC;
     }
     return data;
 }
 
-void makeRatioCharges(){
-    auto ratiosWithTRD = loadRatios("withTRD/AnalysisResults.root"),
-         ratiosWithoutTRD = loadRatios("withoutTRD/data/AnalysisResults.root");
+void MakeRatioCharges(){
+    auto ratiosWithTRD = loadRatios("withTRD/data/AnalysisResults.root"),
+         ratiosWithoutTRD = loadRatios("withoutTRD/data/LHC17o/AnalysisResults.root");
 
     auto plot = new ROOT6tools::TSavableCanvas("ComparisonChargeRatios", "Comparison charge ratios", 1200, 700);
     plot->Divide(3,1);
 
     std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"};
     std::map<std::string, Style> styles = {{"withTRD", {kRed, 24}}, {"withoutTRD", {kBlue, 25}}};
-    int icol(0);
+    int icol(1);
     for(const auto &t : triggers){
         plot->cd(icol);
         GraphicsPad ratiopad(gPad);
