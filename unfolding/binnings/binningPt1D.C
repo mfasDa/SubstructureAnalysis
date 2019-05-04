@@ -66,6 +66,29 @@ std::vector<double> getJetPtBinningNonLinSmearMinBiasPoor(){
   return result;
 }
 
+std::vector<double> getJetPtBinningNonLinSmearPoor(){
+  std::vector<double> result;
+  result.emplace_back(10.);
+  double current = 10.;
+  while(current < 40.) {
+    current += 5.;
+    result.push_back(current);
+  }
+  while(current < 60){
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 120){
+    current += 20.;
+    result.push_back(current);
+  }
+  while(current < 240){
+    current += 40.;
+    result.push_back(current);
+  }
+  return result;
+}
+
 std::vector<double> getJetPtBinningNonLinSmear(){
   std::vector<double> result;
   result.emplace_back(10.);
@@ -245,6 +268,31 @@ std::vector<double> getJetPtBinningNonLinTrueEMCAL(){
     result.push_back(current);
   }
   result.emplace_back(500.);
+  return result;
+}
+
+std::vector<double> getJetPtBinningNonLinTruePoor(){
+  std::vector<double> result;
+  result.emplace_back(5.);
+  result.emplace_back(10.);
+  double current = 10.;
+  while(current < 40.) {
+    current += 10.;
+    result.push_back(current);
+  }
+  while(current < 80){
+    current += 20;
+    result.push_back(current);
+  }
+  while(current < 160){
+    current += 40;
+    result.push_back(current);
+  }
+  while(current < 320){
+    current += 80;
+    result.push_back(current);
+  }
+  result.emplace_back(600.);
   return result;
 }
 
