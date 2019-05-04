@@ -31,6 +31,7 @@ private:
 
 class ResponseReader {
 public:
+    ResponseReader() = default;
     ResponseReader(const std::string_view inputfile) : mData() { ReadFile(inputfile); }
     ~ResponseReader() = default;
 
