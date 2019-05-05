@@ -207,7 +207,7 @@ class AlienTool:
 
     def fetchtokeninfo(self):
         try:
-            outstrings = subprocess.check_output("alien-token-info").split("\n")
+            outstrings = subprocess.check_output("alien-token-info").decode("utf-8").split("\n")
             token = AlienToken()
             for info in outstrings:
                 if not ":" in info:
