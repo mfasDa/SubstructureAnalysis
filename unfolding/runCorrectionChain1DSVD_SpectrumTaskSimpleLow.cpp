@@ -207,6 +207,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 
 void runCorrectionChain1DSVD_SpectrumTaskSimpleLow(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
+    int NTHREAD=2;
     std::stringstream outputfile;
     outputfile << "correctedSVD_lowpt";
     if(sysvar.length()) {
@@ -288,7 +289,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleLow(const std::string_view datafi
         std::vector<std::thread> workthreads;
         std::set<unfoldingResults> unfolding_results;
         std::mutex combinemutex;
-        for(auto i : ROOT::TSeqI(0, 8)){
+        for(auto i : ROOT::TSeqI(0, NTHREAD)){
             workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results](){
                 UnfoldingRunner worker(&work);
                 worker.DoWork();
