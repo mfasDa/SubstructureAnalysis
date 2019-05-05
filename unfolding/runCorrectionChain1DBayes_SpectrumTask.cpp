@@ -86,8 +86,8 @@ void runCorrectionChain1DBayes_SpectrumTask(const std::string_view datafile, con
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open("correctedBayes.root", "RECREATE"));
-    auto binningpart = getJetPtBinningNonLinTrueLarge(),
-         binningdet = getJetPtBinningNonLinSmearLarge();
+    auto binningpart = getJetPtBinningNonLinTrueLow(),
+         binningdet = getJetPtBinningNonLinSmearLow();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader);
     RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
     const double kSizeEmcalPhi = 1.88,
