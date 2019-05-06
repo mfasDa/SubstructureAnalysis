@@ -36,7 +36,7 @@ std::vector<double> getJetPtBinningNonLinSmearLargeFineLow(){
 }
 
 std::vector<double> getJetPtBinningNonLinSmearUltra300(){
-  binninghelper.binning(10., {{40., 2.}, {60., 4.}, {120., 5.}, {200., 10.}, {300., 20.}});
+  binninghelper binning(10., {{40., 2.}, {60., 4.}, {120., 5.}, {200., 10.}, {300., 20.}});
   return binning.CreateCombinedBinning();
 }
 
@@ -46,12 +46,12 @@ std::vector<double> getJetPtBinningNonLinSmearUltra240(){
 }
 
 std::vector<double> getJetPtBinningNonLinTrueMinBias(){
-  binninghelper binning(5., {{10., 5.}, {80. 10.}, {160., 20.}, {300., 140.}});
+  binninghelper binning(5., {{10., 5.}, {80., 10.}, {160., 20.}, {300., 140.}});
   return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueMinBiasPoor(){
-  binninghelper binning(5. {{10., 5.}, {40., 10.}, {80., 20.}, {160., 40.}, {300., 140.}});
+  binninghelper binning(5., {{10., 5.}, {40., 10.}, {80., 20.}, {160., 40.}, {300., 140.}});
   return binning.CreateCombinedBinning();
 }
 
@@ -76,12 +76,12 @@ std::vector<double> getJetPtBinningNonLinTrueLargeLow(){
 }
 
 std::vector<double> getJetPtBinningNonLinTrueLargeFineLow(){
-  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {280., 40.}, {500., 220.}})
+  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {280., 40.}, {500., 220.}});
   return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueUltra300(){
-  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {520.. 40.}, {600., 80.}});
+  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {520., 40.}, {600., 80.}});
   return binning.CreateCombinedBinning();
 }
 
