@@ -4,6 +4,7 @@
 #include "../helpers/math.C"
 #include "../helpers/unfolding.C"
 #include "binnings/binningPt1D.C"
+#include "binnings/binningPt1D_truncation.C"
 
 struct unfoldingResults {
     int fReg;
@@ -198,7 +199,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimpleFineLow_SysTruncation(const std
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
     auto binningpart = getJetPtBinningNonLinTrueLargeFineLow(),
-         binningdet = getJetPtBinningNonLinSmearLargeFineLowTrunc(truncvar);
+         binningdet = getJetPtBinningNonLinSmearFineTrunc(truncvar);
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {

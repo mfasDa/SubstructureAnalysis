@@ -95,7 +95,7 @@ class UnfoldingRunner {
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
             specunfoldedClosure->Scale(1., "width");
-            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
+            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, nullptr, nullptr, 
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
                     CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
         }
@@ -192,7 +192,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 }
 
 
-void runCorrectionChain1DBayes_SpectrumTaskSimpleSmall_SysTruncation(const std::string_view datafile, const std::string_view mcfile, const std::string_view truncvar const std::string_view sysvar = ""){
+void runCorrectionChain1DBayes_SpectrumTaskSimpleSmall_SysTruncation(const std::string_view datafile, const std::string_view mcfile, const std::string_view truncvar, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
     std::stringstream outputfile;

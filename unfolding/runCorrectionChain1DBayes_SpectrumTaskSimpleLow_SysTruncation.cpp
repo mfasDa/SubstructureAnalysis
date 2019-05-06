@@ -193,7 +193,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 }
 
 
-void runCorrectionChain1DBayes_SpectrumTaskSimpleLow(const std::string_view datafile, const std::string_view mcfile, const std::string_view truncvar const std::string_view sysvar = ""){
+void runCorrectionChain1DBayes_SpectrumTaskSimpleLow_SysTruncation(const std::string_view datafile, const std::string_view mcfile, const std::string_view truncvar, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
     std::stringstream outputfile;
@@ -206,7 +206,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimpleLow(const std::string_view data
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
     auto binningpart = getJetPtBinningNonLinTrueLargeLow(),
-         binningdet = getJetPtBinningNonLinSmearLargeLowTrunc(truncvar);
+         binningdet = getJetPtBinningNonLinSmearLargeTrunc(truncvar);
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {

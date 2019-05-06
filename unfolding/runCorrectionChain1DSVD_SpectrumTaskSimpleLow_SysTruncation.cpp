@@ -219,7 +219,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleLow_SysTruncation(const std::stri
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
     auto binningpart = getJetPtBinningNonLinTrueLargeLow(),
-         binningdet = getJetPtBinningNonLinSmearLargeLowTrunc(truncvar);
+         binningdet = getJetPtBinningNonLinSmearLargeTrunc(truncvar);
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {

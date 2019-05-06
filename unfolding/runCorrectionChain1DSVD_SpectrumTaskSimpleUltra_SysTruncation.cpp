@@ -225,7 +225,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleUltra_SysTruncation(const std::st
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
     auto binningpart = binhandlerTrue(),
-         binningdet = binhandlerSmear();
+         binningdet = binhandlerSmear(truncvar);
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {

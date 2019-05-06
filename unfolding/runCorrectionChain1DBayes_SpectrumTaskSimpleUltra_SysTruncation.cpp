@@ -186,7 +186,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
 }
 
 
-void runCorrectionChain1DBayes_SpectrumTaskSimpleUltra_SysTruncation(const std::string_view datafile, const std::string_view mcfile, int ultraoption,, const std::string_view truncvar, const std::string_view sysvar = ""){
+void runCorrectionChain1DBayes_SpectrumTaskSimpleUltra_SysTruncation(const std::string_view datafile, const std::string_view mcfile, int ultraoption, const std::string_view truncvar, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
     std::function<std::vector<double> ()> binhandlerTrue;

@@ -206,7 +206,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 }
 
 
-void runCorrectionChain1DSVD_SpectrumTaskSimpleSmall_SysTruncation(const std::string_view datafile, const std::string_view mcfile, const std::string_view truncvar const std::string_view sysvar = ""){
+void runCorrectionChain1DSVD_SpectrumTaskSimpleSmall_SysTruncation(const std::string_view datafile, const std::string_view mcfile, const std::string_view truncvar, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
     std::stringstream outputfile;
