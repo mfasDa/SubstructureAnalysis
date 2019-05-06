@@ -1,410 +1,91 @@
-#include "../../meta/stl.C"
-
+#include "binninghelper.cpp"
 
 std::vector<double> getJetPtBinningNonLinSmearMinBias(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 80){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 2.}, {60., 5.}, {80., 5.}, {120., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearEMCAL(){
-  std::vector<double> result;
-  result.emplace_back(52.);
-  double current = 52.;
-  while(current < 60){
-    current += 4.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 240){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(52., {{60., 4.}, {120., 5.}, {200., 10.}, {240., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearMinBiasPoor(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 5.}, {60., 10.}, {120., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearPoor(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 20.;
-    result.push_back(current);
-  }
-  while(current < 240){
-    current += 40.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 5.}, {60., 10.}, {120., 20.}, {240., 40.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmear(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 140){
-    current += 10.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 2}, {60., 5.}, {120., 10.}, {140., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearLargeLow(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 2.}, {60., 5.}, {120., 10.}, {200., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearLargeFineLow(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 4.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 10.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 2.}, {60., 4.}, {120., 5.}, {200., 10.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearUltra300(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 4.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 300){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper.binning(10., {{40., 2.}, {60., 4.}, {120., 5.}, {200., 10.}, {300., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearUltra240(){
-  std::vector<double> result;
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 4.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 240){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning(10., {{40., 2.}, {60., 4.}, {120., 5.}, {200., 10.}, {240., 20.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueMinBias(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 80.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 160){
-    current += 20;
-    result.push_back(current);
-  }
-  result.emplace_back(300.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {80. 10.}, {160., 20.}, {300., 140.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueMinBiasPoor(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 80){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 160){
-    current += 40;
-    result.push_back(current);
-  }
-  result.emplace_back(300.);
-  return result;
+  binninghelper binning(5. {{10., 5.}, {40., 10.}, {80., 20.}, {160., 40.}, {300., 140.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueEMCAL(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(60.);
-  double current = 60.;
-  while(current < 140.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 320){
-    current += 40;
-    result.push_back(current);
-  }
-  result.emplace_back(500.);
-  return result;
+  binninghelper binning(5., {{60., 55.}, {140., 10.}, {200., 20.}, {320., 40.}, {500., 180.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTruePoor(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 40.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 80){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 160){
-    current += 40;
-    result.push_back(current);
-  }
-  while(current < 320){
-    current += 80;
-    result.push_back(current);
-  }
-  result.emplace_back(600.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {40., 10.}, {80., 20.}, {160., 40.}, {320., 80.}, {600., 280.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrue(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 80.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 180){
-    current += 20;
-    result.push_back(current);
-  }
-  result.emplace_back(300.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {80., 10.}, {180, 20.}, {300., 120.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueLargeLow(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 80.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 280.){
-    current += 40.;
-    result.push_back(current);
-  }
-  result.emplace_back(500.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {80., 10.}, {200., 20.}, {280., 40.}, {500., 220.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueLargeFineLow(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 60.) {
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 140.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 280.){
-    current += 40.;
-    result.push_back(current);
-  }
-  result.emplace_back(500.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {280., 40.}, {500., 220.}})
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueUltra300(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 60.) {
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 140.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 520){
-    current += 40;
-    result.push_back(current);
-  }
-  result.emplace_back(600.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {520.. 40.}, {600., 80.}});
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinTrueUltra240(){
-  std::vector<double> result;
-  result.emplace_back(5.);
-  result.emplace_back(10.);
-  double current = 10.;
-  while(current < 60.) {
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 140.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 320){
-    current += 40;
-    result.push_back(current);
-  }
-  result.emplace_back(500.);
-  return result;
+  binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {320., 40.}, {500., 180.}});
+  return binning.CreateCombinedBinning();
 }

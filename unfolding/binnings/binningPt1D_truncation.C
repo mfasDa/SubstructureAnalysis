@@ -1,50 +1,117 @@
-#include "../../meta/stl.C"
-#include "../../meta/root.C"
+#include "binninghelper.cpp"
+
+std::vector<double> getJetPtBinningNonLinSmearLoose(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 5);
+  binning.AddStep(120., 10.);
+  binning.AddStep(140., 20.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearStrong(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 5);
+  binning.AddStep(120., 10.);
+  binning.AddStep(140., 20.);
+  return binning.CreateCombinedBinning();
+}
 
 std::vector<double> getJetPtBinningNonLinSmearLargeLoose(){
-  std::vector<double> result;
-  result.emplace_back(14.);
-  double current = 14.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2);
+  binning.AddStep(60., 5.);
+  binning.AddStep(120., 10.);
+  binning.AddStep(200., 20.);
+  return binning.CreateCombinedBinning();
 }
 
 std::vector<double> getJetPtBinningNonLinSmearLargeStrong(){
-  std::vector<double> result;
-  result.emplace_back(24.);
-  double current = 24.;
-  while(current < 40.) {
-    current += 2.;
-    result.push_back(current);
-  }
-  while(current < 60){
-    current += 5.;
-    result.push_back(current);
-  }
-  while(current < 120){
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20.;
-    result.push_back(current);
-  }
-  return result;
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2);
+  binning.AddStep(60., 5.);
+  binning.AddStep(120., 10.);
+  binning.AddStep(200., 20.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearFineLoose(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 4.);
+  binning.AddStep(120., 5.);
+  binning.AddStep(200, 10.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearFineStrong(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 4.);
+  binning.AddStep(120., 5.);
+  binning.AddStep(200, 10.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearUltra300Loose(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 4.);
+  binning.AddStep(120., 5.);
+  binning.AddStep(200., 10.);
+  binning.AddStep(300., 20.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearUltra300Strong(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 4.);
+  binning.AddStep(120., 5.);
+  binning.AddStep(200., 10.);
+  binning.AddStep(300., 20.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearUltra240Loose(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 4.);
+  binning.AddStep(120., 5.);
+  binning.AddStep(200., 10.);
+  binning.AddStep(240., 20.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearUltra240Strong(){
+  binninghelper binning;
+  binning.SetMinimum(10.);
+  binning.AddStep(40., 2.);
+  binning.AddStep(60., 4.);
+  binning.AddStep(120., 5.);
+  binning.AddStep(200., 10.);
+  binning.AddStep(240., 20.);
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double>getJetPtBinningNonLinSmear(const std::string_view option) {
+  std::unordered_map<std::string, std::function<std::vector<double>()>> functors = {
+    {"loose", getJetPtBinningNonLinSmearLoose},
+    {"strong", getJetPtBinningNonLinSmearStrong}
+  };
+  auto functor = functors.find(std::string(option));
+  if(functor == functors.end()) return {};
+  return functor->second();
 }
 
 std::vector<double>getJetPtBinningNonLinSmearLarge(const std::string_view option) {
@@ -57,23 +124,32 @@ std::vector<double>getJetPtBinningNonLinSmearLarge(const std::string_view option
   return functor->second();
 }
 
-std::vector<double> getJetPtBinningNonLinTrueLarge(){
-  std::vector<double> result;
-  result.emplace_back(0.);
-  result.emplace_back(20.);
-  double current = 20.;
-  while(current < 80.) {
-    current += 10.;
-    result.push_back(current);
-  }
-  while(current < 200){
-    current += 20;
-    result.push_back(current);
-  }
-  while(current < 280.){
-    current += 40.;
-    result.push_back(current);
-  }
-  result.emplace_back(600.);
-  return result;
+std::vector<double>getJetPtBinningNonLinSmearFine(const std::string_view option) {
+  std::unordered_map<std::string, std::function<std::vector<double>()>> functors = {
+    {"loose", getJetPtBinningNonLinSmearFineLoose},
+    {"strong", getJetPtBinningNonLinSmearFineStrong}
+  };
+  auto functor = functors.find(std::string(option));
+  if(functor == functors.end()) return {};
+  return functor->second();
+}
+
+std::vector<double>getJetPtBinningNonLinSmearUltra300(const std::string_view option) {
+  std::unordered_map<std::string, std::function<std::vector<double>()>> functors = {
+    {"loose", getJetPtBinningNonLinSmearUltra300Loose},
+    {"strong", getJetPtBinningNonLinSmearUltra300Strong}
+  };
+  auto functor = functors.find(std::string(option));
+  if(functor == functors.end()) return {};
+  return functor->second();
+}
+
+std::vector<double>getJetPtBinningNonLinSmearUltra300(const std::string_view option) {
+  std::unordered_map<std::string, std::function<std::vector<double>()>> functors = {
+    {"loose", getJetPtBinningNonLinSmearUltra300Loose},
+    {"strong", getJetPtBinningNonLinSmearUltra300Strong}
+  };
+  auto functor = functors.find(std::string(option));
+  if(functor == functors.end()) return {};
+  return functor->second();
 }
