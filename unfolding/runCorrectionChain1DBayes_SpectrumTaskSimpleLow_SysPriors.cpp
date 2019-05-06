@@ -72,9 +72,9 @@ class UnfoldingRunner {
             const double kSizeEmcalPhi = 1.88,
                          kSizeEmcalEta = 1.4;
             auto acceptance = (kSizeEmcalPhi - 2 * config.fRadius) * (kSizeEmcalEta - 2 * config.fRadius) / (TMath::TwoPi());
-            std::cout << "[SVD unfolding] Regularization " << config.fReg << "\n================================================================\n";
-            std::cout << "[SVD unfolding] Running unfolding" << std::endl;
-            RooUnfoldSvd unfolder(config.fResponseMatrix, config.fRaw, config.fReg);
+            std::cout << "[Bayes unfolding] Regularization " << config.fReg << "\n================================================================\n";
+            std::cout << "[Bayes unfolding] Running unfolding" << std::endl;
+            RooUnfoldBayes unfolder(config.fResponseMatrix, config.fRaw, config.fReg);
             auto specunfolded = unfolder.Hreco(errorTreatment);
             specunfolded->SetNameTitle(Form("unfolded_reg%d", config.fReg), Form("Unfolded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specunfolded->SetDirectory(nullptr);
@@ -86,29 +86,16 @@ class UnfoldingRunner {
             specnormalized->SetNameTitle(Form("normalized_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specnormalized->SetDirectory(nullptr);
             specnormalized->Scale(1. / (acceptance));
-            TH1 *dvec(nullptr);
-            auto imp = unfolder.Impl();
-            if(imp){
-                dvec = histcopy(imp->GetD());
-                dvec->SetNameTitle(Form("dvector_Reg%d", config.fReg), Form("D-vector reg %d", config.fReg));
-                dvec->SetDirectory(nullptr);
-            }
 
             // run closure test
-            std::cout << "[SVD unfolding] Running closure test" << std::endl;
-            RooUnfoldSvd unfolderClosure(config.fResponseMatrixClosure, config.fDetLevelClosure, config.fReg);
+            std::cout << "[Bayes unfolding] Running closure test" << std::endl;
+            RooUnfoldBayes unfolderClosure(config.fResponseMatrixClosure, config.fDetLevelClosure, config.fReg);
             auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
             specunfoldedClosure->Scale(1., "width");
-            TH1 *dvecClosure(nullptr);
-            imp = unfolderClosure.Impl();
-            if(imp) {
-                dvecClosure = histcopy(imp->GetD());
-                dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", config.fReg), Form("D-vector of the closure test reg %d", config.fReg));
-                dvecClosure->SetDirectory(nullptr);
-            }
-            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
+
+            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, nullptr, nullptr, 
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
                     CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
         }
@@ -188,12 +175,18 @@ TH1 *makeTriggerEfficiency(TFile &mcreader, double R, const std::string_view tri
     return eff;
 }
 
-TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap){
+TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, const TH1 &ej1, double ej1swap){
     auto combined = histcopy(&mb);
     combined->SetDirectory(nullptr);
-    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ptswap), combined->GetXaxis()->GetNbins()+1)) {
-        combined->SetBinContent(b, triggered.GetBinContent(b));
-        combined->SetBinError(b, triggered.GetBinError(b));
+    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ej2swap), combined->GetXaxis()->FindBin(ej1swap))) {
+        std::cout << "[" << combined->GetXaxis()->GetBinLowEdge(b) << " - " << combined->GetXaxis()->GetBinUpEdge(b) << "] Using EJ2" << std::endl;
+        combined->SetBinContent(b, ej2.GetBinContent(b));
+        combined->SetBinError(b, ej2.GetBinError(b));
+    }
+    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ej1swap), combined->GetXaxis()->GetNbins()+1)) {
+        std::cout << "[" << combined->GetXaxis()->GetBinLowEdge(b) << " - " << combined->GetXaxis()->GetBinUpEdge(b) << "] Using EJ1" << std::endl;
+        combined->SetBinContent(b, ej1.GetBinContent(b));
+        combined->SetBinError(b, ej1.GetBinError(b));
     }
     return combined;
 }
@@ -230,22 +223,11 @@ void reweightPriors(TH1 *priorhist, const TH1 *weighthist) {
     }
 }
 
-void runCorrectionChain1DSVD_SpectrumTaskSimpleUltra_SysPriors(const std::string_view datafile, const std::string_view mcfile, const std::string_view priorsfile, int ultraoption, const std::string_view sysvar = ""){
+void runCorrectionChain1DBayes_SpectrumTaskSimpleLow_SysPriors(const std::string_view datafile, const std::string_view mcfile, const std::string_view priorsfile, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
-    std::function<std::vector<double> ()> binhandlerTrue, binhandlerSmear;
-    if(ultraoption == 240) {
-        binhandlerTrue = getJetPtBinningNonLinTrueUltra240;
-        binhandlerSmear = getJetPtBinningNonLinSmearUltra240;
-    } else if(ultraoption == 300) {
-        binhandlerTrue = getJetPtBinningNonLinTrueUltra300;
-        binhandlerSmear = getJetPtBinningNonLinSmearUltra300;
-    } else {
-        std::cout << "Ultra option not available" << std::endl;
-        return;
-    }
     std::stringstream outputfile;
-    outputfile << "correctedSVD_ultra" << ultraoption << "_priors";
+    outputfile << "correctedBayes_lowpt_priors";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
@@ -254,8 +236,8 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleUltra_SysPriors(const std::string
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            priorsreader(TFile::Open(priorsfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
-    auto binningpart = binhandlerTrue(),
-         binningdet = binhandlerSmear();
+    auto binningpart = getJetPtBinningNonLinTrueLargeLow(),
+         binningdet = getJetPtBinningNonLinSmearLargeLow();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
@@ -275,8 +257,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleUltra_SysPriors(const std::string
 
         // Rebin all raw level histograms
         std::unique_ptr<TH1> mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
-                             ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
-        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej1rebinned, 80.);
+                             ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
+                             ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
+        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
         hraw->SetNameTitle(Form("hraw_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f", radius));
         hraw->Scale(crosssection/mbspectrum.first);
 
@@ -374,7 +357,6 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleUltra_SysPriors(const std::string
         rebinnedresponse->Write();
         truefull->Write();
         effkine->Write();
-        priorsweight->Write();
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
         priorsclosure->Write("priorsclosure");

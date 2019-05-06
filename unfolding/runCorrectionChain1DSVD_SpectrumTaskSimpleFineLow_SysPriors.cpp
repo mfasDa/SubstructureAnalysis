@@ -201,9 +201,9 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &triggered, double ptswap)
 
 TH1 *makeUnfoldingWeights(const TH1 *inputCorrected, const TH2 *inputResponsefull) {
     std::unique_ptr<TH1> inputtruefull(inputResponsefull->ProjectionY("truefulltmp"));
-    std::unique_ptr<TH1> truefullrebinned(inputtruefull->Rebin(inputCorrected->GetXaxis()->GetNbins(), "truefullrebinned", inputCorrected->GetXaxis()->GetXbins()));
+    std::unique_ptr<TH1> truefullrebinned(inputtruefull->Rebin(inputCorrected->GetXaxis()->GetNbins(), "truefullrebinned", inputCorrected->GetXaxis()->GetXbins()->GetArray()));
     truefullrebinned->Scale(1./truefullrebinned->Integral());
-    TH1 *weighthist = histcopy(*inputCorrected);
+    TH1 *weighthist = histcopy(inputCorrected);
     weighthist->SetDirectory(nullptr);
     weighthist->SetName("Weights");
     weighthist->Scale(1./weighthist->Integral());
@@ -306,9 +306,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleFineLow_SysPriors(const std::stri
         priorsreader->cd(Form("R%02d", int(radius * 10)));
         auto priorsbase = gDirectory;
         priorsbase->cd("response");
-        auto priorsresponse = static_cast<TH2 *>(gDirectory->Get(Form("Rawresponse_R%02d_fine", int(radius * 10.))))
-        priorsbase->cd("reg4")
-        auto priordata = static_cast<TH1 *>(gDirectory->Get("unfolded_reg4"));
+        auto priorsresponse = static_cast<TH2 *>(gDirectory->Get(Form("Rawresponse_R%02d_fine", int(radius * 10.))));
+        priorsbase->cd("reg4");
+        auto priorsdata = static_cast<TH1 *>(gDirectory->Get("unfolded_reg4"));
         auto priorsweight = makeUnfoldingWeights(priorsdata, priorsresponse);
 
         // reweight response matrix and priors
