@@ -13,5 +13,11 @@ public:
         SetDirectory(nullptr);
     }
     virtual ~Ratio() = default;
+
+    TH1D *makeTH1(const char *name, const char *title){
+        TH1D *result = new TH1D(*static_cast<TH1D*>(this));
+        result->SetNameTitle(name, title);
+        return result;
+    }
 };
 #endif
