@@ -1,6 +1,34 @@
 #include "../../meta/stl.C"
 #include "../../meta/root.C"
 
+std::vector<double> getJetPtBinningNonLinSmearPoorOption1(){
+  return { 10.0, 11.0, 12.0, 14.0, 16.0, 18.0, 20.0, 24.0, 28.0, 37.0, 45.0, 54.0, 65.0, 69.0, 73.0, 77.0, 81.0, 86.0, 90.0, 94.0, 98.0, 103.0, 109.0, 117.0, 127.0, 137.0, 147.0, 159.0, 171.0, 183.0, 197.0, 218.0, 240.0};
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorOption2(){
+  return { 10.0, 12.0, 14.0, 16.0, 19.0, 22.0, 25.0, 29.0, 38.0, 50.0, 62.0, 67.0, 72.0, 78.0, 86.0, 92.0, 96.0, 101.0, 107.0, 114.0, 122.0, 130.0, 140.0, 142.0, 154.0, 168.0, 180.0, 189.0, 197.0, 206.0, 214.0, 227.0, 240.0};
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorOption3(){
+  return { 10.0, 13.0, 15.0, 17.0, 19.0, 21.0, 26.0, 31.0, 41.0, 51.0, 61.0, 66.0, 71.0, 76.0, 81.0, 86.0, 91.0, 96.0, 101.0, 106.0, 111.0, 116.0, 121.0, 131.0, 141.0, 151.0, 161.0, 171.0, 181.0, 191.0, 201.0, 221.0, 240.0};
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorOption4(){
+  return { 10.0, 11.0, 13.0, 15.0, 17.0, 19.0, 24.0, 29.0, 39.0, 49.0, 59.0, 64.0, 69.0, 74.0, 79.0, 84.0, 89.0, 94.0, 99.0, 104.0, 109.0, 114.0, 119.0, 129.0, 139.0, 149.0, 159.0, 169.0, 179.0, 189.0, 199.0, 219.0, 240.0};
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorrBV(const std::string_view option){
+  std::unordered_map<std::string, std::function<std::vector<double>()>> functors = {
+      {"option1", getJetPtBinningNonLinSmearPoorOption1},  
+      {"option2", getJetPtBinningNonLinSmearPoorOption2},
+      {"option3", getJetPtBinningNonLinSmearPoorOption3},
+      {"option4", getJetPtBinningNonLinSmearPoorOption4}
+  };
+  auto functor = functors.find(std::string(option));
+  if(functor == functors.end()) return {};
+  return functor->second(); 
+}
+
 std::vector<double> getJetPtBinningNonLinSmearOption1(){
   return { 10., 11., 12., 13., 14., 15., 17., 19., 21., 23., 25., 27., 29., 31., 33, 36., 39., 42., 46., 52., 58., 68., 78., 88., 100., 115., 140.};
 }

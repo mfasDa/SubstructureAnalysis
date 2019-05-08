@@ -1,5 +1,25 @@
 #include "binninghelper.cpp"
 
+std::vector<double> getJetPtBinningNonLinSmearPoorLowerLoose(){
+  binninghelper binning(8., {{20., 2.}, {30., 5.}, {60., 10.}, {120., 5.}, {200, 10.}, {240., 20.}});
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorLowerStrong(){
+  binninghelper binning(12., {{20., 2.}, {30., 5.}, {60., 10.}, {120., 5.}, {200, 10.}, {240., 20.}});
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorUpperLoose(){
+  binninghelper binning(10., {{20., 2.}, {30., 5.}, {60., 10.}, {120., 5.}, {200, 10.}, {245., 20.}});
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningNonLinSmearPoorUpperStrong(){
+  binninghelper binning(10., {{20., 2.}, {30., 5.}, {60., 10.}, {120., 5.}, {200, 10.}, {235., 20.}});
+  return binning.CreateCombinedBinning();
+}
+
 std::vector<double> getJetPtBinningNonLinSmearLowerLoose(){
   binninghelper binning(8., {{40., 2.}, {60., 5.}, {120., 10.}, {140., 20.}});
   return binning.CreateCombinedBinning();
@@ -98,6 +118,18 @@ std::vector<double> getJetPtBinningNonLinSmearUltra240UpperLoose(){
 std::vector<double> getJetPtBinningNonLinSmearUltra240UpperStrong(){
   binninghelper binning(10., {{40., 2.}, {60., 4.}, {120., 5.}, {200., 10.}, {220., 20.}, {235., 15.}});
   return binning.CreateCombinedBinning();
+}
+
+std::vector<double>getJetPtBinningNonLinSmearPoorTrunc(const std::string_view option) {
+  std::unordered_map<std::string, std::function<std::vector<double>()>> functors = {
+    {"lowerloose", getJetPtBinningNonLinSmearPoorLowerLoose},
+    {"lowerstrong", getJetPtBinningNonLinSmearPoorLowerStrong},
+    {"upperloose", getJetPtBinningNonLinSmearPoorUpperLoose},
+    {"upperstrong", getJetPtBinningNonLinSmearPoorUpperStrong}
+  };
+  auto functor = functors.find(std::string(option));
+  if(functor == functors.end()) return {};
+  return functor->second();
 }
 
 std::vector<double>getJetPtBinningNonLinSmearTrunc(const std::string_view option) {
