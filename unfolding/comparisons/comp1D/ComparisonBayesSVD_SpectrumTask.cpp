@@ -9,7 +9,7 @@
 #include "../../../struct/Ratio.cxx"
 
 void ComparisonBayesSVD_SpectrumTask(const std::string_view svdfile, const std::string_view bayesfile){
-    const int regSVD = 4, regBayes = 4;
+    const int regSVD = 6, regBayes = 4;
     std::vector<std::string> spectraBayes = {Form("normalized_reg%d", regBayes)}, spectraSVD =  {Form("normalized_reg%d", regSVD)};
     auto svddata = JetSpectrumReader(svdfile, spectraSVD),
          bayesdata = JetSpectrumReader(bayesfile, spectraBayes);
