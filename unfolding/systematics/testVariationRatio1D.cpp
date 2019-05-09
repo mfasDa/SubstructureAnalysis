@@ -6,39 +6,33 @@
 #include "../../helpers/math.C"
 #include "../../helpers/root.C"
 #include "../../helpers/string.C"
+#include "../../struct/JetSpectrumReader.cxx"
+#include "../../struct/GraphicsPad.cxx"
+#include "../../struct/Ratio.cxx"
 
-struct settings1D{
-    std::string unfoldingmethod;
-    double radius;
+struct outputdata{
+    double              fRDenom;
+    TH1*                fDefaultSpectrum;
+    TH1*                fVarSpectrum;
+    TH1*                fBarlow;
+    TH1 *               fAbsDiff;
+    Ratio*              fRatio;
+
+    bool operator<(const outputdata &other) const { return fRDenom < other.fRDenom; }
+    bool operator==(const outputdata &other) const { return TMath::Abs(fRDenom - other.fRDenom) < 1e-6; }
 };
 
-TH1 *getCorrected(const std::string_view filename, const std::string_view varname, double radius, int regularization  = 4) {
-    std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
-    auto keys = CollectionToSTL<TKey>(reader->GetListOfKeys());
-    std::string dirname;
-    std::array<std::string, 2> regnames = {{"iteration", "regularization"}};
-    for(const auto &n : regnames) {
-        std::stringstream regnamebuilder;
-        regnamebuilder << n << regularization;
-        auto regstring = regnamebuilder.str();
-        auto found = std::find_if(keys.begin(), keys.end(), [&regstring](const TKey *k) { return regstring == k->GetName(); });
-        if(found != keys.end()) {
-            dirname = (*found)->GetName();
-            break;
-        }
+std::map<int, TH1 *> getCorrected(const std::string_view filename, const std::string_view varname, int regularization  = 4) {
+    std::vector<std::string> spectra = {Form("normalized_reg%d", regularization)};
+    std::map<int, TH1 *> result;
+    JetSpectrumReader reader(filename, spectra);
+    for(auto radius : reader.GetJetSpectra().GetJetRadii()) {
+        auto spec = reader.GetJetSpectrum(radius, spectra[0]);  
+        spec->SetNameTitle(Form("Spec%s_R%02d", varname.data(), int(radius*10.)), varname.data());
+        spec->SetDirectory(nullptr);
+        result[int(radius*10)] = spec;
     }
-    if(!dirname.length()) return nullptr;
-    reader->cd(dirname.data());
-    auto histos = CollectionToSTL<TKey>(gDirectory->GetListOfKeys());
-    auto histunfolded = std::find_if(histos.begin(), histos.end(), [](const TKey *k) { return contains(k->GetName(), "normalized") && !contains(k->GetName(), "Closure"); });
-    if(histunfolded == histos.end()) {
-        std::cout << "no hist found" << std::endl;
-        return nullptr;
-    }
-    auto hist = (*histunfolded)->ReadObject<TH1>();
-    hist->SetDirectory(nullptr);
-    normalizeBinWidth(hist);
-    return hist;
+    return result;
 }
 
 TH1 *makeBarlow(const TH1 *variation, const TH1 *defaultdist){
@@ -60,84 +54,83 @@ TH1 *makeRatio(const TH1 *variation, const TH1 *defaultdist){
     return ratio;
 }
 
-std::string get1DFileTag(const std::string_view filename) {
-    auto res = basename(filename);
-    res.erase(res.find(".root"), 5);
-    res.erase(res.find("corrected1D"), 11);
-    return res;
-}
-
-settings1D getUnfoldingSettings(const std::string_view filetag){
-    auto tokens = tokenize(std::string(filetag), '_');
-    double radius = double(std::stoi(tokens[1].substr(1)))/10.;
-    return {tokens[0], radius};
-}
-
 void testVariationRatio1D(const std::string_view varname, 
                           const std::string_view vartitle, 
-                          const std::string_view defaultfilenum, 
-                          const std::string_view defaultfileden,  
-                          const std::string_view varfilenum, 
-                          const std::string_view varfileden, 
+                          const std::string_view defaultfile, 
+                          const std::string_view varfile, 
                           int regdefault = 4, int regvar = 4){
-    auto specDefaultNum = getCorrected(defaultfilenum, "defaultNumerator", regdefault), specDefaultDen = getCorrected(defaultfileden, "defaultDenominator", regdefault),
-         specVariationNum = getCorrected(varfilenum, "variationNumerator", regvar), specVariationDen = getCorrected(varfileden, "variationDenominator", regvar);
-    
-    auto ratioDefault = histcopy(specDefaultNum), ratioVariation = histcopy(specVariationNum);
-    ratioDefault->SetDirectory(nullptr);
-    ratioVariation->SetDirectory(nullptr);
-    ratioDefault->Divide(specDefaultNum, specDefaultDen, 1., 1., "b");
-    ratioVariation->Divide(specVariationNum, specVariationDen, 1., 1., "b");
-
-    auto tagdefaultNum = get1DFileTag(defaultfilenum), 
-         tagdefaultDen = get1DFileTag(defaultfileden), 
-         tagvariationNum = get1DFileTag(varfilenum),
-         tagvariationDen = get1DFileTag(varfileden);
-    std::cout << tagdefaultNum << ", " << tagdefaultDen << ", " << tagvariationNum << ", " << tagvariationDen << std::endl;
-    auto uddefaultNum = getUnfoldingSettings(tagdefaultNum), 
-         uddefaultDen = getUnfoldingSettings(tagdefaultDen),
-         udvariationNum = getUnfoldingSettings(tagvariationNum),
-         udvariationDen = getUnfoldingSettings(tagvariationDen);
-    auto compplot = new ROOT6tools::TSavableCanvas(Form("compRatio%s_%s_R%02dR%02d", uddefaultNum.unfoldingmethod.data(), varname.data(), int(uddefaultNum.radius*10.), int(uddefaultDen.radius*10.)), Form("Comparison R=%.1f/%.1f %s %s", uddefaultNum.radius, uddefaultDen.radius, varname.data(), uddefaultNum.unfoldingmethod.data()), 1200, 1000);
-    compplot->Divide(3,1);
+    auto specDefault = getCorrected(defaultfile, "default", regdefault), specVariation = getCorrected(varfile, varname, regvar); 
     Style defaultstyle{kRed, 24}, varstyle{kBlue, 25};
+    gROOT->cd();
 
-    compplot->cd(1);
-    (new ROOT6tools::TAxisFrame("compframe", "p_{t} (GeV/c)", Form("d#sigam(R=%.1f)/dp_{t}d#eta)/(d#sigma(R=%.1f)/dp_{t}d#eta)", uddefaultNum.radius, uddefaultDen.radius), 0., 250., 0., 1.))->Draw("axis");
-    TLegend *leg = new ROOT6tools::TDefaultLegend(0.55, 0.7, 0.89, 0.89);
-    leg->Draw();
+    TH1 *numeratorDefault = specDefault.find(2)->second, *numeratorVariation = specVariation.find(2)->second;
+    std::map<int, TH1 *> ratiosDefault, ratiosVar;
+    for(auto irad : ROOT::TSeqI(3, 7)) {
+        auto ratiodefault = (TH1 *)numeratorDefault->Clone("DefaultRatio"), ratiovar = (TH1 *)numeratorVariation->Clone("VariationRatio");
+        ratiodefault->SetDirectory(nullptr);
+        ratiovar->SetDirectory(nullptr);
+        ratiodefault->Divide(numeratorDefault, specDefault.find(irad)->second, 1., 1., "b");
+        ratiovar->Divide(numeratorDefault, specVariation.find(irad)->second, 1., 1.,  "b");
+        ratiosDefault[irad] = ratiodefault;
+        ratiosVar[irad] = ratiovar;
+    } 
+    
+    std::set<outputdata> output;
+    double ptmax = 350.;
+    for(auto r : ROOT::TSeqI(3, 7)){
+        auto compplot = new ROOT6tools::TSavableCanvas(Form("RatioR02R%02d_%s", r, varname.data()), Form("Comparison %s, ratio R=0.2/R=%.1f", varname.data(), double(r)/10.), 1200, 1000);
+        compplot->Divide(3,1);
 
-    defaultstyle.SetStyle<TH1>(*ratioDefault);
-    varstyle.SetStyle<TH1>(*ratioVariation);
-    ratioDefault->Draw("epsame");
-    ratioVariation->Draw("epsame");
-    leg->AddEntry(ratioDefault, "Default", "lep");
-    leg->AddEntry(ratioVariation, vartitle.data(), "lep");
+        compplot->cd(1);
+        GraphicsPad specpad(gPad);
+        specpad.Frame(Form("compframe_R02R%02d", r), "p_{t} (GeV/c)", Form("R=0.2/R=%.1f", double(r)/20.), 0., ptmax, 0., 1.);
+        specpad.Legend(0.15, 0.7, 0.89, 0.89);
 
-    compplot->cd(2);
-    (new ROOT6tools::TAxisFrame("ratioframe", "p_{t} (GeV/c)", "variation / default", 0., 250., 0.5, 1.5))->Draw("axis");
-    auto ratioRatios = makeRatio(ratioVariation, ratioDefault);
-    ratioRatios->SetNameTitle("ratioDefaultVar", "Ratio default variation");
-    defaultstyle.SetStyle<TH1>(*ratioRatios);
-    ratioRatios->Draw("epsame");
+        auto defaultspec = ratiosDefault.find(r)->second, varspec = ratiosVar.find(r)->second;
+        specpad.Draw<TH1>(defaultspec, defaultstyle, "Default");
+        specpad.Draw<TH1>(varspec, varstyle, vartitle);
 
-    compplot->cd(3);
-    (new ROOT6tools::TAxisFrame("barlowframe_%d", "p_{t} (GeV/c)", "(default-variation)/(#sqrt{|#sigma_{var}^{2} - sigma_{default}^{2}|})", 0., 250., 0., 10.))->Draw("axis");
-    auto barlow = makeBarlow(ratioVariation, ratioDefault);
-    barlow->SetNameTitle("barlowtest", "Barlow test");
-    barlow->SetLineColor(kBlack);
-    barlow->SetFillColor(kRed);
-    barlow->Draw("boxsame");
+        compplot->cd(2);
+        GraphicsPad ratiopad(gPad);
+        ratiopad.Frame(Form("ratioframe_R02R%02d", r), "p_{t} (GeV/c)", "variation / default", 0., ptmax, 0.5, 1.5);
+        Ratio *varratio = new Ratio(varspec, defaultspec);
+        ratiopad.Draw<Ratio>(varratio, defaultstyle);
 
-    compplot->cd();
-    compplot->Update();
-    compplot->SaveCanvas(compplot->GetName());
+        compplot->cd(3);
+        GraphicsPad barlowpad(gPad);
+        barlowpad.Frame(Form("barlowframe_R02R%02d", r), "p_{t} (GeV/c)", "(default-variation)/(#sqrt{|#sigma_{var}^{2} - sigma_{default}^{2}|})", 0., ptmax, 0., 10.);
+        auto barlow = makeBarlow(varspec, defaultspec);
+        barlow->SetNameTitle("barlowtest", "Barlow test");
+        barlow->SetLineColor(kBlack);
+        barlow->SetFillColor(kRed);
+        barlow->Draw("boxsame");
 
+        compplot->cd();
+        compplot->Update();
+        compplot->SaveCanvas(compplot->GetName());
+
+        // Calculate absolute difference
+        auto absdiff = histcopy(defaultspec);
+        absdiff->SetNameTitle("absdiff", "Absolute difference");
+        for(auto b : ROOT::TSeqI(0, absdiff->GetXaxis()->GetNbins())){
+            absdiff->SetBinContent(b+1, TMath::Abs(varspec->GetBinContent(b+1) - defaultspec->GetBinContent(b+1))/ defaultspec->GetBinContent(b+1));
+            absdiff->SetBinError(b+1, 0.);
+        }
+
+        output.insert({double(r)/10., defaultspec, varspec, barlow, absdiff, varratio}); 
+    }
+    
     // Create output rootfile
-    std::unique_ptr<TFile> outwriter(TFile::Open(Form("systematicsR%02dR%02d_%s_%s.root", int(uddefaultNum.radius*10.), int(uddefaultDen.radius*10.),varname.data(), uddefaultNum.unfoldingmethod.data()), "RECREATE"));
-    outwriter->cd();
-    ratioDefault->Write("DefaultRatio");
-    ratioVariation->Write("VariationRatio");
-    ratioRatios->Write("RatioRatios");
-    barlow->Write("barlowtest");
+    std::unique_ptr<TFile> outputwriter(TFile::Open(Form("ratiosSystematics_%s.root", varname.data()), "RECREATE"));
+    outputwriter->cd();
+    for(const auto &rbin : output){
+        std::string dirname(Form("R02R%02d", int(rbin.fRDenom * 10.)));
+        outputwriter->mkdir(dirname.data());
+        outputwriter->cd(dirname.data());
+        rbin.fDefaultSpectrum->Write("DefaultRatio");
+        rbin.fVarSpectrum->Write("VariationRatio");
+        rbin.fRatio->makeTH1("ratioDefaultVar", "Ratio default variation")->Write("RatioCRS");
+        rbin.fBarlow->Write("barlowtest");
+        rbin.fAbsDiff->Write("absdiff");
+    }
 }
