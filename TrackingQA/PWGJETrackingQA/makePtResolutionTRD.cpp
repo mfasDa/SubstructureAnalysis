@@ -20,7 +20,6 @@
 #endif
 
 #include "../../helpers/graphics.C"
-#include "../../struct/GraphicsPad.cxx"
 
 struct cut {
   std::string                     fDimension;
@@ -71,7 +70,7 @@ TGraphErrors *getPtResolution(THnSparse *hs, int tracktype, const std::vector<cu
   }
 }
 
-void makePtResolution(const std::string_view inputfile, const std::string_view trigger = ""){
+void makePtResolution(const std::string_view inputfile, const std::string_view trigger = "", int hybridDefinition = 2018){
   std::map<int, TGraphErrors *> ptres;
   auto hsparse = getTrackTHnSparse(inputfile, trigger);
 
@@ -101,18 +100,31 @@ void makePtResolution(const std::string_view inputfile, const std::string_view t
   auto plot = new ROOT6tools::TSavableCanvas(canvasname.str().data(), canvastitle.str().data(), 800, 600);
   plot->cd();
 
-  GraphicsPad respad(gPad);
-  respad.Frame("ptrepframe", "p_{t} (GeV/c)", "#sigma(p_{t})/p_{t}", 0., 100., 0., 0.3);
-  respad.Label(0.35, 0.1, 0.89, 0.15, "pp, #sqrt{s} = 13 TeV, hybrid tracks 2011");
-  respad.Legend(0.15, 0.5, 0.5, 0.89);
-  if(trigger.length()) respad.Label(0.65, 0.83, 0.89, 0.89, Form("Trigger: %s", trigger.data()));
+  std::map<int, std::string> hybridtitles = {{2011 , "2011"}, {2018, "2018beta"}};
 
-  std::map<int, std::string> tttitles = { {4, "Global hybrid tracks"}, {5, "Complementary hybrid tracks"}};
+  (new ROOT6tools::TAxisFrame("ptrepframe", "p_{t} (GeV/c)", "#sigma(p_{t})/p_{t}", 0., 100., 0., 0.3))->Draw("axis");
+  auto leg = new ROOT6tools::TDefaultLegend(0.15, 0.5, 0.5, 0.89);
+  leg->Draw();
+  (new ROOT6tools::TNDCLabel(0.35, 0.1, 0.89, 0.15, Form("pp, #sqrt{s} = 13 TeV, hybrid tracks %s", hybridtitles[hybridDefinition].data())))->Draw();
+  if(trigger.length()) {
+    (new ROOT6tools::TNDCLabel(0.65, 0.83, 0.89, 0.89, Form("Trigger: %s", trigger.data())))->Draw();
+  }
+
+  std::map<int, std::string> tttitles2011 = {{0, "Track type I (wTRD 4 tls)"}, {1, "Track type II (wTRD 4 tls)"}, {2, "Track type III (wTRD 4 tls)"},
+                                             {3, "Track type NE (wTRD 4 tls)"}, {4, "Track type I (woTRD 4 tls)"}, {5, "Track type II (woTRD 4 tls)"},
+                                             {6, "Track type III (woTRD 4 tls)"}, {7, "Track type NE (woTRD 4 tls)"}};
+
+  std::map<int, std::string> tttitles2018 = {{0, "Track type I (wTRD 4 tls)"}, {1, "Track type IIa (wTRD 4 tls)"}, {2, "Track type IIb (wTRD 4 tls)"},
+                                             {3, "Track type III (wTRD 4 tls)"}, {4, "Track type I (woTRD 4 tls)"}, {5, "Track type IIa (woTRD 4 tls)"},
+                                             {6, "Track type IIb (woTRD 4 tls)"}, {7, "Track type III (woTRD 4 tls)"}};
+
   std::map<int, Style> ttstyles = {{0, {kRed, 24}}, {1, {kBlue, 25}}, {2, {kGreen, 26}}, {3, {kViolet,  26}}, {4, {kOrange, 27}}, {5, {kGray, 28}},
                                    {6, {kMagenta, 29}}, {9, {kCyan, 30}}};
-  for(auto [tt, res] : ptres) {
-    if(tt == 4 || tt == 5)
-      respad.Draw<TGraphErrors>(res, ttstyles[tt], tttitles[tt].data());
+  for(auto tt : ptres) {
+    ttstyles[tt.first].SetStyle<TGraphErrors>(*(tt.second));
+    tt.second->Draw("epsame");
+    auto title = (hybridDefinition == 2011 ? tttitles2011[tt.first] : tttitles2018[tt.first]);
+    leg->AddEntry(tt.second, title.data(), "lep");
   }
   plot->Update();
   plot->SaveCanvas(plot->GetName());
