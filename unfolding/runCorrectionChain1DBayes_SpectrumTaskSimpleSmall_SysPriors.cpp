@@ -193,11 +193,10 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 TH1 *makeUnfoldingWeights(const TH1 *inputCorrected, const TH2 *inputResponsefull) {
     std::unique_ptr<TH1> inputtruefull(inputResponsefull->ProjectionY("truefulltmp"));
     std::unique_ptr<TH1> truefullrebinned(inputtruefull->Rebin(inputCorrected->GetXaxis()->GetNbins(), "truefullrebinned", inputCorrected->GetXaxis()->GetXbins()->GetArray()));
-    truefullrebinned->Scale(1./truefullrebinned->Integral());
+    truefullrebinned->Scale(1., "width");
     TH1 *weighthist = histcopy(inputCorrected);
     weighthist->SetDirectory(nullptr);
     weighthist->SetName("Weights");
-    weighthist->Scale(1./weighthist->Integral());
     weighthist->Divide(truefullrebinned.get());
     return weighthist;
 }
@@ -299,8 +298,8 @@ void runCorrectionChain1DBayes_SpectrumTaskSimpleSmall_SysPriors(const std::stri
         auto priorsbase = gDirectory;
         priorsbase->cd("response");
         auto priorsresponse = static_cast<TH2 *>(gDirectory->Get(Form("Rawresponse_R%02d_fine", int(radius * 10.))));
-        priorsbase->cd("reg4");
-        auto priorsdata = static_cast<TH1 *>(gDirectory->Get("unfolded_reg4"));
+        priorsbase->cd("reg6");
+        auto priorsdata = static_cast<TH1 *>(gDirectory->Get("unfolded_reg6"));
         auto priorsweight = makeUnfoldingWeights(priorsdata, priorsresponse);
 
         // reweight response matrix and priors
@@ -356,6 +355,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimpleSmall_SysPriors(const std::stri
         rebinnedresponse->Write();
         truefull->Write();
         effkine->Write();
+        priorsweight->Write();
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
         priorsclosure->Write("priorsclosure");
