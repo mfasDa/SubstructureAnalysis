@@ -3,12 +3,22 @@
 #include "../meta/root6tools.C"
 #include "../helpers/graphics.C"
 #include "../struct/GraphicsPad.cxx"
+#include "../unfolding/binnings/binninghelper.cpp"
 
 struct Spectra {
 	TH1 			*fPositive;
 	TH1			*fNegative;
 	TH1			*fRatioPositiveNegative;
 };
+
+TH1 *makeRebinned(TH1 *hist) {
+        auto binhandler = binninghelper(0.15, {{0.3, 0.05}, {0.99999, 0.1}, {3., 0.2}, {10., 0.5}, {20.,1.}, {38, 2.}, {50., 4.}, {80., 10.}, {200., 20.}, {320, 40.}});
+        auto newbinning = binhandler.CreateCombinedBinning();
+        for(auto b : newbinning) std::cout << b << ", ";
+        std::cout << std::endl;
+        auto rebinned = hist->Rebin(newbinning.size()-1., Form("%srebinned", hist->GetName()), newbinning.data());
+        return rebinned;
+}
 
 std::map<std::string, Spectra> loadRatios(const std::string_view filename, int etasign, int tracktype){
     std::map<std::string, Spectra> data;
@@ -35,12 +45,12 @@ std::map<std::string, Spectra> loadRatios(const std::string_view filename, int e
 	}
         // negative charge
         htracks->GetAxis(6)->SetRange(1,1);
-        TH1 *hneg(htracks->Projection(0)); 
+        TH1 *hneg = makeRebinned(htracks->Projection(0)); 
 	hneg->SetDirectory(nullptr);
 	hneg->Scale(1./norm);
 	hneg->Scale(1., "width");
         htracks->GetAxis(6)->SetRange(2,2);
-        TH1* hpos(htracks->Projection(0)); 
+        TH1* hpos = makeRebinned(htracks->Projection(0)); 
 	hpos->SetDirectory(nullptr);
 	hpos->Scale(1./norm);
 	hpos->Scale(1., "width");
@@ -77,7 +87,7 @@ void MakeRatioCharges(int etasign = 0, int tracktype = -1, double ptmax = 250){
         GraphicsPad specpad(gPad);
 	specpad.Logy();
 	specpad.Frame(Form("SpectraCharges%s", t.data()), "p_{t} (GeV/c)", "N(h^{+})/N(h^-})", 0., ptmax, 1e-10, 100.);
-        specpad.Label(0.15, 0.15, 0.5, 0.22, Form("Trigger: %s", t.data()));
+        specpad.Label(0.15, 0.8, 0.5, 0.89, Form("Trigger: %s", t.data()));
 	if(icol == 0) specpad.Legend(0.5, 0.6, 0.89, 0.89);
 	specpad.Draw<TH1>(datawith.fPositive, stylesSpec["poswith"], "with TRD, h+");
 	specpad.Draw<TH1>(datawith.fNegative, stylesSpec["negwith"], "with TRD, h-");
@@ -85,7 +95,7 @@ void MakeRatioCharges(int etasign = 0, int tracktype = -1, double ptmax = 250){
 	specpad.Draw<TH1>(datawithout.fNegative, stylesSpec["negwithout"], "without TRD, h-");
         plot->cd(icol+4);
         GraphicsPad ratiopad(gPad);
-        ratiopad.Frame(Form("RatioCharges%s", t.data()), "p_{t} (GeV/c)", "N(h^{+})/N(h^-})", 0., ptmax, 0.5, 1.5);
+        ratiopad.Frame(Form("RatioCharges%s", t.data()), "p_{t} (GeV/c)", "N(h^{+})/N(h^-})", 0., ptmax, 0., 3.);
         ratiopad.Label(0.15, 0.15, 0.5, 0.22, Form("Trigger: %s", t.data()));
         if(icol == 0) ratiopad.Legend(0.15, 0.7, 0.5, 0.89);
         ratiopad.Draw<TH1>(datawith.fRatioPositiveNegative, styles["withTRD"], "With TRD");
