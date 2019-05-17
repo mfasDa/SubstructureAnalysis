@@ -1,8 +1,10 @@
 #ifndef __CLING__
 #include <memory>
+#include <iostream>
 #include <TFile.h>
 #include <TKey.h>
 #include <TTree.h>
+#include "AliEmcalList.h"
 #endif
 void WriteTree(TTree *t) {
     std::stringstream filename;
@@ -22,11 +24,28 @@ void splitFile(Bool_t writeTrees = true) {
             reader->cd(c->GetName());
             for(auto cont : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())){
                 writer->cd(c->GetName());
+                std::cout << cont->ReadObj()->IsA()->GetName() << std::endl;
+                if(cont->ReadObj()->IsA() == AliEmcalList::Class()){
+                    std::cout << "AliEmcalList found - switch on pt-hard merging" << std::endl;
+                    AliEmcalList *emclist = static_cast<AliEmcalList *>(cont->ReadObj());
+                    emclist->SetUseScaling(kTRUE);
+                    emclist->SetNameXsec("fHistXsectionAfterSel");
+                    emclist->SetNameTrials("fHistTrialsAfterSel");
+
+                }
                 cont->ReadObj()->Write(cont->GetName(), TObject::kSingleKey);
             }
         }
         writer->cd();
         auto o = c->ReadObj();
+        std::cout << o->IsA()->GetName() << std::endl;
+        if(o->IsA() == AliEmcalList::Class()){
+            std::cout << "AliEmcalList found - switch on pt-hard merging" << std::endl;
+            AliEmcalList *emclist = static_cast<AliEmcalList *>(o);
+            emclist->SetUseScaling(kTRUE);
+            emclist->SetNameXsec("fHistXsectionAfterSel");
+            emclist->SetNameTrials("fHistTrialsAfterSel");
+        } 
         o->Write(o->GetName(), TObject::kSingleKey);
     }
     writer->Close();
