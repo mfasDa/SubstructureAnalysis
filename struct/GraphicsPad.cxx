@@ -7,7 +7,7 @@
 
 class GraphicsPad {
 public:
-    GraphicsPad(TVirtualPad *underlyingPad) : mPad(underlyingPad), mFrame(nullptr), mLegend(nullptr) {}
+    GraphicsPad(TVirtualPad *underlyingPad) : mPad(underlyingPad), mFrame(nullptr), mLegend(nullptr) { mPad->SetTicks(1,1); }
     virtual ~GraphicsPad() = default;
 
     void Margins(double left, double right, double bottom, double top){
