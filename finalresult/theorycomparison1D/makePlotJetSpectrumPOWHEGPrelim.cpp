@@ -46,16 +46,16 @@ void makePlotJetSpectrumPOWHEGPrelim(int R = 2, const std::string_view spectrumf
     gPad->SetTopMargin(0.05);
 
     double ysizespec = 0.045;
-    auto specframe = new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/c)", "#frac{d#sigma}{d#it{p}_{T}d#eta} (mb/(GeV/c))", 0., 350., 5e-9, 1);
+    auto specframe = new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/#it{c})", "#frac{d#sigma}{d#it{p}_{T}d#eta} (mb/(GeV/#it{c}))", 0., 350., 5e-9, 1);
     specframe->GetYaxis()->SetTitleSize(ysizespec);
     specframe->GetYaxis()->SetLabelSize(ysizespec);
     specframe->Draw("axis");
 
-    auto prelimlabel = new ROOT6tools::TNDCLabel(0.39, 0.73, 0.94, 0.94, "ALICE preliminary");
+    auto prelimlabel = new ROOT6tools::TNDCLabel(0.39, 0.72, 0.94, 0.92, "ALICE preliminary");
     prelimlabel->AddText("pp, #sqrt{s} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
     prelimlabel->AddText(Form("Jets, Anti-#it{k}_{T}, %s", rtitle.data()));
-    prelimlabel->AddText("#it{p}_{T}^{ch} > 0.15 GeV/c, #it{E}^{cluster} > 0.3 GeV");
-    prelimlabel->AddText(Form("|#eta^{tr}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < %.1f", 0.7 - double(R)/10.));
+    prelimlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV");
+    prelimlabel->AddText(Form("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < %.1f", 0.7 - double(R)/10.));
     prelimlabel->SetTextAlign(12);
     prelimlabel->Draw();
 
@@ -124,6 +124,14 @@ void makePlotJetSpectrumPOWHEGPrelim(int R = 2, const std::string_view spectrumf
     ratioPOWHEGdata->Divide(speclimited);
     Style{kBlue, 24}.SetStyle<TH1>(*ratioPOWHEGdata);
     ratioPOWHEGdata->Draw("epsame");
+
+    auto line = new TLine(0., 1., 350., 1.);
+    line->SetLineStyle(2);
+    line->Draw();
+    auto box = new TBox(0., 0.95, 5., 1.05);
+    box->SetFillColor(kOrange);
+    box->SetLineWidth(0);
+    box->Draw();
 
     plot->cd();
     plot->Update();

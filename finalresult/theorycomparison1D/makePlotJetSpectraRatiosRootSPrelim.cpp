@@ -67,12 +67,12 @@ void makePlotJetSpectraRatiosRootSPrelim(const std::string_view jetspectrafile =
     gPad->SetLeftMargin(0.15);
     gPad->SetRightMargin(0.05);    
     gPad->SetTopMargin(0.05);
-    auto frame = new ROOT6tools::TAxisFrame("ratioframe", "#it{p}_{T} (GeV/c)", "#frac{d#sigma^{#it{R}=0.2}}{d#it{p}_{T}d#eta} / #frac{d#sigma^{#it{R}=0.4}}{d#it{p}_{T}d#eta}", 0., 350., 0., 1.35);
+    auto frame = new ROOT6tools::TAxisFrame("ratioframe", "#it{p}_{T} (GeV/#it{c})", "#frac{d#sigma^{#it{R}=0.2}}{d#it{p}_{T}d#eta} / #frac{d#sigma^{#it{R}=0.4}}{d#it{p}_{T}d#eta}", 0., 350., 0., 1.35);
     frame->Draw("axis");
     auto prelimlabel = new ROOT6tools::TNDCLabel(0.19, 0.73, 0.74, 0.94, "ALICE preliminary");
     prelimlabel->AddText("Jets, Anti-#it{k}_{T}");
-    prelimlabel->AddText("#it{p}_{T}^{ch} > 0.15 GeV/c, #it{E}^{cluster} > 0.3 GeV");
-    prelimlabel->AddText("|#eta^{tr}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - #it{R}");
+    prelimlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV");
+    prelimlabel->AddText("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - #it{R}");
     prelimlabel->SetTextAlign(12);
     prelimlabel->Draw();
     auto rlegend = new ROOT6tools::TDefaultLegend(0.65, 0.15, 0.94, 0.4);

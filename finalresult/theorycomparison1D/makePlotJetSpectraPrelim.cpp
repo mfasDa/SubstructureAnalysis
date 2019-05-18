@@ -18,14 +18,14 @@ void makePlotJetSpectraPrelim(const std::string_view jetspectrafile = "jetspectr
     gPad->SetLeftMargin(0.15);
     gPad->SetRightMargin(0.05);    
     gPad->SetTopMargin(0.05);
-    auto frame = new ROOT6tools::TAxisFrame("specframe", "#it{p}_{T} (GeV/c)", "#frac{d#sigma}{d#it{p}_{T}d#eta} (mb/(GeV/c))", 0., 350., 1e-8, 100);
+    auto frame = new ROOT6tools::TAxisFrame("specframe", "#it{p}_{T} (GeV/#it{c})", "#frac{d#sigma}{d#it{p}_{T}d#eta} (mb/(GeV/#it{c}))", 0., 350., 1e-8, 100);
     frame->Draw("axis");
 
-    auto prelimlabel = new ROOT6tools::TNDCLabel(0.39, 0.73, 0.94, 0.94, "ALICE preliminary");
+    auto prelimlabel = new ROOT6tools::TNDCLabel(0.39, 0.72, 0.94, 0.93, "ALICE preliminary");
     prelimlabel->AddText("pp, #sqrt{s} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
     prelimlabel->AddText("Jets, Anti-#it{k}_{T}");
-    prelimlabel->AddText("#it{p}_{T}^{ch} > 0.15 GeV/c, #it{E}^{cluster} > 0.3 GeV");
-    prelimlabel->AddText("|#eta^{tr}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - #it{R}");
+    prelimlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV");
+    prelimlabel->AddText("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - #it{R}");
     prelimlabel->SetTextAlign(12);
     prelimlabel->Draw();
 
@@ -35,7 +35,7 @@ void makePlotJetSpectraPrelim(const std::string_view jetspectrafile = "jetspectr
     errlegend->Draw();
 
     std::map<int, Color_t> specColors = {{2, kBlack}, {3, kRed}, {4, kBlue}, {5, kGreen + 2}, {6, kViolet}};
-    std::map<int, Style_t> specstyles = {{2, 20}, {3,21}, {4,22}, {5,23},{6,24}};
+    std::map<int, Style_t> specstyles = {{2, 20}, {3,21}, {4,33}, {5,34},{6,29}};
     std::map<int, Color_t> shapeColors = {{2, kGray+2}, {3, kRed-9}, {4, kBlue-9}, {5, kGreen}, {6, kViolet-2}};
     std::map<int, double> scales = {{3, 3}, {4, 10}, {5, 30}, {6, 100}};
     
@@ -55,6 +55,7 @@ void makePlotJetSpectraPrelim(const std::string_view jetspectrafile = "jetspectr
             rlegbuilder << " x " << int(myscale);
         }
         Style{specColors[R], specstyles[R]}.SetStyle<TH1>(*spec);
+        if(R>3) spec->SetMarkerSize(1.5);
         spec->Draw("ex0psame");
         rlegend->AddEntry(spec, rlegbuilder.str().data(), "lep");
         corrUncertainty->SetLineColor(specColors[R]);
