@@ -69,8 +69,8 @@ void testVariationRatio1D(const std::string_view varname,
         auto ratiodefault = (TH1 *)numeratorDefault->Clone("DefaultRatio"), ratiovar = (TH1 *)numeratorVariation->Clone("VariationRatio");
         ratiodefault->SetDirectory(nullptr);
         ratiovar->SetDirectory(nullptr);
-        ratiodefault->Divide(numeratorDefault, specDefault.find(irad)->second, 1., 1., "b");
-        ratiovar->Divide(numeratorVariation, specVariation.find(irad)->second, 1., 1.,  "b");
+        ratiodefault->Divide(numeratorDefault, specDefault.find(irad)->second, 1., 1.);
+        ratiovar->Divide(numeratorVariation, specVariation.find(irad)->second, 1., 1.);
         ratiosDefault[irad] = ratiodefault;
         ratiosVar[irad] = ratiovar;
     } 
