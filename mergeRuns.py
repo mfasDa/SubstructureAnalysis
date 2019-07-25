@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 from __future__ import print_function
 import argparse
 import logging
@@ -94,7 +94,7 @@ class Merger(threading.Thread):
                 break
             outputdir = os.path.dirname(outputfile)
             if not os.path.exists(outputdir):
-                os.makedirs(outputdir, 0755)
+                os.makedirs(outputdir, 0o755)
             logging.info("Worker %d: Merging output file %s", self.__workerID, outputfile)
             ExecMerge(outputfile, filelist)
         logging.info("Worker %d: Finished work", self.__workerID)
@@ -103,7 +103,7 @@ class Merger(threading.Thread):
 def DoMerge(inputpath, filename, runlist, nworkers, outmergedir):
     mergedir = os.path.join(inputpath, outmergedir)
     if not os.path.exists(mergedir):
-        os.makedirs(mergedir, 0755)
+        os.makedirs(mergedir, 0o755)
     logging.info("Merging runs in pt-hard bins from %s to %s" %(inputpath, mergedir))
 
     # prepare runlist (in case selected)

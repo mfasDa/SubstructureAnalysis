@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 from __future__ import print_function
 import argparse
@@ -32,7 +32,7 @@ class PtHardBin:
     def merge(self, outputdir, basename):
         outputfile = os.path.join(outputdir, "%02d" %self.__binid, basename)
         if not os.path.exists(os.path.dirname(outputfile)):
-            os.makedirs(os.path.dirname(outputfile), 0755)
+            os.makedirs(os.path.dirname(outputfile), 0o755)
         command = ["hadd", "-f", outputfile]
         for f in self.__files:
             command.append(f)
@@ -40,7 +40,7 @@ class PtHardBin:
             result = subprocess.call(command)
             logging.debug("Merge process finished with return code %d", result)
         except OSError as e:
-            logging.error("Failed spawning merge process")
+            logging.error("Failed spawning merge process: %s", e)
 
 class Workqueue:
 
