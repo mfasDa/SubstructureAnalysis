@@ -84,8 +84,8 @@ std::map<int, TH1 *> getRawSpectra(const std::string_view datafile, const std::s
         auto mbspectrum = getSpectrumAndNorm(*datareader, radius, "INT7", "ANY", sysvar),
              ej1spectrum = getSpectrumAndNorm(*datareader, radius, "EJ1", "CENTNOTRD", (TMath::Abs(radius-0.4) < 1e-12 && datafile.find("ref") != std::string::npos) ? "5" : sysvar),
              ej2spectrum = getSpectrumAndNorm(*datareader, radius, "EJ2", "CENT", sysvar);
-        auto trgeffej1 = makeTriggerEfficiency(*mcreader, radius, "EJ1", sysvar),
-             trgeffej2 = makeTriggerEfficiency(*mcreader, radius, "EJ2", sysvar);
+        auto trgeffej1 = makeTriggerEfficiency(*mcreader, radius, "EJ1", "t200"),
+             trgeffej2 = makeTriggerEfficiency(*mcreader, radius, "EJ2", "t200");
 
         // apply CENTNOTRD correction
         ej1spectrum.second->Scale(1./centnotrdcorrection);
@@ -107,9 +107,9 @@ std::map<int, TH1 *> getRawSpectra(const std::string_view datafile, const std::s
     return result;
 }
 
-void compareRawlevelSpectraQoverPtShift(const std::string_view fileshift, const std::string_view fileref, const std::string_view mcfile, const std::string_view sysvar){
-    auto rawspectrashift = getRawSpectra(fileshift, mcfile, sysvar),
-         rawspectraref = getRawSpectra(fileref, mcfile, sysvar);
+void compareRawlevelSpectraQoverPtShift(const std::string_view fileshift, const std::string_view fileref, const std::string_view mcfile){
+    auto rawspectrashift = getRawSpectra(fileshift, mcfile, "tc200"),
+         rawspectraref = getRawSpectra(fileref, mcfile, "t200");
     
     auto plot = new ROOT6tools::TSavableCanvas("comparisonQoverPtShift", "Comparison Q/pt shift", 1500, 700);
     plot->Divide(5,2);
