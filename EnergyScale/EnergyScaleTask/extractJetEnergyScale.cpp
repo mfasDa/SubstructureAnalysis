@@ -42,11 +42,11 @@ std::array<double, 6> extractQuantiles(TH1 *slice){
   return result;
 }
 
-std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, const std::string_view jettype, double r){
+std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, const std::string_view jettype, const std::string_view tag, double r){
   TGraphErrors *mean = new TGraphErrors, *median = new TGraphErrors, *width = new TGraphErrors;
-  reader.cd(Form("EnergyScaleResults_%s_R%02d_INT7", jettype.data(), int(r*10.)));
+  reader.cd(Form("EnergyScaleResults_%s_R%02d_INT7_%s", jettype.data(), int(r*10.), tag.data()));
   auto histlist = static_cast<TList *>(static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObj());
-  auto hdiffRaw = static_cast<THnSparse *>(histlist->FindObject("hPtDiff"));
+  auto hdiffRaw = static_cast<THnSparse *>(histlist->FindObject("hEnergyScale"));
   // Make NEF cut
   hdiffRaw->GetAxis(1)->SetRangeUser(0., 0.98);
   auto h2d = std::unique_ptr<TH2>(hdiffRaw->Projection(2,0));
@@ -69,7 +69,7 @@ std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, const std::
   return result;
 }
 
-void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.root", const std::string_view jettype = "FullJet"){
+void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.root", const std::string_view jettype = "FullJet", const std::string_view tag = "tc200"){
   auto plot = new TCanvas("energyscaleplot", "Energy scale", 1200,  600);
   plot->Divide(3,1);
 
@@ -109,7 +109,7 @@ void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.ro
   std::array<std::string, 3> observables = {{"mean", "median", "width"}};
   std::map<double, Style> radii = {{0.2, {kRed, 24}}, {0.3, {kBlue, 25}}, {0.4, {kGreen, 26}}, {0.5, {kViolet, 27}}};
   for(const auto r : radii){
-    auto enscale = getEnergyScaleForRadius(*reader, jettype, r.first);
+    auto enscale = getEnergyScaleForRadius(*reader, jettype, tag, r.first);
 
     for(auto i : ROOT::TSeqI(0,3)){
       plot->cd(i+1);

@@ -20,6 +20,11 @@ std::vector<double> getJetPtBinningNonLinSmearPoor(){
   return binning.CreateCombinedBinning();
 }
 
+std::vector<double> getJetPtBinningNonLinSmearCharged(){
+  binninghelper binning(5., {{10., 1.}, {20., 2.}, {30., 5.}, {60., 10.}, {120., 20.}, {160, 40.}});
+  return binning.CreateCombinedBinning();
+}
+
 std::vector<double> getJetPtBinningNonLinSmear(){
   binninghelper binning(10., {{40., 2}, {60., 5.}, {120., 10.}, {140., 20.}});
   return binning.CreateCombinedBinning();
