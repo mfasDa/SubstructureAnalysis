@@ -7,11 +7,14 @@ import getpass
 import hashlib
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
 import threading
 import zipfile
+
+isjalien = shutil.which("alien.py") is not None
 
 class AlienToken(object):
 
@@ -138,7 +141,8 @@ class AlienTool:
         errorstate = True
         while errorstate:
             errorstate = False
-            gbout = subprocess.getstatusoutput("gbbox md5sum %s" %gridfile)[1]
+            md5cmd = "alien.py md5sum" if isjalien else "gbbox md5sum"
+            gbout = subprocess.getstatusoutput("%s %s" %(md5cmd, gridfile))[1]
             if gbout.startswith("Error") or gbout.startswith("Warning") or "CheckErrorStatus" in gbout:
                 errorstate = True
         return gbout.split('\t')[0]
@@ -160,7 +164,10 @@ class AlienTool:
         if not os.path.exists(os.path.dirname(outputfile)):
             os.makedirs(os.path.dirname(outputfile), 0o755)
         self.__lock.release()
-        subprocess.call(['alien_cp', 'alien://%s'%inputfile, outputfile])
+        if isjalien:
+            subprocess.call(['alien_cp', inputfile, 'file://%s' %outputfile])
+        else:
+            subprocess.call(['alien_cp', 'alien://%s'%inputfile, outputfile])
         # make check
         if os.path.exists(outputfile):
             localmd5 = self.md5(outputfile)
@@ -183,7 +190,8 @@ class AlienTool:
         # request ends in error state it should retry
         errorstate = True
         while errorstate:
-            dirs = subprocess.getstatusoutput("alien_ls %s" %inputdir)[1]
+            lscmd = "alien.py ls" if isjalien else "alien_ls" 
+            dirs = subprocess.getstatusoutput("%s %s" %(lscmd, inputdir))[1]
             errorstate = False
             result = []
             for d in dirs.split("\n"):
@@ -198,7 +206,8 @@ class AlienTool:
             return result
     
     def pathexists(self, inputpath):
-        lsresult = subprocess.getstatusoutput("alien_ls %s" %inputpath)
+        lscmd = "alien.py ls" if isjalien else "alien_ls"
+        lsresult = subprocess.getstatusoutput("%s %s" %(lscmd, inputpath))
         # alien_ls returns 0 in case the path exists and something 
         # larger than 0 if the path does not exist
         if lsresult[0] != 0:
@@ -206,6 +215,8 @@ class AlienTool:
         return True
 
     def fetchtokeninfo(self):
+        if isjalien:
+            return None
         try:
             outstrings = subprocess.check_output("alien-token-info").decode("utf-8").split("\n")
             token = AlienToken()
@@ -253,6 +264,8 @@ class AlienTool:
         return result
     
     def checktoken(self):
+        if isjalien:
+            return true
         token = self.fetchtokeninfo()
         if not token:
             return False
@@ -263,7 +276,8 @@ class AlienTool:
         return True
 
     def renewtoken(self):
-        subprocess.call("alien-token-init %s" %(getpass.getuser()), shell=True)
+        if not isjalien:
+            subprocess.call("alien-token-init %s" %(getpass.getuser()), shell=True)
 
 class Filepair:
   
@@ -523,10 +537,15 @@ class PoolFiller(threading.Thread):
                         self.__wait()
 
 def transfer(sample, trainrun, outputlocation, targetfile, nstream, aod):
+    if isjalien:
+        logging.info("Using JAliEn ...")
+    else:
+        logging.info("Using legacy AliEn ...")
     alientool = AlienTool()
-    if not alientool.handletoken():
-        logging.error("No valid token found. Please execute \"alien-token-init\" first")
-        sys.exit(2)
+    if not isjalien:
+        if not alientool.handletoken():
+            logging.error("No valid token found. Please execute \"alien-token-init\" first")
+            sys.exit(2)
     datapool = DataPool()
 
     poolfiller = PoolFiller(sample, trainrun, outputlocation, targetfile, 1000, aod)
