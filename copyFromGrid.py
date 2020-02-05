@@ -199,6 +199,8 @@ class AlienTool:
                     errorstate = True
                     break
                 mydir = d.rstrip().lstrip()
+                if mydir.endswith("/"):
+                    mydir = mydir.rstrip("/")
                 if len(mydir):
                     result.append(mydir)
             if errorstate:
@@ -464,7 +466,12 @@ class PoolFiller(threading.Thread):
         return self.__trainrun[0:self.__trainrun.rfind("/")]
 
     def __extract_trainid(self, directory):
-        return int(directory.split("_")[0])
+        trainid = -1
+        try:
+            trainid = int(directory.split("_")[0])
+        except ValueError:
+            logging.error("Not a train directory: %s", directory)
+        return trainid
 
     def __exist_traindir(self, legotrain, rundir):
         pwg = legotrain[0:legotrain.find("/")]
