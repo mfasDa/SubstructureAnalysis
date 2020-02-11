@@ -26,18 +26,18 @@ void compareSubstructureTriggers(const char *observable = "Zg", const char *file
         reader->cd(rstring.data());
 
         std::map<std::string, TH2 *> rawcorrected;
-        for(auto trg : triggers) rawcorrected[trg] = static_cast<TH2 *>(gDirectory->Get(Form("hZgVsPt%sCorrected", trg.data())));
+        for(auto trg : triggers) rawcorrected[trg] = static_cast<TH2 *>(gDirectory->Get(Form("h%sVsPt%sCorrected", observable, trg.data())));
         auto ptaxis = rawcorrected["INT7"]->GetYaxis();
 
         int iplot = 0, ipanel = 1;
-        auto currentplot = new TCanvas(Form("ComparisonTriggers%s%d", rstring.data(), iplot), Form("Comparison triggers for %s (%d)", rtitle.data(), iplot), 1200, 800);
+        auto currentplot = new TCanvas(Form("ComparisonTriggers%s%s%d", observable, rstring.data(), iplot), Form("Comparison triggers for %s for %s (%d)", obstitle.data(), rtitle.data(), iplot), 1200, 800);
         currentplot->Divide(5,2);
         for(auto ipt : ROOT::TSeqI(0, ptaxis->GetNbins())) {
             if(ipanel == 11) {
                 for(auto ft : filetype) currentplot->SaveAs(Form("%s.%s", currentplot->GetName(), ft.data()));
                 iplot++;
                 ipanel = 1;
-                currentplot = new TCanvas(Form("ComparisonTriggers%s%d", rstring.data(), iplot), Form("Comparison triggers for %s (%d)", rtitle.data(), iplot), 1200, 800);
+                currentplot = new TCanvas(Form("ComparisonTriggers%s%s%d", observable, rstring.data(), iplot), Form("Comparison triggers for %s for %s (%d)", obstitle.data(), rtitle.data(), iplot), 1200, 800);
                 currentplot->Divide(5,2);
             }
             currentplot->cd(ipanel);
@@ -76,5 +76,6 @@ void compareSubstructureTriggers(const char *observable = "Zg", const char *file
 
             ipanel++;
         }
+        for(auto ft : filetype) currentplot->SaveAs(Form("%s.%s", currentplot->GetName(), ft.data()));
     }
 }
