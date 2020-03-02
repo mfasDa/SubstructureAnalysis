@@ -10,7 +10,10 @@ std::map<std::string, Color_t> colors = {{"v1", kRed}, {"v2", kGreen}, {"v3", kB
 std::map<std::string, Style_t> markers = {{"v1", 24}, {"v2", 25}, {"v3", 26}, {"v4", 27}, {"v5", 28}, {"v6", 29}, {"v7", 30}, {"v8", 31}};
 
 void compareTriggerEfficiencies(const char *filename = "AnalysisResults.root"){
-    std::unique_ptr<TFile> reader(TFile::Open(filename, "READ"));
+    std::unique_ptr<TFile> reader(TFile::Open(filename, "READ")),
+                           writer(TFile::Open("TriggerEfficiencies.root", "RECREATE"));
+    writer->mkdir("EJ1");
+    writer->mkdir("EJ2");
 
     std::map<std::string, ROOT6tools::TSavableCanvas *> trgcanvas;
     for(auto trg : emcaltriggers) {
@@ -50,7 +53,7 @@ void compareTriggerEfficiencies(const char *filename = "AnalysisResults.root"){
                 leg->SetNColumns(2);
                 leg->Draw();
             }
-            plot->cd(icol+5);
+            plot->cd(icol+6);
             (new ROOT6tools::TAxisFrame(Form("FrameEff%s", rstring.data()), "p_{t,jet} (GeV/c)", "Variation / Default", 0., 200., 0., 1.5))->Draw("axis");
             plot->cd(icol+1);
 
@@ -64,6 +67,8 @@ void compareTriggerEfficiencies(const char *filename = "AnalysisResults.root"){
             style(kBlack, 20)(effdefault);
             effdefault->Draw("epsame");
             if(leg) leg->AddEntry(effdefault, Form("Default: %.1f GeV", trgvar["default"]), "lep");
+
+            std::map<std::string, TH1 *> outputEfficiencies = {{"default", effdefault}};
 
             for (auto var : ROOT::TSeqI(1, 9)) {
                 std::string varstring(Form("v%d", var));
@@ -79,11 +84,22 @@ void compareTriggerEfficiencies(const char *filename = "AnalysisResults.root"){
                 effvar->Draw("epsame");
                 if(leg) leg->AddEntry(effvar, Form("%s: %.1f GeV", varstring.data(), trgvar[varstring]), "lep");
 
-                plot->cd(icol+5);
+                plot->cd(icol+6);
                 auto ratioDefault = static_cast<TH1 *>(effvar->Clone(Form("Ratio_%s_%s", effvar->GetName(), effdefault->GetName())));
                 ratioDefault->SetDirectory(nullptr);
                 ratioDefault->Divide(effdefault);
                 ratioDefault->Draw("epsame");
+
+                std::string tag(Form("%d", int(trgvar[varstring] * 10.)));
+                outputEfficiencies[tag] = effvar; 
+            }
+
+            writer->cd(trg.data());
+            gDirectory->mkdir(rstring.data());
+            gDirectory->cd(rstring.data());
+            for(auto [tag, eff] : outputEfficiencies) {
+                eff->SetName(Form("TriggerEfficiency_%s_%s_%s", trg.data(), rstring.data(), tag.data()));
+                eff->Write();
             }
         }
         icol++; 
