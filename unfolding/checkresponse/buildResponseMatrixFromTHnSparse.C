@@ -129,7 +129,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
             std::cout << observable << " done ..." << std::endl;
         }
         objects[R] = outputobjects;
-        objects[R] = cobjects;
+        closureobjects[R] = cobjects;
     }
 
     std::unique_ptr<TFile> writer(TFile::Open("responsematrix.root", "RECREATE"));
