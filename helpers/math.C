@@ -1,13 +1,8 @@
 #ifndef __MATH_C__
 #define __MATH_C__
 
-#ifndef __CLING__
-#include <vector>
-#include <ROOT/TSeq.hxx>
-#include <TH1.h>
-#include <TMath.h>
-#endif
-
+#include "../meta/stl.C"
+#include "../meta/root.C"
 #include "root.C"
 
 int getDigits(int number) {
