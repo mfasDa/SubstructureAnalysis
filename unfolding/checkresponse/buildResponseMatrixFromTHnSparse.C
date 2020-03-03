@@ -1,6 +1,7 @@
 #include "../../meta/stl.C"
 #include "../../meta/root.C"
 #include "../../meta/roounfold.C"
+#include "../../helpers/math.C"
 
 RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning) {
     std::vector<double> detobsbinning, partobsbinning;
@@ -26,6 +27,15 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
                              weight);
     }
     return resultresponse;
+}
+
+TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning) {
+    auto partaxis = inputspectrum->GetXaxis();
+    std::vector<double> partobsbinning;
+    partobsbinning.emplace_back(partaxis->GetBinLowEdge(1)); 
+    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
+    
+    return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
 }
 
 TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax) {
@@ -69,12 +79,13 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
 
     std::vector<std::string> observables = {"Zg", "Rg", "Nsd", "Thetag"};
     std::map<int, TObjArray> objects;
+    std::map<int, TObjArray> closureobjects;
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::cout << "Doing jet radius R=" << (double(R)/10.) << std::endl;
         reader->cd(Form("SoftDropResponse_FullJets_R%02d_INT7", R));
         auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
-        TObjArray outputobjects;
+        TObjArray outputobjects, cobjects;
         for(auto observable : observables) {
             std::cout << "Next observable " << observable << std::endl;
             THnSparse* responsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseSparse", observable.data())));           
@@ -90,8 +101,35 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
             effKine->SetNameTitle(Form("EffKine%s_R%02d", observable.data(), R), Form("Kinematic efficiency for %s for R=%.1f", observable.data(), double(R)/10.));
             outputobjects.Add(responsematrix);
             outputobjects.Add(effKine);
+
+            // Creating objects for the closure test
+            auto closureresponsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseClosureSparse", observable.data())));
+            std::cout << "Extracting closure response matrix for observable " << observable << std::endl;
+            if(!closureresponsedata) {
+                std::cerr << "Did not find closure response matrix sparse for observable " << observable << std::endl;
+                histlist->ls();
+            }
+            auto closureresponsematrix = makeResponse(closureresponsedata, detptbinning, partptbinning);
+            closureresponsematrix->SetNameTitle(Form("ResponsematrixClosure%s_R%02d", observable.data(), R), Form("Response matrix for closure test for %s for R=%.1f", observable.data(), double(R)/10.));
+            std::cout << "Extracting closure kinematic efficiency for observable " << observable << std::endl;
+            auto closureeffkine = extractKinematicEfficiency(closureresponsedata, partptbinning, *detptbinning.begin(), *detptbinning.rbegin());
+            closureeffkine->SetNameTitle(Form("EffKineClosure%s_R%02d", observable.data(), R), Form("Kinematic efficiency for %s for R=%.1f", observable.data(), double(R)/10.));
+            std::cout << "Extracting det. level spectrum and true spectrum (opposite sample)" << std::endl;
+            auto closuretruth = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sPartLevelClosureNoRespFine", observable.data()))), partptbinning),
+                 closuredet = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sDetLevelClosureNoRespFine", observable.data()))), detptbinning);
+            closuretruth->SetDirectory(nullptr);
+            closuredet->SetDirectory(nullptr);
+            closuretruth->SetNameTitle(Form("closuretruth%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f", observable.data(), double(R)/10.));
+            closuredet->SetNameTitle(Form("closuredet%s_R%02d", observable.data(), R), Form("Det. level input spectrum for closure test for %s for R=%.1f", observable.data(), double(R)/10.));
+
+            cobjects.Add(closureresponsematrix);
+            cobjects.Add(closureeffkine);
+            cobjects.Add(closuretruth);
+            cobjects.Add(closuredet);
+            std::cout << observable << " done ..." << std::endl;
         }
         objects[R] = outputobjects;
+        objects[R] = cobjects;
     }
 
     std::unique_ptr<TFile> writer(TFile::Open("responsematrix.root", "RECREATE"));
@@ -99,8 +137,15 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
         std::string outputdir = Form("Response_R%02d", R);
         writer->mkdir(outputdir.data());
         writer->cd(outputdir.data());
+        auto workdir =  gDirectory;
+        workdir->mkdir("response");
+        workdir->cd("response");
         auto histos = objects[R];
         for(auto o : histos) o->Write();
+        workdir->mkdir("closuretest");
+        workdir->cd("closuretest");
+        auto closurehistos = closureobjects[R];
+        for(auto o : closurehistos) o->Write();
     }
     
 }
