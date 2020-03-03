@@ -25,12 +25,14 @@ TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, doubl
     return result;
 }
 
-void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, const char *observable){
+void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse){
     std::unique_ptr<TFile> datareader(TFile::Open(filedata, "READ")),
                            responsereader(TFile::Open(fileresponse, "READ")),
-                           outputwriter(TFile::Open(Form("Unfolded_%s.root", observable), "RECREATE"));
+                           outputwriter(TFile::Open("UnfoldedSD.root", "RECREATE"));
     std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"};
+    std::vector<std::string> observables = {"Zg", "Rg", "Nsd", "Thetag"};
     const double kMinPtEJ2 = 60., kMinPtEJ1 = 100.;
+    for(auto observable : observables) outputwriter->mkdir(observable.data());
 
     RooUnfold::ErrorTreatment errtreatment = RooUnfold::kCovToy;
 
@@ -41,70 +43,122 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
     for(auto R : ROOT::TSeqI(2, 7)){
         std::string rstring = Form("R%02d", R),
                     rtitle = Form("R = %.1f", double(R)/10.);
+        std::cout << "Processing " << rtitle << std::endl;
         datareader->cd(rstring.data());
-        std::map<std::string, TH2 *> rawtriggers;
-        for(const auto &t : triggers) {
-            auto hist = static_cast<TH2 *>(gDirectory->Get(Form("h%sVsPt%sCorrected", observable, t.data())));
-            hist->SetDirectory(nullptr);
-            rawtriggers[t] = hist;
-        }
-        auto rawcombined = makeCombinedTriggers(rawtriggers, kMinPtEJ2, kMinPtEJ1, observable);
-
+        auto datadirectory = gDirectory;
         responsereader->cd(Form("Response_%s", rstring.data()));
-        auto responsematrix = static_cast<RooUnfoldResponse *>(gDirectory->Get(Form("Responsematrix%s_%s", observable, rstring.data())));
-        auto effKine = static_cast<TH2 *>(gDirectory->Get(Form("EffKine%s_%s", observable, rstring.data())));
-        effKine->SetDirectory(nullptr);
-        
-        std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists;
+        auto responsedirectory = gDirectory;
+        for(auto observable : observables){
+            if(observable == "Rg") {
+                std::cout << "Skipping Rg (for the moment) ..." << std::endl;
+                continue;
+            }
+            std::cout << "Unfolding observable " << observable << " ... " << std::endl;
+            std::map<std::string, TH2 *> rawtriggers;
+            for(const auto &t : triggers) {
+                auto hist = static_cast<TH2 *>(datadirectory->Get(Form("h%sVsPt%sCorrected", observable.data(), t.data())));
+                hist->SetDirectory(nullptr);
+                rawtriggers[t] = hist;
+            }
+            auto rawcombined = makeCombinedTriggers(rawtriggers, kMinPtEJ2, kMinPtEJ1, observable.data());
 
-        for(auto iter : ROOT::TSeqI(1, 31)) {
-            std::cout << "Iteration " << iter << std::endl;
-            RooUnfoldBayes unfolder(responsematrix, rawcombined, iter);
-            auto unfolded = static_cast<TH2 *>(unfolder.Hreco(errtreatment));
-            unfolded->SetNameTitle(Form("unfoldedIter%d_%s_%s", iter, observable, rstring.data()), Form("Unfolded distribution for %s for %s (iteration %d)", observable, rtitle.data(), iter));
-            unfoldedHists.push_back(unfolded);
+            responsedirectory->cd("response");
+            auto responsematrix = static_cast<RooUnfoldResponse *>(gDirectory->Get(Form("Responsematrix%s_%s", observable.data(), rstring.data())));
+            auto effKine = static_cast<TH2 *>(gDirectory->Get(Form("EffKine%s_%s", observable.data(), rstring.data())));
+            effKine->SetDirectory(nullptr);
 
-            // back-folding test
-            auto refolded = Refold(rawcombined, unfolded, *responsematrix);
-            refolded->SetDirectory(nullptr);
-            refolded->SetNameTitle(Form("refoldedIter%d_%s_%s", iter, observable, rstring.data()), Form("Re-folded distribution for %s for %s (iteration %d)", observable, rtitle.data(), iter));
-            refoldedHists.push_back(refolded);
+            // get stuff for closure test
+            responsedirectory->cd("closuretest");
+            auto responsematrixClosure = static_cast<RooUnfoldResponse *>(gDirectory->Get(Form("ResponsematrixClosure%s_%s", observable.data(), rstring.data())));
+            auto effKineClosure = static_cast<TH2 *>(gDirectory->Get(Form("EffKineClosure%s_%s", observable.data(), rstring.data())));
+            effKine->SetDirectory(nullptr);
+            auto detLevelClosure = static_cast<TH2 *>(gDirectory->Get(Form("closuredet%s_%s", observable.data(), rstring.data()))),
+                 partLevelClosure = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", observable.data(), rstring.data())));
+            detLevelClosure->SetDirectory(nullptr);
+            partLevelClosure->SetDirectory(nullptr);
 
-            // efficiency correction
-            auto corrected = static_cast<TH2 *>(unfolded->Clone());
-            corrected->SetDirectory(nullptr);
-            corrected->SetNameTitle(Form("correctedIter%d_%s_%s", iter, observable, rstring.data()), Form("Corrected distribution for %s for %s (iteration %d)", observable, rtitle.data(), iter));
-            corrected->Divide(effKine);
-            correctedHists.push_back(corrected);
-        }
+            std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists,
+                               unfoldedHistsClosure, refoldedHistsClosure, correctedHistsClosure;
 
-        // Write to file
-        outputwriter->mkdir(rstring.data());
-        outputwriter->cd(rstring.data());
-        auto routbase = gDirectory;
+            for(auto iter : ROOT::TSeqI(1, 31)) {
+                std::cout << "Iteration " << iter << std::endl;
+                RooUnfoldBayes unfolder(responsematrix, rawcombined, iter);
+                auto unfolded = static_cast<TH2 *>(unfolder.Hreco(errtreatment));
+                unfolded->SetNameTitle(Form("unfoldedIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Unfolded distribution for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                unfoldedHists.push_back(unfolded);
+   
+                // back-folding test
+                auto refolded = Refold(rawcombined, unfolded, *responsematrix);
+                refolded->SetDirectory(nullptr);
+                refolded->SetNameTitle(Form("refoldedIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Re-folded distribution for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                refoldedHists.push_back(refolded);
 
-        routbase->mkdir("rawlevel");
-        routbase->cd("rawlevel");
-        for(auto t : triggers) {
-            auto triggerhist = rawtriggers[t];
-            triggerhist->SetNameTitle(Form("rawlevel%s_%s_%s", observable, rstring.data(), t.data()), Form("Raw %s distribution for %s, trigger %s", observable, rtitle.data(), t.data()));
-            triggerhist->Write();
-        }
-        rawcombined->SetNameTitle(Form("rawlevel%s_%s_combined", observable, rstring.data()), Form("Raw %s distribution for %s, all triggers", observable, rtitle.data()));
-        rawcombined->Write();
+                // efficiency correction
+                auto corrected = static_cast<TH2 *>(unfolded->Clone());
+                corrected->SetDirectory(nullptr);
+                corrected->SetNameTitle(Form("correctedIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                corrected->Divide(effKine);
+                correctedHists.push_back(corrected);
 
-        routbase->mkdir("response");
-        responsematrix->Write();
-        effKine->Write();
+                // MC closure test
+                RooUnfoldBayes unfolderClosure(responsematrixClosure, detLevelClosure, iter);
+                auto unfoldedClosure = static_cast<TH2 *>(unfolderClosure.Hreco(errtreatment));
+                unfoldedClosure->SetNameTitle(Form("unfoldedClosureIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Unfolded distribution of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                unfoldedHistsClosure.push_back(unfoldedClosure);
+   
+                // back-folding test
+                auto refoldedClosure = Refold(detLevelClosure, unfoldedClosure, *responsematrixClosure);
+                refoldedClosure->SetDirectory(nullptr);
+                refoldedClosure->SetNameTitle(Form("refoldedClosureIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Re-folded distribution of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                refoldedHistsClosure.push_back(refoldedClosure);
 
-        for(auto iter : ROOT::TSeqI(1, 31)) {
-            std::string iterdir = Form("Iter%d", iter);
-            routbase->mkdir(iterdir.data());
-            routbase->cd(iterdir.data());
-            auto histfinder = create_histfinder(iter);
-            (*std::find_if(unfoldedHists.begin(), unfoldedHists.end(), histfinder))->Write();
-            (*std::find_if(refoldedHists.begin(), refoldedHists.end(), histfinder))->Write();
-            (*std::find_if(correctedHists.begin(), correctedHists.end(), histfinder))->Write();
+                // efficiency correction
+                auto correctedClosure = static_cast<TH2 *>(unfoldedClosure->Clone());
+                correctedClosure->SetDirectory(nullptr);
+                correctedClosure->SetNameTitle(Form("correctedClosureIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                correctedClosure->Divide(effKineClosure);
+                correctedHistsClosure.push_back(correctedClosure);
+            }
+
+            // Write to file
+            outputwriter->cd(observable.data());
+            auto obsdir = gDirectory;
+            obsdir->mkdir(rstring.data());
+            obsdir->cd(rstring.data());
+            auto routbase = gDirectory;
+
+            routbase->mkdir("rawlevel");
+            routbase->cd("rawlevel");
+            for(auto t : triggers) {
+                auto triggerhist = rawtriggers[t];
+                triggerhist->SetNameTitle(Form("rawlevel%s_%s_%s", observable.data(), rstring.data(), t.data()), Form("Raw %s distribution for %s, trigger %s", observable.data(), rtitle.data(), t.data()));
+                triggerhist->Write();
+            }
+            rawcombined->SetNameTitle(Form("rawlevel%s_%s_combined", observable.data(), rstring.data()), Form("Raw %s distribution for %s, all triggers", observable.data(), rtitle.data()));
+            rawcombined->Write();
+
+            routbase->mkdir("response");
+            responsematrix->Write();
+            effKine->Write();
+
+            routbase->mkdir("closuretest");
+            responsematrixClosure->Write();
+            effKineClosure->Write();
+            detLevelClosure->Write();
+            partLevelClosure->Write();
+
+            for(auto iter : ROOT::TSeqI(1, 31)) {
+                std::string iterdir = Form("Iter%d", iter);
+                routbase->mkdir(iterdir.data());
+                routbase->cd(iterdir.data());
+                auto histfinder = create_histfinder(iter);
+                (*std::find_if(unfoldedHists.begin(), unfoldedHists.end(), histfinder))->Write();
+                (*std::find_if(refoldedHists.begin(), refoldedHists.end(), histfinder))->Write();
+                (*std::find_if(correctedHists.begin(), correctedHists.end(), histfinder))->Write();
+                (*std::find_if(unfoldedHistsClosure.begin(), unfoldedHistsClosure.end(), histfinder))->Write();
+                (*std::find_if(refoldedHistsClosure.begin(), refoldedHistsClosure.end(), histfinder))->Write();
+                (*std::find_if(correctedHistsClosure.begin(), correctedHistsClosure.end(), histfinder))->Write();
+            }
         }
     }
 }
