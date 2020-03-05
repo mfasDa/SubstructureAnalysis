@@ -99,6 +99,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
                     slice->Scale(effval);
                     for(auto iobs : ROOT::TSeqI(0, resulthist->GetXaxis()->GetNbins())) { 
                         resulthist->SetBinContent(iobs+1, ipt+1, slice->GetBinContent(iobs+1));
+                        resulthist->SetBinError(iobs+1, ipt+1, slice->GetBinError(iobs+1));
                     }
                 }
 
