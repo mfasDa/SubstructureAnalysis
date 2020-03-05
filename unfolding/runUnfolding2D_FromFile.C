@@ -138,10 +138,12 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse){
             rawcombined->Write();
 
             routbase->mkdir("response");
+            routbase->cd("response");
             responsematrix->Write();
             effKine->Write();
 
             routbase->mkdir("closuretest");
+            routbase->cd("closuretest");
             responsematrixClosure->Write();
             effKineClosure->Write();
             detLevelClosure->Write();
