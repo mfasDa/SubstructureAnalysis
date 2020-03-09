@@ -25,14 +25,30 @@ TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, doubl
     return result;
 }
 
-void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse){
+void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, const char *observablename = "all", const char *jetrstring = "all"){
+    std::stringstream outfilename;
+    outfilename << "UnfoldedSD";
+    if(std::string_view(observablename) != std::string_view("all")) outfilename << "_" << observablename;
+    if(std::string_view(jetrstring) != std::string_view("all")) outfilename << "_" << rstring;
+    outfilename << ".root";
     std::unique_ptr<TFile> datareader(TFile::Open(filedata, "READ")),
                            responsereader(TFile::Open(fileresponse, "READ")),
                            outputwriter(TFile::Open("UnfoldedSD.root", "RECREATE"));
-    std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"};
-    std::vector<std::string> observables = {"Zg", "Rg", "Nsd", "Thetag"};
+    std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"},
+                             observablesAll = {"Zg", "Rg", "Nsd", "Thetag"},
+                             observablesSelected;
+    if(std::string_view(observablename) == "all") observablesSelected = observablesAll;
+    else observablesSelected.push_back(observablename);
+    std::vector<int> rvalues;
+    if(std::string_view(jetrstring) == "all"){
+        for(auto R : ROOT::TSeqI(2, 7)) rvalues.push_back(R);
+    } else {
+        std::string rstr(jetrstring);
+        auto rval = std::stoi(rstr.substring(1));
+        rvalues.push_back(rval);
+    }
     const double kMinPtEJ2 = 60., kMinPtEJ1 = 100.;
-    for(auto observable : observables) outputwriter->mkdir(observable.data());
+    for(auto observable : observablesSelected) outputwriter->mkdir(observable.data());
 
     RooUnfold::ErrorTreatment errtreatment = RooUnfold::kCovToy;
 
@@ -40,7 +56,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse){
         return [iter] (const TH2 *hist) { if(std::string_view(hist->GetName()).find(Form("Iter%d", iter)) != std::string::npos) return true; else return false; };
     };
     
-    for(auto R : ROOT::TSeqI(2, 7)){
+    for(auto R : rvalues){
         std::string rstring = Form("R%02d", R),
                     rtitle = Form("R = %.1f", double(R)/10.);
         std::cout << "Processing " << rtitle << std::endl;
@@ -48,11 +64,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse){
         auto datadirectory = gDirectory;
         responsereader->cd(Form("Response_%s", rstring.data()));
         auto responsedirectory = gDirectory;
-        for(auto observable : observables){
-            if(observable == "Rg") {
-                std::cout << "Skipping Rg (for the moment) ..." << std::endl;
-                continue;
-            }
+        for(auto observable : observablesSelected){
             std::cout << "Unfolding observable " << observable << " ... " << std::endl;
             std::map<std::string, TH2 *> rawtriggers;
             for(const auto &t : triggers) {
