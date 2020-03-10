@@ -29,11 +29,11 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
     std::stringstream outfilename;
     outfilename << "UnfoldedSD";
     if(std::string_view(observablename) != std::string_view("all")) outfilename << "_" << observablename;
-    if(std::string_view(jetrstring) != std::string_view("all")) outfilename << "_" << rstring;
+    if(std::string_view(jetrstring) != std::string_view("all")) outfilename << "_" << jetrstring;
     outfilename << ".root";
     std::unique_ptr<TFile> datareader(TFile::Open(filedata, "READ")),
                            responsereader(TFile::Open(fileresponse, "READ")),
-                           outputwriter(TFile::Open("UnfoldedSD.root", "RECREATE"));
+                           outputwriter(TFile::Open(outfilename.str().data(), "RECREATE"));
     std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2"},
                              observablesAll = {"Zg", "Rg", "Nsd", "Thetag"},
                              observablesSelected;
@@ -44,7 +44,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
         for(auto R : ROOT::TSeqI(2, 7)) rvalues.push_back(R);
     } else {
         std::string rstr(jetrstring);
-        auto rval = std::stoi(rstr.substring(1));
+        auto rval = std::stoi(rstr.substr(1));
         rvalues.push_back(rval);
     }
     const double kMinPtEJ2 = 60., kMinPtEJ1 = 100.;

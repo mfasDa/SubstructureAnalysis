@@ -18,7 +18,7 @@ def create_jobscript(workdir, observable, radius, datafile, mcfile):
     with open(jobscriptname, "w") as jobscriptwriter:
         jobscriptwriter.write("#! /bin/bash\n")
         jobscriptwriter.write("#SBATCH -n 1\n")
-        jobscriptwriter.write("#SBATCH -p short\n")
+        jobscriptwriter.write("#SBATCH -p long\n")
         jobscriptwriter.write("#SBATCH -J {}\n".format(jobname))
         jobscriptwriter.write("#SBATCH -o {}\n".format(logfile))
         jobscriptwriter.write("\n")
