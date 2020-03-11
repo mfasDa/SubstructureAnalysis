@@ -30,7 +30,7 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root"){
                         rtitle = Form("R = %.1f", double(R)/10.);
             obsbasedir->cd(rstring.data());
             auto rdir = gDirectory;
-            rdir->cd("rawlevel");
+            rdir->cd("closuretest");
             auto closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", obsname.data(), rstring.data())));
             closuretruth->SetDirectory(nullptr);
             std::map<int, TH2 *> iterations;
