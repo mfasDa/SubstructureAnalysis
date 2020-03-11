@@ -27,6 +27,7 @@ def create_jobscript(workdir, observable, radius, datafile, mcfile):
         jobscriptwriter.write("cd {}\n".format(workdir))
         jobscriptwriter.write("root -l -b -q \'{}(\"{}\", \"{}\", \"{}\", \"{}\")\'\n".format(unfoldingmacro, datafile, mcfile, observable, rstring))
         jobscriptwriter.write("echo \"Done ...\"\n")
+        jobscriptwriter.write("rm -vf {}\n".format(jobscriptname))
         jobscriptwriter.close()
     return jobscriptname
 
