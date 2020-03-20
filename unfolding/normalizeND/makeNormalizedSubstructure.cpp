@@ -4,6 +4,7 @@
 struct TriggerEfficiencyContainer {
     int radius;
     std::map<std::string, TH1 *> triggerefficiencies;
+    std::map<std::string, TH1 *> triggerefficienciesFine;
 };
 
 std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *filemc, std::vector<double> ptbinning) {
@@ -24,10 +25,13 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
             reader->cd(Form("JetSpectrum_FullJets_R%02d_%s_tc200", R, trg.data()));
             histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>(); 
             auto spec2D = static_cast<TH2 *>(histlist->FindObject("hJetSpectrum"));
-            std::unique_ptr<TH1> specTriggerFine(spec2D->ProjectionY(trg.data(), 1, 1));
-            auto efficiency = specTriggerFine->Rebin(ptbinning.size()-1, Form("TriggerEfficiency_%s_R%02d", trg.data(), R), ptbinning.data());
+            auto efficiencyFine = spec2D->ProjectionY(Form("TriggerEfficiencyFine_%s_R%02d", trg.data(), R), 1, 1);
+            efficiencyFine->SetDirectory(nullptr);
+            auto efficiency = efficiencyFine->Rebin(ptbinning.size()-1, Form("TriggerEfficiency_%s_R%02d", trg.data(), R), ptbinning.data());
             efficiency->SetDirectory(nullptr);
+            efficiencyFine->Divide(efficiencyFine, specMBFine.get(), 1., 1., "b");
             efficiency->Divide(efficiency, specMBRebin.get(), 1., 1., "b");
+            cont.triggerefficienciesFine[trg] = efficiencyFine;
             cont.triggerefficiencies[trg] = efficiency;
         }
         result.emplace_back(cont);
@@ -64,7 +68,8 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
                 std::cout << "Applying downscale weight " << weight << " for trigger " << trg << std::endl;
             }
 
-            TH1 *triggereff = nullptr;
+            TH1 *triggereff = nullptr,
+                *triggereffFine = nullptr;
             if(trg != "INT7") {
                 std::cout << "Getting trigger efficiency for trigger " << trg << std::endl;
                 auto cont = std::find_if(triggerefficiencies.begin(), triggerefficiencies.end(), [R](const TriggerEfficiencyContainer &cont) { return cont.radius == R; });
@@ -74,17 +79,45 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
                         std::cout << "Found trigger efficiency for trigger " << trg << " and radius " << double(R)/10. << std::endl;
                         triggereff = effcurve->second;
                     }
+                    auto effcurveFine = cont->triggerefficienciesFine.find(trg);
+                    if(effcurveFine != cont->triggerefficienciesFine.end()) {
+                        std::cout << "Found trigger efficiency (fine) for trigger " << trg << " and radius " << double(R)/10. << std::endl;
+                        triggereffFine = effcurveFine->second;
+                    }
                 }
             }
 
             writer->cd(outdirname.data());
             if(triggereff) triggereff->Write();
+            if(triggereffFine) triggereffFine->Write();
 
             for(auto observable : observables) {
                 auto rawhist = static_cast<TH2 *>(histlist->FindObject(Form("h%sVsPtWeighted", observable.data())));
                 rawhist->SetDirectory(nullptr);
                 rawhist->SetNameTitle(Form("h%sVsPt%sRaw", observable.data(), trg.data()), Form("%s vs. Pt for trigger %s (raw)", observable.data(), trg.data()));
                 rawhist->Scale(weight);
+
+                // Extract 1D projections and trigger efficiencies
+                auto spec1Dnorebin = rawhist->ProjectionY(Form("jetSpectrumNoCorrNoRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()));
+                spec1Dnorebin->SetDirectory(nullptr);
+                spec1Dnorebin->Write();
+                auto spec1Drebin = spec1Dnorebin->Rebin(ptbinning.size() -1, Form("jetSpectrumNoCorrRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()), ptbinning.data());
+                spec1Drebin->SetDirectory(nullptr);
+                spec1Drebin->Write();
+
+                // correct for the trigger efficiencies
+                if(triggereff) {
+                    auto spec1DnorebinCorrected = static_cast<TH1 *>(spec1Dnorebin->Clone(Form("jetSpectrumCorrectedNoRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data())));
+                    spec1DnorebinCorrected->SetDirectory(nullptr);
+                    spec1DnorebinCorrected->Divide(triggereffFine);
+                    spec1DnorebinCorrected->Write();
+                }
+                if(triggereffFine) {
+                    auto spec1DrebinCorrected = static_cast<TH1 *>(spec1Drebin->Clone(Form("jetSpectrumCorrectedRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data())));
+                    spec1DrebinCorrected->SetDirectory(nullptr);
+                    spec1DrebinCorrected->Divide(triggereff);
+                    spec1DrebinCorrected->Write();
+                }
 
                 std::vector<double> obsbinning;
                 obsbinning.emplace_back(rawhist->GetXaxis()->GetBinLowEdge(1));
@@ -95,7 +128,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
 
                 for(auto ipt : ROOT::TSeqI(0, resulthist->GetYaxis()->GetNbins())) {
                     auto effval = triggereff ? 1./triggereff->GetBinContent(ipt+1) : 1.;
-                    std::unique_ptr<TH1> slice(rawhist->ProjectionX("slice", rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinLowEdge(ipt) + kVerySmall), rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinUpEdge(ipt) - kVerySmall)));
+                    std::unique_ptr<TH1> slice(rawhist->ProjectionX("slice", rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinLowEdge(ipt+1) + kVerySmall), rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinUpEdge(ipt+1) - kVerySmall)));
                     slice->Scale(effval);
                     for(auto iobs : ROOT::TSeqI(0, resulthist->GetXaxis()->GetNbins())) { 
                         resulthist->SetBinContent(iobs+1, ipt+1, slice->GetBinContent(iobs+1));
