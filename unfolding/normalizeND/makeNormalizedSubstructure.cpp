@@ -11,6 +11,9 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
     std::unique_ptr<TFile> reader(TFile::Open(filemc, "READ"));
     std::vector<TriggerEfficiencyContainer> result;
     std::vector<std::string> triggers = {"EJ1", "EJ2"};
+    std::vector<double> ptbinningrestricted;
+    double ipt = 0.;
+    while(ipt < 301.) {ptbinningrestricted.emplace_back(ipt); ipt += 1.; }
 
     for(auto R : ROOT::TSeqI(2,7)){
         TriggerEfficiencyContainer cont;
@@ -19,13 +22,13 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
         reader->cd(Form("JetSpectrum_FullJets_R%02d_INT7_tc200", R));
         auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>(); 
         auto specmb2D = static_cast<TH2 *>(histlist->FindObject("hJetSpectrum"));
-        std::unique_ptr<TH1> specMBFine(specmb2D->ProjectionY("INT7", 1, 1)),
+        std::unique_ptr<TH1> specMBFine(specmb2D->ProjectionY("INT7Tmp", 1, 1)->Rebin(ptbinningrestricted.size()-1, "INT7", ptbinningrestricted.data())),
                              specMBRebin(specMBFine->Rebin(ptbinning.size()-1, "INT7rebin", ptbinning.data()));
         for(auto trg : triggers) {
             reader->cd(Form("JetSpectrum_FullJets_R%02d_%s_tc200", R, trg.data()));
             histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>(); 
             auto spec2D = static_cast<TH2 *>(histlist->FindObject("hJetSpectrum"));
-            auto efficiencyFine = spec2D->ProjectionY(Form("TriggerEfficiencyFine_%s_R%02d", trg.data(), R), 1, 1);
+            auto efficiencyFine = spec2D->ProjectionY(Form("TriggerEfficiencyFineTmp_%s_R%02d", trg.data(), R), 1, 1)->Rebin(ptbinningrestricted.size() - 1, Form("TriggerEfficiencyFine_%s_R%02d", trg.data(), R), ptbinningrestricted.data());
             efficiencyFine->SetDirectory(nullptr);
             auto efficiency = efficiencyFine->Rebin(ptbinning.size()-1, Form("TriggerEfficiency_%s_R%02d", trg.data(), R), ptbinning.data());
             efficiency->SetDirectory(nullptr);
@@ -57,7 +60,6 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
         for(auto trg : triggers) {
             reader->cd(Form("SoftDropResponse_FullJets_R%02d_%s", R, trg.data()));
             auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
-            histlist->ls();
             double weight = 1;
             if(trg == "EJ1") {
                 // Scale for the additional cluster luminosity
@@ -103,6 +105,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
                 spec1Dnorebin->Write();
                 auto spec1Drebin = spec1Dnorebin->Rebin(ptbinning.size() -1, Form("jetSpectrumNoCorrRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()), ptbinning.data());
                 spec1Drebin->SetDirectory(nullptr);
+                spec1Drebin->Scale(1., "width");
                 spec1Drebin->Write();
 
                 // correct for the trigger efficiencies
@@ -121,7 +124,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
 
                 std::vector<double> obsbinning;
                 obsbinning.emplace_back(rawhist->GetXaxis()->GetBinLowEdge(1));
-                for(auto bin : ROOT::TSeq(0, rawhist->GetXaxis()->GetNbins())) obsbinning.emplace_back(rawhist->GetXaxis()->GetBinUpEdge(bin+1));
+                for(auto bin : ROOT::TSeqI(0, rawhist->GetXaxis()->GetNbins())) obsbinning.emplace_back(rawhist->GetXaxis()->GetBinUpEdge(bin+1));
 
                 auto resulthist = new TH2D(Form("h%sVsPt%sCorrected", observable.data(), trg.data()), Form("%s vs. Pt for trigger %s (corrected)", observable.data(), trg.data()), obsbinning.size()-1, obsbinning.data(), ptbinning.size()-1, ptbinning.data());
                 resulthist->SetDirectory(nullptr);
