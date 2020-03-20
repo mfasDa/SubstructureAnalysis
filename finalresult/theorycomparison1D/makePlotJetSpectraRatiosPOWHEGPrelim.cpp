@@ -4,17 +4,17 @@
 void makePlotJetSpectraRatiosPOWHEGPrelim(const std::string_view jetspectrafile = "jetspectrumratios.root", const std::string_view powhegfile = "POWHEGv1.root"){
     std::unique_ptr<TFile> jetspectreader(TFile::Open(jetspectrafile.data(), "READ")),
                            powhegreader(TFile::Open(powhegfile.data(), "READ"));
-    Restrictor powhegrange(20, 280);
+    Restrictor powhegrange(40, 280);
     auto plot = new ROOT6tools::TSavableCanvas("crossSectionRatios13TeVPOWHEGprelim", "Cross section ratios 13 TeV", 800, 700);
     plot->cd();
     gPad->SetTicks(1,1);
     gPad->SetLeftMargin(0.15);
     gPad->SetRightMargin(0.05);    
     gPad->SetTopMargin(0.05);
-    auto frame = new ROOT6tools::TAxisFrame("ratioframe", "#it{p}_{T} (GeV/#it{c})", "#frac{d#sigma^{#it{R}=0.2}}{d#it{p}_{T}d#eta} / #frac{d#sigma^{#it{R}=X}}{d#it{p}_{T}d#eta}", 0., 350., 0., 1.4);
+    auto frame = new ROOT6tools::TAxisFrame("ratioframe", "#it{p}_{T} (GeV/#it{c})", "#frac{d^{2}#sigma^{#it{R}=0.2}}{d#it{p}_{T}d#eta} / #frac{d^{2}#sigma^{#it{R}=X}}{d#it{p}_{T}d#eta}", 0., 350., 0., 1.4);
     frame->Draw("axis");
     auto prelimlabel = new ROOT6tools::TNDCLabel(0.19, 0.72, 0.74, 0.93, "ALICE preliminary");
-    prelimlabel->AddText("pp, #sqrt{s} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
+    prelimlabel->AddText("pp, #sqrt{#it{s}} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
     prelimlabel->AddText("Jets, Anti-#it{k}_{T}");
     prelimlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV");
     prelimlabel->AddText("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - #it{R}");

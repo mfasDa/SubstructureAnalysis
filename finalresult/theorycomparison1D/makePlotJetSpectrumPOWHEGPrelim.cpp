@@ -26,7 +26,7 @@ TGraphAsymmErrors *makeRelSys(const TGraphAsymmErrors *in) {
 }
 
 void makePlotJetSpectrumPOWHEGPrelim(int R = 2, const std::string_view spectrumfile = "jetspectrum.root" , const std::string_view powhegfile = "POWHEGv1.root") {
-    Restrictor powhegrange(20., 280);
+    Restrictor powhegrange(40., 280);
     std::unique_ptr<TFile> jetspectreader(TFile::Open(spectrumfile.data(), "READ")),
                            powhegreader(TFile::Open(powhegfile.data(), "READ"));
                             
@@ -46,13 +46,13 @@ void makePlotJetSpectrumPOWHEGPrelim(int R = 2, const std::string_view spectrumf
     gPad->SetTopMargin(0.05);
 
     double ysizespec = 0.045;
-    auto specframe = new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/#it{c})", "#frac{d#sigma}{d#it{p}_{T}d#eta} (mb/(GeV/#it{c}))", 0., 350., 5e-9, 1);
+    auto specframe = new ROOT6tools::TAxisFrame("specframe", "p_{t} (GeV/#it{c})", "#frac{d^{2}#sigma}{d#it{p}_{T}d#eta} (mb/(GeV/#it{c}))", 0., 350., 5e-9, 1);
     specframe->GetYaxis()->SetTitleSize(ysizespec);
     specframe->GetYaxis()->SetLabelSize(ysizespec);
     specframe->Draw("axis");
 
     auto prelimlabel = new ROOT6tools::TNDCLabel(0.39, 0.72, 0.94, 0.92, "ALICE preliminary");
-    prelimlabel->AddText("pp, #sqrt{s} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
+    prelimlabel->AddText("pp, #sqrt{#it{s}} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
     prelimlabel->AddText(Form("Jets, Anti-#it{k}_{T}, %s", rtitle.data()));
     prelimlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV");
     prelimlabel->AddText(Form("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < %.1f", 0.7 - double(R)/10.));

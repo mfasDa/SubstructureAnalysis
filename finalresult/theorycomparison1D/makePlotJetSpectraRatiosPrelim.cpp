@@ -8,10 +8,10 @@ void makePlotJetSpectraRatiosPrelim(const std::string_view jetspectrafile = "jet
     gPad->SetLeftMargin(0.15);
     gPad->SetRightMargin(0.05);    
     gPad->SetTopMargin(0.05);
-    auto frame = new ROOT6tools::TAxisFrame("ratioframe", "#it{p}_{T} (GeV/#it{c})", "#frac{d#sigma^{#it{R}=0.2}}{d#it{p}_{T}d#eta} / #frac{d#sigma^{#it{R}=X}}{d#it{p}_{T}d#eta}", 0., 350., 0., 1.4);
+    auto frame = new ROOT6tools::TAxisFrame("ratioframe", "#it{p}_{T} (GeV/#it{c})", "#frac{d^{2}#sigma^{#it{R}=0.2}}{d#it{p}_{T}d#eta} / #frac{d^{2}#sigma^{#it{R}=X}}{d#it{p}_{T}d#eta}", 0., 350., 0., 1.4);
     frame->Draw("axis");
     auto prelimlabel = new ROOT6tools::TNDCLabel(0.19, 0.72, 0.74, 0.93, "ALICE preliminary");
-    prelimlabel->AddText("pp, #sqrt{s} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
+    prelimlabel->AddText("pp, #sqrt{#it{s}} = 13 TeV, #it{L}_{int} = 4 pb^{-1}");
     prelimlabel->AddText("Jets, Anti-#it{k}_{T}");
     prelimlabel->AddText("#it{p}_{T}^{track} > 0.15 GeV/#it{c}, #it{E}^{cluster} > 0.3 GeV");
     prelimlabel->AddText("|#eta^{track}| < 0.7, |#eta^{cluster}| < 0.7, |#eta^{jet}| < 0.7 - #it{R}");

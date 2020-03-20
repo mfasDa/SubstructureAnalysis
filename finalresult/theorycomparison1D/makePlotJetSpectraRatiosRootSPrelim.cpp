@@ -84,14 +84,22 @@ void makePlotJetSpectraRatiosRootSPrelim(const std::string_view jetspectrafile =
     line->SetLineStyle(2);
     line->Draw();
 
-    auto spec502 = makeRatioElianeR02R04();
+    std::unique_ptr<TFile> reader502(TFile::Open("ratios502.root", "read"));
+    //auto spec502 = makeRatioElianeR02R04();
+    auto spec502 = static_cast<TH1*>(reader502->Get("stat_R02R04"));
+    spec502->SetDirectory(nullptr);
     Style{kGreen+2, 21}.SetStyle<TH1>(*spec502);
     spec502->Draw("epsame");
-    auto err502 = makeErrorRatioElianeR02R04();
-    err502->SetFillColor(kGreen-8);
-    err502->SetFillStyle(3001);
-    err502->Draw("e2same");
-    rlegend->AddEntry(spec502, "pp, #sqrt{s} = 5.02 TeV", "lep");
+    //auto errCorr502 = makeErrorRatioElianeR02R04();
+    auto errCorr502 = static_cast<TGraphAsymmErrors*>(reader502->Get("correlatedUncertainty_R02R04"));
+    errCorr502->SetFillColor(kGreen+2);
+    errCorr502->SetFillStyle(0);
+    errCorr502->Draw("e2same");
+    auto errShape502 = static_cast<TGraphAsymmErrors*>(reader502->Get("correlatedUncertainty_R02R04"));
+    errShape502->SetFillColor(kGreen-8);
+    errShape502->SetFillStyle(3001);
+    errShape502->Draw("e2same");
+    rlegend->AddEntry(spec502, "pp, #sqrt{#it{s}} = 5.02 TeV, #it{p}_{T}^{lead} > 5 GeV/#it{c}", "lep");
 
     std::string rstring = "R02R04";
     jetspectreader->cd(rstring.data());
@@ -101,7 +109,7 @@ void makePlotJetSpectraRatiosRootSPrelim(const std::string_view jetspectrafile =
         shapeUncertainty = static_cast<TGraphAsymmErrors *>(gDirectory->Get(Form("shapeUncertainty_%s", rstring.data())));
     Style{kBlue, 20}.SetStyle<TH1>(*spec);
     spec->Draw("ex0psame");
-    rlegend->AddEntry(spec, "pp, #sqrt{s} = 13 TeV", "lep");
+    rlegend->AddEntry(spec, "pp, #sqrt{#it{s}} = 13 TeV", "lep");
     corrUncertainty->SetLineColor(kBlue);
     corrUncertainty->SetFillStyle(0);
     corrUncertainty->Draw("2same");
