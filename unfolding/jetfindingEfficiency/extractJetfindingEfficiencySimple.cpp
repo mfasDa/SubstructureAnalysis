@@ -12,7 +12,8 @@ std::map<double, TH1 *> readEfficiencies(const std::string_view inputfile, int u
     switch(ultraoption) {
     case 240: binning = getJetPtBinningNonLinTrueUltra240(); break;
     case 320: binning = getJetPtBinningNonLinTrueUltra300(); break;
-    default: binning = getJetPtBinningNonLinTrueLargeFineLow(); break;
+    //default: binning = getJetPtBinningNonLinTrueLargeFineLow(); break;
+    default: binning = getJetPtBinningNonLinTruePoor(); break;
     };
     Rebinner rebinner(binning);
     std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ"));   
