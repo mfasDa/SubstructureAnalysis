@@ -30,30 +30,32 @@ std::map<std::string, Spectra> loadRatios(const std::string_view filename, int e
         dirname << "AliEmcalTrackingQATask_";
         if(t != "INT7") dirname << t << "_";
         dirname << "histos";
-	std::cout << "Reading " << dirname.str() << std::endl;
+	    std::cout << "Reading " << dirname.str() << std::endl;
         auto histlist = dynamic_cast<TList *>(reader->Get(dirname.str().data()));
-	if(!histlist) std::cout << dirname.str().data() << " not found" << std::endl;
+	    if(!histlist) std::cout << dirname.str().data() << " not found" << std::endl;
         auto htracks = dynamic_cast<THnSparse *>(histlist->FindObject("fTracks"));
-	auto norm = dynamic_cast<TH1 *>(histlist->FindObject("fHistEventCount"))->GetBinContent(1);
-	htracks->Sumw2();
-	if(etasign != 0){
+	    auto norm = dynamic_cast<TH1 *>(histlist->FindObject("fHistEventCount"))->GetBinContent(1);
+	    htracks->Sumw2();
+	    if(etasign != 0){
             if(etasign < 0) htracks->GetAxis(1)->SetRangeUser(-0.799, -0.01);
-	    else htracks->GetAxis(1)->SetRangeUser(0.01, 0.799);
-	}
-	if(tracktype >-1) {
-		htracks->GetAxis(4)->SetRange(tracktype+1, tracktype+1);
-	}
+	        else htracks->GetAxis(1)->SetRangeUser(0.01, 0.799);
+	    }
+	    if(tracktype >-1) {
+	    	htracks->GetAxis(4)->SetRange(tracktype+1, tracktype+1);
+	    }
         // negative charge
         htracks->GetAxis(6)->SetRange(1,1);
         TH1 *hneg = makeRebinned(htracks->Projection(0)); 
-	hneg->SetDirectory(nullptr);
-	hneg->Scale(1./norm);
-	hneg->Scale(1., "width");
+        neg->SetName(Form("hneg%s", trigger.data()));
+	    hneg->SetDirectory(nullptr);
+	    hneg->Scale(1./norm);
+	    hneg->Scale(1., "width");
         htracks->GetAxis(6)->SetRange(2,2);
         TH1* hpos = makeRebinned(htracks->Projection(0)); 
-	hpos->SetDirectory(nullptr);
-	hpos->Scale(1./norm);
-	hpos->Scale(1., "width");
+        hpos->SetName(Form("hpos%s", trigger.data()));
+	    hpos->SetDirectory(nullptr);
+	    hpos->Scale(1./norm);
+	    hpos->Scale(1., "width");
 
         TH1 *ratioC = static_cast<TH1 *>(hpos->Clone(Form("ratioPosNeg_%s", t.data())));
         ratioC->SetDirectory(nullptr);
