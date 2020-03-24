@@ -4,19 +4,19 @@
 #include "../helpers/unfolding.C"
 
 TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, double ptminEJ2, double ptminEJ1, const char *observable) {
-    auto result = static_cast<TH2 *>(rawtriggers.find("INT7")->second->Clone(Form("h%sVsPtRaw", observable)));
+    auto result = static_cast<TH2 *>(rawtriggers.find("INT7")->second->Clone(Form("h%sVsPtRawCombined", observable)));
     result->SetDirectory(nullptr);
     auto histEJ2 = rawtriggers.find("EJ2")->second;
     for(auto yb : ROOT::TSeqI(result->GetYaxis()->FindBin(ptminEJ2), result->GetYaxis()->FindBin(ptminEJ1))) {
-        printf("Replacing pt-bin %d (%.1f GeV/c - %.1f GeV/c) - EJ2\n", yb, result->GetYaxis()->GetBinLowEdge(yb), result->GetYaxis()->GetBinUpEdge(yb));
+        printf("Replacing pt-bin %d (%.1f GeV/c - %.1f GeV/c) - EJ2 (%s)\n", yb, result->GetYaxis()->GetBinLowEdge(yb), result->GetYaxis()->GetBinUpEdge(yb), histEJ2->GetName());
         for(auto xb : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(xb+1, yb, histEJ2->GetBinContent(xb+1, yb));
             result->SetBinError(xb+1, yb, histEJ2->GetBinError(xb+1, yb));
         }
     }
-    auto histEJ1 = rawtriggers.find("EJ2")->second;
+    auto histEJ1 = rawtriggers.find("EJ1")->second;
     for(auto yb : ROOT::TSeqI(result->GetYaxis()->FindBin(ptminEJ1), result->GetYaxis()->GetNbins()+1)) {
-        printf("Replacing pt-bin %d (%.1f GeV/c - %.1f GeV/c) - EJ1\n", yb, result->GetYaxis()->GetBinLowEdge(yb), result->GetYaxis()->GetBinUpEdge(yb));
+        printf("Replacing pt-bin %d (%.1f GeV/c - %.1f GeV/c) - EJ1 (%s)\n", yb, result->GetYaxis()->GetBinLowEdge(yb), result->GetYaxis()->GetBinUpEdge(yb), histEJ1->GetName());
         for(auto xb : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(xb+1, yb, histEJ1->GetBinContent(xb+1, yb));
             result->SetBinError(xb+1, yb, histEJ1->GetBinError(xb+1, yb));
