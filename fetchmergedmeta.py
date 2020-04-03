@@ -4,12 +4,12 @@ import subprocess
 import sys
 
 if __name__ == "__main__":
-    childmap16 = {"LHC16h": "child_4", "LHC16i": "child_5", "LHC16j": "child_6", 
-                  "LHC16k": "child_7", "LHC16l": "child_8", "LHC16o": "child_9", 
+    childmap16 = {"LHC16h": "child_4", "LHC16i": "child_5", "LHC16j": "child_6",
+                  "LHC16k": "child_7", "LHC16l": "child_8", "LHC16o": "child_9",
                   "LHC16p": "child_10"}
-    childmap17 = {"LHC17h": "child_4", "LHC17i": "child_5", "LHC17j": "child_6", 
-                  "LHC17k": "child_7", "LHC17l": "child_8", "LHC17m": "child_9", 
-                  "LHC17o": "child_10", "LHC17r": "child_10"}
+    childmap17 = {"LHC17h": "child_4", "LHC17i": "child_5", "LHC17j": "child_6",
+                  "LHC17k": "child_7", "LHC17l": "child_8", "LHC17m": "child_9",
+                  "LHC17o": "child_10", "LHC17r": "child_11"}
     childmap18 = {"LHC18d": "child_1", "LHC18e": "child_2", "LHC18f": "child_3",
                   "LHC18g": "child_4", "LHC18h": "child_5", "LHC18i": "child_6",
                   "LHC18j": "child_7", "LHC18k": "child_8", "LHC18l": "child_9",
