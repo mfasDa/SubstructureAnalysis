@@ -126,6 +126,19 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
             cobjects.Add(closureeffkine);
             cobjects.Add(closuretruth);
             cobjects.Add(closuredet);
+
+            // Make non-fully efficient closure truth from THnSparse
+            auto noclosureresponsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseClosureNoRespSparse", observable.data())));
+            if(noclosureresponsedata){
+                std::cout << "Building non-fully efficient truth (" << detptbinning.front() << " ... " << detptbinning.back() << ")" << std::endl;
+                noclosureresponsedata->GetAxis(1)->SetRangeUser(detptbinning.front() + 1e-5, detptbinning.back() - 1e-5);
+                auto h2truecutfine = noclosureresponsedata->Projection(3,2);
+                auto h2truecut = makeRebinnedPt(h2truecutfine, partptbinning);
+                h2truecut->SetDirectory(nullptr);
+                h2truecut->SetNameTitle(Form("closuretruthcut%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f, cut det. pt", observable.data(), double(R)/10.));
+                cobjects.Add(h2truecut);
+            }
+
             std::cout << observable << " done ..." << std::endl;
         }
         objects[R] = outputobjects;

@@ -85,9 +85,11 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
             auto effKineClosure = static_cast<TH2 *>(gDirectory->Get(Form("EffKineClosure%s_%s", observable.data(), rstring.data())));
             effKine->SetDirectory(nullptr);
             auto detLevelClosure = static_cast<TH2 *>(gDirectory->Get(Form("closuredet%s_%s", observable.data(), rstring.data()))),
-                 partLevelClosure = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", observable.data(), rstring.data())));
+                 partLevelClosure = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", observable.data(), rstring.data()))),
+                 partLevelClosureCut = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthcut%s_%s", observable.data(), rstring.data())));
             detLevelClosure->SetDirectory(nullptr);
             partLevelClosure->SetDirectory(nullptr);
+            if(partLevelClosureCut) partLevelClosureCut->SetDirectory(nullptr);
 
             std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists,
                                unfoldedHistsClosure, refoldedHistsClosure, correctedHistsClosure;
@@ -160,6 +162,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
             effKineClosure->Write();
             detLevelClosure->Write();
             partLevelClosure->Write();
+            if(partLevelClosureCut) partLevelClosureCut->Write();
 
             for(auto iter : ROOT::TSeqI(1, 31)) {
                 std::string iterdir = Form("Iter%d", iter);
