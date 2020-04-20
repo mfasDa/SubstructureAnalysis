@@ -2,7 +2,7 @@
 #include "../../meta/root6tools.C"
 #include "../../meta/stl.C"
 
-void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root"){
+void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", bool fulleff = false){
     std::unique_ptr<TFile> reader(TFile::Open(unfoldingresults, "READ"));
 
     auto style = [](Color_t col, Style_t marker) {
@@ -31,12 +31,16 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root"){
             obsbasedir->cd(rstring.data());
             auto rdir = gDirectory;
             rdir->cd("closuretest");
-            auto closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", obsname.data(), rstring.data())));
+            TH2 *closuretruth (nullptr);
+            if(fulleff) closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", obsname.data(), rstring.data())));
+            else closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthcut%s_%s", obsname.data(), rstring.data())));
             closuretruth->SetDirectory(nullptr);
             std::map<int, TH2 *> iterations;
             for(auto iter : ROOT::TSeqI(1, 31)) {
                rdir->cd(Form("Iter%d", iter));
-               auto correctedClosure = static_cast<TH2 *>(gDirectory->Get(Form("correctedClosureIter%d_%s_%s", iter, obsname.data(), rstring.data())));
+               TH2 *correctedClosure (nullptr);
+               if(fulleff) correctedClosure = static_cast<TH2 *>(gDirectory->Get(Form("correctedClosureIter%d_%s_%s", iter, obsname.data(), rstring.data())));
+               else correctedClosure = static_cast<TH2 *>(gDirectory->Get(Form("unfoldedClosureIter%d_%s_%s", iter, obsname.data(), rstring.data())));
                correctedClosure->SetDirectory(nullptr);
                iterations[iter] = correctedClosure;
             }
