@@ -116,7 +116,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 correctedHists.push_back(corrected);
                 
                 // Pearson coefficients
-                auto covmat = unfold.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
+                auto covmat = unfolder.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
                 auto histsPearsonShape = new TList,
                      histsPearsonPt = new TList;
                 histsPearsonShape->SetName(Form("pearsonCoefficientsShape_Iter%d", iter));
@@ -138,7 +138,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                            pearsonshapemax = unfolded->GetXaxis()->GetBinUpEdge(ishape+1);
                     auto pearsonHistPt = CorrelationHistPt(covmat,
                                                            Form("pearsonPt_Iter%d_%s%d_%d", iter, observable.data(), int(pearsonshapemin * 100.), int(pearsonshapemax * 100.)), 
-                                                           Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data() pearsonshapemax), 
+                                                           Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data(), pearsonshapemax), 
                                                            unfolded->GetXaxis()->GetNbins(), 
                                                            unfolded->GetYaxis()->GetNbins(), 
                                                            ishape+1);
@@ -168,7 +168,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 correctedHistsClosure.push_back(correctedClosure);
 
                 // Pearson coefficients for the closure test
-                auto covmatClosure = unfold.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
+                auto covmatClosure = unfolderClosure.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
                 auto histsPearsonShapeClosure = new TList,
                      histsPearsonPtClosure = new TList;
                 histsPearsonShapeClosure->SetName(Form("pearsonCoefficientsClosureShape_Iter%d", iter));
@@ -190,7 +190,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                            pearsonshapemax = unfolded->GetXaxis()->GetBinUpEdge(ishape+1);
                     auto pearsonpt = CorrelationHistPt(covmat,
                                                        Form("pearsonClosurePt_Iter%d_%s%d_%d", iter, observable.data(), int(pearsonshapemin * 100.), int(pearsonshapemax * 100.)), 
-                                                       Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data() pearsonshapemax), 
+                                                       Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data(), pearsonshapemax), 
                                                        unfoldedClosure->GetXaxis()->GetNbins(), 
                                                        unfoldedClosure->GetYaxis()->GetNbins(), 
                                                        ishape+1);
