@@ -52,10 +52,10 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
 
     RooUnfold::ErrorTreatment errtreatment = RooUnfold::kCovToy;
 
-    auto create_histfinder = [](int iter) {
-        return [iter] (const TH2 *hist) { if(std::string_view(hist->GetName()).find(Form("Iter%d", iter)) != std::string::npos) return true; else return false; };
+    auto create_objectfinder = [](int iter) {
+        return [iter] (const TObject *hist) { if(std::string_view(hist->GetName()).find(Form("Iter%d", iter)) != std::string::npos) return true; else return false; };
     };
-    
+
     for(auto R : rvalues){
         std::string rstring = Form("R%02d", R),
                     rtitle = Form("R = %.1f", double(R)/10.);
@@ -93,6 +93,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
 
             std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists,
                                unfoldedHistsClosure, refoldedHistsClosure, correctedHistsClosure;
+            std::vector<TList *> pearsonPt, pearsonShape, pearsonClosurePt, pearsonClosureShape;
 
             for(auto iter : ROOT::TSeqI(1, 31)) {
                 std::cout << "Iteration " << iter << std::endl;
@@ -113,6 +114,39 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 corrected->SetNameTitle(Form("correctedIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
                 corrected->Divide(effKine);
                 correctedHists.push_back(corrected);
+                
+                // Pearson coefficients
+                auto covmat = unfold.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
+                auto histsPearsonShape = new TList,
+                     histsPearsonPt = new TList;
+                histsPearsonShape->SetName(Form("pearsonCoefficientsShape_Iter%d", iter));
+                histsPearsonPt->SetName(Form("pearsonCoefficientsPt_Iter%d", iter));
+                for(int ipt : ROOT::TSeqI(0, unfolded->GetYaxis()->GetNbins())) {
+                    double pearsonptmin = unfolded->GetYaxis()->GetBinLowEdge(ipt+1),
+                           pearsonptmax = unfolded->GetYaxis()->GetBinUpEdge(ipt+1);
+                    auto pearsonHistShape = CorrelationHistShape(covmat, 
+                                                                 Form("pearson%s_Iter%d_pt%d_%d", observable.data(), iter, int(pearsonptmin), int(pearsonptmax)), 
+                                                                 Form("Pearson coefficients for %s (iteration %d) for %.1f GeV/c < p_{t,jet} < %.1f GeV/c", observable.data(), iter, pearsonptmin, pearsonptmax), 
+                                                                 unfolded->GetXaxis()->GetNbins(), 
+                                                                 unfolded->GetYaxis()->GetNbins(), 
+                                                                 ipt+1);
+                    pearsonHistShape->SetDirectory(nullptr);
+                    histsPearsonShape->Add(pearsonHistShape);
+                }
+                for(auto ishape : ROOT::TSeqI(0, unfolded->GetXaxis()->GetNbins())){
+                    double pearsonshapemin = unfolded->GetXaxis()->GetBinLowEdge(ishape+1),
+                           pearsonshapemax = unfolded->GetXaxis()->GetBinUpEdge(ishape+1);
+                    auto pearsonHistPt = CorrelationHistPt(covmat,
+                                                           Form("pearsonPt_Iter%d_%s%d_%d", iter, observable.data(), int(pearsonshapemin * 100.), int(pearsonshapemax * 100.)), 
+                                                           Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data() pearsonshapemax), 
+                                                           unfolded->GetXaxis()->GetNbins(), 
+                                                           unfolded->GetYaxis()->GetNbins(), 
+                                                           ishape+1);
+                    pearsonHistPt->SetDirectory(nullptr);
+                    histsPearsonPt->Add(pearsonHistPt);
+                }
+                pearsonShape.push_back(histsPearsonShape);
+                pearsonPt.push_back(histsPearsonPt);
 
                 // MC closure test
                 RooUnfoldBayes unfolderClosure(responsematrixClosure, detLevelClosure, iter);
@@ -132,6 +166,39 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 correctedClosure->SetNameTitle(Form("correctedClosureIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
                 correctedClosure->Divide(effKineClosure);
                 correctedHistsClosure.push_back(correctedClosure);
+
+                // Pearson coefficients for the closure test
+                auto covmatClosure = unfold.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
+                auto histsPearsonShapeClosure = new TList,
+                     histsPearsonPtClosure = new TList;
+                histsPearsonShapeClosure->SetName(Form("pearsonCoefficientsClosureShape_Iter%d", iter));
+                histsPearsonPtClosure->SetName(Form("pearsonCoefficientsClosurePt_Iter%d", iter));
+                for(int ipt : ROOT::TSeqI(0, unfoldedClosure->GetYaxis()->GetNbins())) {
+                    double pearsonptmin = unfoldedClosure->GetYaxis()->GetBinLowEdge(ipt+1),
+                           pearsonptmax = unfoldedClosure->GetYaxis()->GetBinUpEdge(ipt+1);
+                    auto pearsonshape = CorrelationHistShape(covmat, 
+                                                             Form("pearsonClosure%s_Iter%d_pt%d_%d", observable.data(), iter, int(pearsonptmin), int(pearsonptmax)), 
+                                                             Form("Pearson coefficients for %s (iteration %d) for %.1f GeV/c < p_{t,jet} < %.1f GeV/c", observable.data(), iter, pearsonptmin, pearsonptmax), 
+                                                             unfoldedClosure->GetXaxis()->GetNbins(), 
+                                                             unfoldedClosure->GetYaxis()->GetNbins(), 
+                                                             ipt+1);
+                    pearsonshape->SetDirectory(nullptr);
+                    histsPearsonShapeClosure->Add(pearsonshape);
+                }
+                for(auto ishape : ROOT::TSeqI(0, unfoldedClosure->GetXaxis()->GetNbins())){
+                    double pearsonshapemin = unfolded->GetXaxis()->GetBinLowEdge(ishape+1),
+                           pearsonshapemax = unfolded->GetXaxis()->GetBinUpEdge(ishape+1);
+                    auto pearsonpt = CorrelationHistPt(covmat,
+                                                       Form("pearsonClosurePt_Iter%d_%s%d_%d", iter, observable.data(), int(pearsonshapemin * 100.), int(pearsonshapemax * 100.)), 
+                                                       Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data() pearsonshapemax), 
+                                                       unfoldedClosure->GetXaxis()->GetNbins(), 
+                                                       unfoldedClosure->GetYaxis()->GetNbins(), 
+                                                       ishape+1);
+                    pearsonpt->SetDirectory(nullptr);
+                    histsPearsonPtClosure->Add(pearsonpt);
+                }
+                pearsonClosureShape.push_back(histsPearsonShapeClosure);
+                pearsonClosurePt.push_back(histsPearsonPtClosure);
             }
 
             // Write to file
@@ -168,13 +235,17 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 std::string iterdir = Form("Iter%d", iter);
                 routbase->mkdir(iterdir.data());
                 routbase->cd(iterdir.data());
-                auto histfinder = create_histfinder(iter);
-                (*std::find_if(unfoldedHists.begin(), unfoldedHists.end(), histfinder))->Write();
-                (*std::find_if(refoldedHists.begin(), refoldedHists.end(), histfinder))->Write();
-                (*std::find_if(correctedHists.begin(), correctedHists.end(), histfinder))->Write();
-                (*std::find_if(unfoldedHistsClosure.begin(), unfoldedHistsClosure.end(), histfinder))->Write();
-                (*std::find_if(refoldedHistsClosure.begin(), refoldedHistsClosure.end(), histfinder))->Write();
-                (*std::find_if(correctedHistsClosure.begin(), correctedHistsClosure.end(), histfinder))->Write();
+                auto objectfinder = create_objectfinder(iter);
+                (*std::find_if(unfoldedHists.begin(), unfoldedHists.end(), objectfinder))->Write();
+                (*std::find_if(refoldedHists.begin(), refoldedHists.end(), objectfinder))->Write();
+                (*std::find_if(correctedHists.begin(), correctedHists.end(), objectfinder))->Write();
+                (*std::find_if(pearsonShape.begin(), pearsonShape.end(), objectfinder))->Write();
+                (*std::find_if(pearsonPt.begin(), pearsonPt.end(), objectfinder))->Write();
+                (*std::find_if(unfoldedHistsClosure.begin(), unfoldedHistsClosure.end(), objectfinder))->Write();
+                (*std::find_if(refoldedHistsClosure.begin(), refoldedHistsClosure.end(), objectfinder))->Write();
+                (*std::find_if(correctedHistsClosure.begin(), correctedHistsClosure.end(), objectfinder))->Write();
+                (*std::find_if(pearsonClosureShape.begin(), pearsonClosureShape.end(), objectfinder))->Write();
+                (*std::find_if(pearsonClosurePt.begin(), pearsonClosurePt.end(), objectfinder))->Write();
             }
         }
     }
