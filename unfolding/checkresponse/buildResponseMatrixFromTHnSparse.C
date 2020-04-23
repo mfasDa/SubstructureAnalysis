@@ -13,6 +13,11 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
     TH2F dettemplate("dettemplate", "det template", detobsbinning.size() - 1, detobsbinning.data(), detptbinning.size() - 1, detptbinning.data()),
          parttemplate("parttemplate", "part template", partobsbinning.size() - 1, partobsbinning.data(), partptbinning.size() - 1, partptbinning.data());
 
+    auto &ptpartmin = partptbinning.front(),
+         &ptpartmax = partptbinning.back(),
+         &ptdetmin = detptbinning.front(),
+         &ptdetmax = detptbinning.back();
+
     auto resultresponse = new RooUnfoldResponse(Form("%s_rebinned", responsedata->GetName()), Form("%s rebinned", responsedata->GetTitle()));
     resultresponse->UseOverflow(false);
     resultresponse->Setup(&dettemplate, &parttemplate);
@@ -20,11 +25,16 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
     Int_t coordinate[4];
     for(auto ib : ROOT::TSeqI(0, responsedata->GetNbins())) {
         auto weight = responsedata->GetBinContent(ib, coordinate);
-        resultresponse->Fill(responsedata->GetAxis(0)->GetBinCenter(coordinate[0]),
-                             responsedata->GetAxis(1)->GetBinCenter(coordinate[1]),
-                             responsedata->GetAxis(2)->GetBinCenter(coordinate[2]),
-                             responsedata->GetAxis(3)->GetBinCenter(coordinate[3]),
-                             weight);
+        double zgdet = responsedata->GetAxis(0)->GetBinCenter(coordinate[0]),
+               ptdet = responsedata->GetAxis(1)->GetBinCenter(coordinate[1]),
+               zgpart = responsedata->GetAxis(2)->GetBinCenter(coordinate[2]),
+               ptpart = responsedata->GetAxis(3)->GetBinCenter(coordinate[3]);
+        // check whether pt is within det-level and part-level range
+        if(ptdet < ptdetmin || ptdet > ptdetmax || ptpart < ptpartmin || ptpart > ptpartmax) {
+            std::cout << "Point (" << ptpart << " part - " << ptdet << " det) outside range" << std::endl;
+            continue;
+        }
+        resultresponse->Fill(zgdet, ptdet, zgpart, ptpart, weight);
     }
     return resultresponse;
 }
