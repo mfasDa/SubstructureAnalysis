@@ -27,6 +27,7 @@ std::map<double, TH1 *> readEfficiencies(const std::string_view inputfile, int u
         auto efficiency = rebinner(hresponse->ProjectionY());
         efficiency->Divide(efficiency, alljets, 1., 1., "b");
         efficiency->SetDirectory(nullptr);
+        efficiency->SetNameTitle(Form("JetFindingEfficiency_R%02d", int(r*10.)), Form("Jet finding efficiency for R=%.1f", r));
         result[r] = efficiency;
     }    
     return result;
@@ -51,4 +52,8 @@ void extractJetfindingEfficiencySimple(const std::string_view inputfile, int ult
     plot->cd();
     plot->Update();
     plot->SaveCanvas(plot->GetName());
+
+    std::unique_ptr<TFile> effwriter(TFile::Open("jetfindingefficiencies.root", "RECREATE"));
+    effwriter->cd();
+    for(auto eff : efficiencies) eff.second->Write();
 }
