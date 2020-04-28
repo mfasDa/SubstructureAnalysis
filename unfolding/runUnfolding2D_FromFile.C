@@ -129,7 +129,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                                                                  Form("Pearson coefficients for %s (iteration %d) for %.1f GeV/c < p_{t,jet} < %.1f GeV/c", observable.data(), iter, pearsonptmin, pearsonptmax), 
                                                                  unfolded->GetXaxis()->GetNbins(), 
                                                                  unfolded->GetYaxis()->GetNbins(), 
-                                                                 ipt+1);
+                                                                 ipt);
                     pearsonHistShape->SetDirectory(nullptr);
                     histsPearsonShape->Add(pearsonHistShape);
                 }
@@ -141,7 +141,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                                                            Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data(), pearsonshapemax), 
                                                            unfolded->GetXaxis()->GetNbins(), 
                                                            unfolded->GetYaxis()->GetNbins(), 
-                                                           ishape+1);
+                                                           ishape);
                     pearsonHistPt->SetDirectory(nullptr);
                     histsPearsonPt->Add(pearsonHistPt);
                 }
@@ -181,7 +181,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                                                              Form("Pearson coefficients for %s (iteration %d) for %.1f GeV/c < p_{t,jet} < %.1f GeV/c", observable.data(), iter, pearsonptmin, pearsonptmax), 
                                                              unfoldedClosure->GetXaxis()->GetNbins(), 
                                                              unfoldedClosure->GetYaxis()->GetNbins(), 
-                                                             ipt+1);
+                                                             ipt);
                     pearsonshape->SetDirectory(nullptr);
                     histsPearsonShapeClosure->Add(pearsonshape);
                 }
@@ -193,7 +193,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                                                        Form("Pearson coefficients for p_{t} (iteration %d) for %.1f < %s < %.1f", iter, pearsonshapemin, observable.data(), pearsonshapemax), 
                                                        unfoldedClosure->GetXaxis()->GetNbins(), 
                                                        unfoldedClosure->GetYaxis()->GetNbins(), 
-                                                       ishape+1);
+                                                       ishape);
                     pearsonpt->SetDirectory(nullptr);
                     histsPearsonPtClosure->Add(pearsonpt);
                 }
