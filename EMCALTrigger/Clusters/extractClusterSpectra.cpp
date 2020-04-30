@@ -21,14 +21,20 @@ std::vector<TH1 *> makeNormalizedClusterSpectra(THnSparse * clustersparse, const
   std::map<std::string, int> clusterindices = {{"ANY", 0}, {"CENT", 1}, {"CENTNOTRD", 2}, {"CENTBOTH", 3}, {"ONLYCENT", 4}, {"ONLYCENTNOTRD", 5}};
   std::vector<TH1 *> result;
 
-  clustersparse->GetAxis(0)->SetRange(emcal ? 1 : 13, emcal ? 12 : 20);
+  enum {
+    kSupermodule = 0,
+    kMulitplicity = 1,
+    kEnergy = 2,
+    kTriggerCluster = 3
+  };
+  clustersparse->GetAxis(kSupermodule)->SetRange(emcal ? 1 : 13, emcal ? 12 : 20);
 
   for(auto trgclst : clusterindices) {
     std::stringstream histname;
     histname << "clusterSpectrum_" << (emcal ? "EMCAL" : "DCAL") << "_" << trigger << "_" << trgclst.first;
-    clustersparse->GetAxis(5)->SetRange(trgclst.second + 1, trgclst.second + 1);
-    auto spec = clustersparse->Projection(1);
-    clustersparse->GetAxis(5)->SetRange(0, clustersparse->GetAxis(5)->GetNbins());
+    clustersparse->GetAxis(kTriggerCluster)->SetRange(trgclst.second + 1, trgclst.second + 1);
+    auto spec = clustersparse->Projection(kEnergy);
+    clustersparse->GetAxis(kTriggerCluster)->SetRange(0, clustersparse->GetAxis(kTriggerCluster)->GetNbins());
     spec->SetDirectory(nullptr);
     spec->SetName(histname.str().data());
     auto normval = norm->GetBinContent(trgclst.second + 1);
@@ -36,7 +42,7 @@ std::vector<TH1 *> makeNormalizedClusterSpectra(THnSparse * clustersparse, const
     normalizeBinWidth(spec);
     result.emplace_back(spec);
   }
-  clustersparse->GetAxis(0)->SetRange(0, clustersparse->GetAxis(0)->GetNbins());
+  clustersparse->GetAxis(kSupermodule)->SetRange(0, clustersparse->GetAxis(kSupermodule)->GetNbins());
 
   return result;
 }
