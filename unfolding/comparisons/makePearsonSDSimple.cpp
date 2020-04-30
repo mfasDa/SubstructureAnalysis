@@ -49,7 +49,8 @@ void makePearsonSDSimple(const char *filename = "UnfoldedSD.root", const char *o
         rdir->cd(Form("Iter%d", defaultiteration));
         auto pearsonhists = getPearsonHistograms(gDirectory, observable); 
         for(auto [ptmin, ptmax, pearsonhist] : pearsonhists) {
-            if(!currentplot || currentpad == 11) {
+            std::cout << "Next bin: ptmin " << ptmin << ", ptmax " << ptmax << std::endl;
+            if(!currentplot || currentpad == 9) {
                 if(currentplot) {
                     currentplot->SaveCanvas(currentplot->GetName());
                     currentcanvas++;
