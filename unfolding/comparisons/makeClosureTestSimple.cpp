@@ -18,7 +18,6 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", boo
     std::vector<Style_t> markers = {24, 25, 26, 27, 28, 29, 30, 31, 32, 33}; 
         for(auto obs : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
         std::string_view obsname(obs->GetName());
-        if(obsname == "Rg") continue;
         auto obstitle = obstitles[obsname.data()];
         std::cout << "Processing observable " << obsname << std::endl;
 
