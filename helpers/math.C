@@ -44,11 +44,11 @@ TH2 *makeRebinned2D(const TH2 *input, const std::vector<double> &xBins, const st
   for(auto x : ROOT::TSeqI(0, input->GetXaxis()->GetNbins())) {
     // Truncation
     if(input->GetXaxis()->GetBinCenter(x+1) < result->GetXaxis()->GetBinLowEdge(1)) continue;
-    if(input->GetXaxis()->GetBinCenter(x+1) > result->GetXaxis()->GetBinUpEdge(result->GetXaxis()->GetNbins()+1)) continue;
+    if(input->GetXaxis()->GetBinCenter(x+1) > result->GetXaxis()->GetBinUpEdge(result->GetXaxis()->GetNbins())) continue;
     for(auto y : ROOT::TSeqI(0, input->GetYaxis()->GetNbins())) {
       // Truncation
       if(input->GetYaxis()->GetBinCenter(y+1) < result->GetYaxis()->GetBinLowEdge(1)) continue;
-      if(input->GetYaxis()->GetBinCenter(y+1) > result->GetYaxis()->GetBinUpEdge(result->GetYaxis()->GetNbins()+1)) continue;
+      if(input->GetYaxis()->GetBinCenter(y+1) > result->GetYaxis()->GetBinUpEdge(result->GetYaxis()->GetNbins())) continue;
       result->Fill(input->GetXaxis()->GetBinCenter(x+1), input->GetYaxis()->GetBinCenter(y+1), input->GetBinContent(x+1, y+1));
     }
   }
