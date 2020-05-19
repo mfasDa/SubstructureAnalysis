@@ -7,6 +7,7 @@ struct TriggerEfficiencyContainer {
     std::map<std::string, TH1 *> triggerefficienciesFine;
 };
 
+
 std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *filemc, std::vector<double> ptbinning) {
     std::unique_ptr<TFile> reader(TFile::Open(filemc, "READ"));
     std::vector<TriggerEfficiencyContainer> result;
@@ -53,6 +54,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
     reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
+    std::map<int, double> nsdmax = {{2, 7.}, {3, 8.}, {4, 8.}, {5, 9.}, {6, 9.}}; // exclusive max, binning must be smaller
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::string outdirname(Form("R%02d", R));
@@ -124,7 +126,15 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
 
                 std::vector<double> obsbinning;
                 obsbinning.emplace_back(rawhist->GetXaxis()->GetBinLowEdge(1));
-                for(auto bin : ROOT::TSeqI(0, rawhist->GetXaxis()->GetNbins())) obsbinning.emplace_back(rawhist->GetXaxis()->GetBinUpEdge(bin+1));
+                for(auto bin : ROOT::TSeqI(0, rawhist->GetXaxis()->GetNbins())){
+                    double step = rawhist->GetXaxis()->GetBinUpEdge(bin+1);
+                    if(observable == "Nsd") {
+                        if(step > nsdmax[R]) {
+                            continue;
+                        }
+                    } 
+                    obsbinning.emplace_back(step);
+                } 
 
                 auto resulthist = new TH2D(Form("h%sVsPt%sCorrected", observable.data(), trg.data()), Form("%s vs. Pt for trigger %s (corrected)", observable.data(), trg.data()), obsbinning.size()-1, obsbinning.data(), ptbinning.size()-1, ptbinning.data());
                 resulthist->SetDirectory(nullptr);
