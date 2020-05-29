@@ -3,7 +3,7 @@
 #include "../../meta/roounfold.C"
 #include "../../helpers/math.C"
 
-RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obscut = -1) {
+RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = -1) {
     std::vector<double> detobsbinning, partobsbinning;
     auto detaxis = responsedata->GetAxis(0), partaxis = responsedata->GetAxis(2);
     detobsbinning.emplace_back(detaxis->GetBinLowEdge(1));
@@ -96,9 +96,8 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
 void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root") {
     std::unique_ptr<TFile> reader(TFile::Open(filename, "READ"));
 
-    std::vector<double> detptbinning = {10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200},
-                        partptbinning = {0, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
-    std::map<int, double> nsdmax = {{2, 7.}, {3, 8.}, {4, 8.}, {5, 9.}, {6, 9.}}; // exclusive max, binning must be smaller
+    std::vector<double> detptbinning = {10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.},
+                        partptbinning = {0, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
 
     std::vector<std::string> observables = {"Zg", "Rg", "Nsd", "Thetag"};
     std::map<int, TObjArray> objects;
@@ -111,7 +110,6 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
         TObjArray outputobjects, cobjects;
         for(auto observable : observables) {
             double obsmax = DBL_MAX;
-            if(observable == "Nsd") obsmax = nsdmax[R];
             std::cout << "Next observable " << observable << std::endl;
             THnSparse* responsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseSparse", observable.data())));           
             std::cout << "Extracting response matrix for observable " << observable << std::endl;

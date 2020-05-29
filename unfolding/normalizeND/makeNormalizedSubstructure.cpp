@@ -46,7 +46,7 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
 
 void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
     const double kVerySmall = 1e-5;
-    std::vector<double> ptbinning = {10., 15., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.};
+    std::vector<double> ptbinning = {10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.};
 
     auto triggerefficiencies = extractTriggerEfficiencies(filemc, ptbinning);
     std::unique_ptr<TFile> reader(TFile::Open(filedata, "READ")),
@@ -54,7 +54,6 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
     reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
-    std::map<int, double> nsdmax = {{2, 7.}, {3, 8.}, {4, 8.}, {5, 9.}, {6, 9.}}; // exclusive max, binning must be smaller
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::string outdirname(Form("R%02d", R));
@@ -128,11 +127,6 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
                 obsbinning.emplace_back(rawhist->GetXaxis()->GetBinLowEdge(1));
                 for(auto bin : ROOT::TSeqI(0, rawhist->GetXaxis()->GetNbins())){
                     double step = rawhist->GetXaxis()->GetBinUpEdge(bin+1);
-                    if(observable == "Nsd") {
-                        if(step > nsdmax[R]) {
-                            continue;
-                        }
-                    } 
                     obsbinning.emplace_back(step);
                 } 
 
