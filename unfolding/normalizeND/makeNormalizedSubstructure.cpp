@@ -46,7 +46,7 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
 
 void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
     const double kVerySmall = 1e-5;
-    std::vector<double> ptbinning = {10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.};
+    std::vector<double> ptbinning = {6., 8., 10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.};
 
     auto triggerefficiencies = extractTriggerEfficiencies(filemc, ptbinning);
     std::unique_ptr<TFile> reader(TFile::Open(filedata, "READ")),

@@ -96,8 +96,8 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
 void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root") {
     std::unique_ptr<TFile> reader(TFile::Open(filename, "READ"));
 
-    std::vector<double> detptbinning = {10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.},
-                        partptbinning = {0, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
+    std::vector<double> detptbinning = {6., 8., 10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.},
+                        partptbinning = {0, 10, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
 
     std::vector<std::string> observables = {"Zg", "Rg", "Nsd", "Thetag"};
     std::map<int, TObjArray> objects;
