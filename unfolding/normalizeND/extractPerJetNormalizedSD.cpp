@@ -20,7 +20,7 @@ void extractPerJetNormalizedSD(const char *filename = "UnfoldedSD.root", const c
     plot->Divide(3,2);
 
     int ipad = 1;
-    const double ptmin = 30., ptmax = 200.;
+    const double ptmin = 15., ptmax = 200.;
     const int defaultiteration = 6;
     reader->cd(probe);
     auto basedir = gDirectory;
