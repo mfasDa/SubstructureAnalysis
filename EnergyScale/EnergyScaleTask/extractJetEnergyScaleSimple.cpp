@@ -87,7 +87,7 @@ void extractJetEnergyScaleSimple(const std::string_view filename = "AnalysisResu
   auto meanframe = new TH1F("meanframe", "; p_{t,part} (GeV/c); <(p_{t,det} - p_{t,part})/p_{t,part}>", 400, 0., 400.);
   meanframe->SetDirectory(nullptr);
   meanframe->SetStats(false);
-  meanframe->GetYaxis()->SetRangeUser(-1., 1.);
+  meanframe->GetYaxis()->SetRangeUser(-0.5, 0.5);
   meanframe->Draw("axis");
 
   auto leg = new TLegend(0.7, 0.65, 0.89, 0.89);
@@ -100,7 +100,7 @@ void extractJetEnergyScaleSimple(const std::string_view filename = "AnalysisResu
   auto medianframe = new TH1F("medianframe", "; p_{t,part} (GeV/c); median((p_{t,det} - p_{t,part})/p_{t,part})", 400, 0., 400.);
   medianframe->SetDirectory(nullptr);
   medianframe->SetStats(false);
-  medianframe->GetYaxis()->SetRangeUser(-1., 1.);
+  medianframe->GetYaxis()->SetRangeUser(-0.5, 0.5);
   medianframe->Draw("axis");;
 
   plot->cd(3);
@@ -115,7 +115,7 @@ void extractJetEnergyScaleSimple(const std::string_view filename = "AnalysisResu
   auto reader = std::unique_ptr<TFile>(TFile::Open(filename.data(), "READ")),
        writer = std::unique_ptr<TFile>(TFile::Open(outfilename.str().data(), "RECREATE"));
   std::array<std::string, 3> observables = {{"mean", "median", "width"}};
-  std::map<double, Style> radii = {{0.2, {kRed, 24}}, {0.3, {kBlue, 25}}, {0.4, {kGreen, 26}}, {0.5, {kViolet, 27}}, {0.6, {kMagenta, 28}}};
+  std::map<double, Style> radii = {{0.2, {kRed, 24}}, {0.3, {kBlue, 25}}, {0.4, {kGreen, 26}}, {0.5, {kViolet, 27}}, {0.6, {kOrange, 28}}};
   for(const auto r : radii){
     auto enscale = getEnergyScaleForRadius(*reader, jettype, r.first, sysvar);
 
