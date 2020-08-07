@@ -2,7 +2,6 @@
 #include "../../meta/root.C"
 #include "../../meta/root6tools.C"
 
-#include "../../helpers/graphics.C"
 #include "../binnings/binningPt1D.C"
 
 TH1 *makeJetfindingEfficiency(TFile &reader, const std::string_view rstring, bool finebinning){
@@ -23,6 +22,14 @@ TH1 *makeJetfindingEfficiency(TFile &reader, const std::string_view rstring, boo
 
 void extractJetfindingEfficiency(const std::string_view inputfile = "AnalysisResults.root", bool finebinning = false){
     std::unique_ptr<TFile> reader(TFile::Open(inputfile.data(), "READ"));
+    
+    auto style = [](Color_t color, style_t marker) {
+        return [color, marker] (auto obj) {
+            obj->SetMarkerColor(col);
+            obj->SetLineColor(col);
+            obj->SetMarkerStyle(marker);
+        };
+    };
 
     auto plot = new ROOT6tools::TSavableCanvas(Form("jetfindingeff%s", (finebinning ? "Fine" : "Standard")), "Jetfinding Efficiency", 800, 600);
     plot->cd();
@@ -38,7 +45,7 @@ void extractJetfindingEfficiency(const std::string_view inputfile = "AnalysisRes
     for(auto rval : ROOT::TSeqI(2,7)) {
         std::string rstring(Form("R%02d", rval));
         auto effhist = makeJetfindingEfficiency(*reader, rstring, finebinning);
-        Style{colors[ihist], markers[ihist]}.SetStyle<TH1>(*effhist);
+        style(colors[ihist], markers[ihist])(effhist);
         effhist->Draw("epsame");
         leg->AddEntry(effhist, Form("R=%.1f", double(rval)/10.), "lep");
         ihist++;
