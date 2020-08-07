@@ -72,7 +72,7 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
     responsedata->GetAxis(1)->SetRangeUser(detptmin, detptmax);
     std::unique_ptr<TH2> truncated(responsedata->Projection(3, 2));
     truncated->SetName("truncated");
-    responsedata->GetAxis(1)->SetRange(1, responsedata->GetAxis(1)->GetNbins()+1);
+    responsedata->GetAxis(1)->SetRange(0, responsedata->GetAxis(1)->GetNbins()+1);
 
     TH2 *result = new TH2D("effKine", "Kinematic efficiency", partobsbinning.size()-1, partobsbinning.data(), partptbinning.size()-1, partptbinning.data());
     result->SetDirectory(nullptr);
