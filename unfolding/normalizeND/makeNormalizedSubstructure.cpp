@@ -50,7 +50,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
 
     auto triggerefficiencies = extractTriggerEfficiencies(filemc, ptbinning);
     std::unique_ptr<TFile> reader(TFile::Open(filedata, "READ")),
-                           writer(TFile::Open("rawsoftdrop.root", "RECREATE"));
+                           writer(TFile::Open(Form("%s/rawsoftdrop.root", gSystem->DirName(filedata)), "RECREATE"));
     reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
