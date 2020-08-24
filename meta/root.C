@@ -296,7 +296,6 @@
 #include <RooTFnBinding.h>
 #include <RooTFnPdfBinding.h>
 #include <RooTFoamBinding.h>
-#include <RooThreshEntry.h>
 #include <RooThresholdCategory.h>
 #include <RooTMathReg.h>
 #include <RootMetaSelection.h>
