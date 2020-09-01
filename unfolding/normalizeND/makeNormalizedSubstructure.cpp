@@ -1,12 +1,12 @@
 #include "../../meta/stl.C"
 #include "../../meta/root.C"
+#include "../binnings/binningPt2D.C"
 
 struct TriggerEfficiencyContainer {
     int radius;
     std::map<std::string, TH1 *> triggerefficiencies;
     std::map<std::string, TH1 *> triggerefficienciesFine;
 };
-
 
 std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *filemc, std::vector<double> ptbinning) {
     std::unique_ptr<TFile> reader(TFile::Open(filemc, "READ"));
@@ -44,13 +44,13 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
     return result;
 }
 
-void makeNormalizedSubstructure(const char *filedata, const char *filemc) {
+void makeNormalizedSubstructure(const char *filedata, const char *filemc, const char *binvarname = "default") {
     const double kVerySmall = 1e-5;
-    std::vector<double> ptbinning = {6., 8., 10., 12., 14., 16., 18., 20., 25., 30., 35., 40., 50., 60., 80., 100., 120., 140., 160., 180., 200.};
+    std::vector<double> ptbinning = getDetPtBinning(binvarname);
 
     auto triggerefficiencies = extractTriggerEfficiencies(filemc, ptbinning);
     std::unique_ptr<TFile> reader(TFile::Open(filedata, "READ")),
-                           writer(TFile::Open(Form("%s/rawsoftdrop.root", gSystem->DirName(filedata)), "RECREATE"));
+                           writer(TFile::Open("rawsoftdrop.root", "RECREATE"));
     reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
