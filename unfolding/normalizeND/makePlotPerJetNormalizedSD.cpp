@@ -2,7 +2,7 @@
 #include "../../meta/root.C"
 #include "../../meta/root6tools.C"
 
-void extractPerJetNormalizedSD(const char *filename = "UnfoldedSD.root", const char *probe = "Zg"){
+void makePlotPerJetNormalizedSD(const char *filename = "UnfoldedSD.root", const char *probe = "Zg"){
     std::unique_ptr<TFile> reader(TFile::Open(filename, "READ"));
 
     std::vector<Color_t> colors = {kRed, kBlue, kGreen, kOrange, kMagenta, kTeal, kGray, kViolet};
