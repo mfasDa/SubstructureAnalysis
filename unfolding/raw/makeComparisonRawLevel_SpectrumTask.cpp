@@ -70,7 +70,7 @@ void DrawRatios(const std::map<std::string, TH1 *> &spectra, Double_t r, Bool_t 
     gPad->Update();
 }
 
-void makeComparisonRawLevel_SpectrumTask(const std::string_view corrfile) {
+void makeComparisonRawLevel_SpectrumTask(const std::string_view corrfile, const std::string sysvar) {
     auto plotfine = new ROOT6tools::TSavableCanvas("comparisonTriggersRaw_finebinning", "Comparison triggers (fine binning)", 1500, 700),
          plotrebinned = new ROOT6tools::TSavableCanvas("comparisonTriggersRaw_rebinned", "Comparison triggers (rebinned)", 1500, 700);
     plotfine->Divide(5,2);
@@ -87,7 +87,7 @@ void makeComparisonRawLevel_SpectrumTask(const std::string_view corrfile) {
         gDirectory->cd("rawlevel");
         std::map<std::string, TH1 *> triggersFine, triggersRebinned;
         for(const auto t : triggers) {
-            auto specfine = static_cast<TH1 *>(gDirectory->Get(Form("RawJetSpectrum_FullJets_R%02d_%s_%s", r, t.data(), clusters.find(t)->second.data()))),
+            auto specfine = static_cast<TH1 *>(gDirectory->Get(Form("RawJetSpectrum_FullJets_R%02d_%s_%s_%s", r, t.data(), clusters.find(t)->second.data(), sysvar.data()))),
                  specrebinned = specfine->Rebin(binningCoarse.size()-1, Form("%srebinned_R%02d", t.data(), r), binningCoarse.data());
             normalizeBinWidth(specrebinned);
             specfine->SetName(Form("%sfine_R%02d", t.data(), r));
