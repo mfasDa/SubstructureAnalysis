@@ -423,7 +423,7 @@ class CopyHandler(threading.Thread):
 
 class PoolFiller(threading.Thread):
     
-    def __init__(self, sample, trainrun, outputlocation, targetfile, maxpoolsize, aodprod):
+    def __init__(self, sample, trainrun, outputlocation, targetfile, maxpoolsize, aodprod, pthardbin):
         threading.Thread.__init__(self)
         self.__datapool = None
         self.__alientool = None
@@ -434,6 +434,7 @@ class PoolFiller(threading.Thread):
         self.__targetfile = targetfile
         self.__maxpoolsize = maxpoolsize
         self.__aodprod = aodprod
+        self.__pthardbin = pthardbin
 
     def setalientool(self, alientool):
         self.__alientool = alientool
@@ -500,6 +501,9 @@ class PoolFiller(threading.Thread):
             else:
                 isrun = False
                 pthardbin = int(levelone)
+            if not isrun:
+                if self.__pthardbin > -1 and pthardbin != self.__pthardbin:
+                    continue
             tmppath = os.path.join(self.__sample, levelone)
             logging.info("Doing %s %s", "run" if isrun else "pthard-bin", levelone)
             for leveltwo in self.__alientool.listdir(tmppath):
@@ -509,6 +513,9 @@ class PoolFiller(threading.Thread):
                     pthardbin = int(leveltwo)
                 else:
                     run = int(leveltwo)
+                if not isrun:
+                    if self.__pthardbin > -1 and pthardbin != self.__pthardbin:
+                        continue 
                 logging.info("Doing %s %s", "pthard-bin" if isrun else "run", leveltwo)
                 tmppathtwo = os.path.join(tmppath, leveltwo)
                 if len(self.__aodprod):
@@ -543,7 +550,7 @@ class PoolFiller(threading.Thread):
                         self.__datapool.insert_pool(Filepair(inputfile, outputfile))
                         self.__wait()
 
-def transfer(sample, trainrun, outputlocation, targetfile, nstream, aod):
+def transfer(sample, trainrun, outputlocation, targetfile, nstream, aod, pthardbin):
     if isjalien:
         logging.info("Using JAliEn ...")
     else:
@@ -555,7 +562,7 @@ def transfer(sample, trainrun, outputlocation, targetfile, nstream, aod):
             sys.exit(2)
     datapool = DataPool()
 
-    poolfiller = PoolFiller(sample, trainrun, outputlocation, targetfile, 1000, aod)
+    poolfiller = PoolFiller(sample, trainrun, outputlocation, targetfile, 1000, aod, pthardbin)
     poolfiller.setdatapool(datapool)
     poolfiller.setalientool(alientool)
     poolfiller.start()
@@ -585,9 +592,10 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--debug", action = "store_true",  help = "Run with increased debug level")
     parser.add_argument("-f", "--file", type = str, default = "root_archive.zip", help = "Name of the file to be transferred (default: root_archive.zip)")
     parser.add_argument("-n", "--nstream", type = int, default = 4, help = "Number of parallel streams (default: 4)")
+    parser.add_argument("-p", "--pthardbin", type = int, default = -1, help = "pt-hard bin (default: -1 := all)")
     args = parser.parse_args()
     loglevel=logging.INFO
     if args.debug:
         loglevel = logging.DEBUG
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=loglevel)
-    transfer(args.sample, args.trainrun, args.outputpath, args.file, args.nstream, args.aod)
+    transfer(args.sample, args.trainrun, args.outputpath, args.file, args.nstream, args.aod, args.pthardbin)
