@@ -2,9 +2,8 @@
 #include "../../meta/root.C"
 #include "../../meta/root6tools.C"
 
-void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root"){
+void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", int defaultiteration = 6){
     const double ptmin = 15., ptmax = 200.;
-    const int defaultiteration = 6;
     std::unique_ptr<TFile> reader(TFile::Open(filename, "READ")),
                            writer(TFile::Open("CorrectedSoftDrop.root", "RECREATE"));
     std::vector<std::string> observables = {"Zg", "Rg", "Thetag", "Nsd"};
