@@ -117,14 +117,14 @@ class UnfoldingRunner {
         UnfoldingPool                   *fInputData;
 };
 
-std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, double R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
+std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, int R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
     int clusterbin = 0;
     if(triggercluster == "ANY") clusterbin = 1;
     else if(triggercluster == "CENT") clusterbin = 2;
     else if(triggercluster == "CENTNOTRD") clusterbin = 3;
     std::stringstream dirnamebuilder, histnamebuilder;
-    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger;
-    histnamebuilder << "RawJetSpectrum_FullJets_R" <<  std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger << "_" << triggercluster;
+    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << R << "_" << trigger;
+    histnamebuilder << "RawJetSpectrum_FullJets_R" <<  std::setw(2) << std::setfill('0') << R << "_" << trigger << "_" << triggercluster;
     if(sysvar.length()) {
         dirnamebuilder << "_" << sysvar;
         histnamebuilder << "_" << sysvar;
@@ -146,7 +146,7 @@ std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, double R, const std::
     return {norm, rawspectrum};
 }
 
-TH2 *getResponseMatrix(TFile &reader, double R, const std::string_view sysvar, int closurestatus = 0) {
+TH2 *getResponseMatrix(TFile &reader, int R, const std::string_view sysvar, int closurestatus = 0) {
     std::string closuretag;
     switch(closurestatus) {
     case 0: break;
@@ -158,13 +158,13 @@ TH2 *getResponseMatrix(TFile &reader, double R, const std::string_view sysvar, i
     responsematrixname << responsematrixbase;
     if(closuretag.length()) responsematrixname <<  closuretag;
     std::stringstream dirnamebuilder;
-    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_INT7";
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
     if(sysvar.length()) dirnamebuilder << "_" << sysvar;
     reader.cd(dirnamebuilder.str().data());
     auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
     auto rawresponse = static_cast<TH2 *>(histlist->FindObject(responsematrixname.str().data()));
     rawresponse->SetDirectory(nullptr);
-    rawresponse->SetNameTitle(Form("Rawresponse_R%02d", int(R*10.)), Form("Raw response R=%.1f", R));
+    rawresponse->SetNameTitle(Form("Rawresponse_R%02d", R), Form("Raw response R=%.1f", double(R)/10.));
     return rawresponse;
 }
 
@@ -178,11 +178,11 @@ double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     return hnorm->GetBinContent(3)/hnorm->GetBinContent(2);
 }
 
-TH1 *makeTriggerEfficiency(TFile &mcreader, double R, const std::string_view trigger, const std::string_view sysvar){
+TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar){
     std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).second),
                          trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).second);
     auto eff = histcopy(trgspec.get());
-    eff->SetNameTitle(Form("TriggerEfficiency_%s_R%02d", trigger.data(), int(R * 10.)), Form("Trigger efficiency for %s for R=%.1f", trigger.data(), R));
+    eff->SetNameTitle(Form("TriggerEfficiency_%s_R%02d", trigger.data(), R), Form("Trigger efficiency for %s for R=%.1f", trigger.data(), double(R)/10.));
     eff->SetDirectory(nullptr);
     eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
     return eff;
@@ -205,12 +205,15 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 }
 
 
-void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool doMT = false){
+void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
     outputfile << "correctedSVD_poor";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
+    }
+    if(radiusSel > 0) {
+        outputfile << "_R" << std::setfill('0') << std::setw(2) << radiusSel;
     }
     outputfile << ".root";
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
@@ -220,13 +223,17 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
          binningdet = getJetPtBinningNonLinSmearPoor();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
-    for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
+    for(auto R : ROOT::TSeqI(2, 7)) {
+        double radius = double(R) / 10.;
+        if(radiusSel > 0 && R != radiusSel) {
+            continue;
+        }
         std::cout << "Doing jet radius " << radius << std::endl;
-        auto mbspectrum = getSpectrumAndNorm(*datareader, radius, "INT7", "ANY", sysvar),
-             ej1spectrum = getSpectrumAndNorm(*datareader, radius, "EJ1", "CENTNOTRD", sysvar),
-             ej2spectrum = getSpectrumAndNorm(*datareader, radius, "EJ2", "CENT", sysvar);
-        auto trgeffej1 = makeTriggerEfficiency(*mcreader, radius, "EJ1", sysvar),
-             trgeffej2 = makeTriggerEfficiency(*mcreader, radius, "EJ2", sysvar);
+        auto mbspectrum = getSpectrumAndNorm(*datareader, R, "INT7", "ANY", sysvar),
+             ej1spectrum = getSpectrumAndNorm(*datareader, R, "EJ1", "CENTNOTRD", sysvar),
+             ej2spectrum = getSpectrumAndNorm(*datareader, R, "EJ2", "CENT", sysvar);
+        auto trgeffej1 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar),
+             trgeffej2 = makeTriggerEfficiency(*mcreader, R, "EJ2", sysvar);
 
         // apply CENTNOTRD correction
         ej1spectrum.second->Scale(1./centnotrdcorrection);
@@ -240,35 +247,35 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
                              ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
                              ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
         auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
-        hraw->SetNameTitle(Form("hraw_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f", radius));
+        hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
         hraw->Scale(crosssection/mbspectrum.first);
 
         // Get the response matrix
-        auto rawresponse = getResponseMatrix(*mcreader, radius, sysvar);
+        auto rawresponse = getResponseMatrix(*mcreader, R, sysvar);
         rawresponse->SetName(Form("%s_fine", rawresponse->GetName()));
         rawresponse->Scale(40e6);   // undo scaling with the number of trials
         auto rebinnedresponse  = makeRebinned2D(rawresponse, binningdet, binningpart);
         rebinnedresponse->SetName(Form("%s_standard", rebinnedresponse->GetName()));
         std::unique_ptr<TH1> truefulltmp(rawresponse->ProjectionY()),
                              truetmp(rebinnedresponse->ProjectionY());
-        auto truefull = truefulltmp->Rebin(binningpart.size() - 1, Form("truefull_R%02d", int(radius*10.)), binningpart.data());
+        auto truefull = truefulltmp->Rebin(binningpart.size() - 1, Form("truefull_R%02d", R), binningpart.data());
         truefull->SetDirectory(nullptr);
-        auto effkine = truetmp->Rebin(binningpart.size()-1, Form("effKine_R%02d", int(radius*10.)), binningpart.data());
+        auto effkine = truetmp->Rebin(binningpart.size()-1, Form("effKine_R%02d", R), binningpart.data());
         effkine->SetDirectory(nullptr);
         effkine->Divide(effkine, truefull, 1., 1., "b");
 
         // split the response matrix for the closure test
-        auto responseclosure = getResponseMatrix(*mcreader, radius, sysvar, 1);
+        auto responseclosure = getResponseMatrix(*mcreader, R, sysvar, 1);
         responseclosure->SetName(Form("%s_fine", responseclosure->GetName()));
-        std::unique_ptr<TH2> truthclosure(getResponseMatrix(*mcreader, radius, sysvar, 2));
+        std::unique_ptr<TH2> truthclosure(getResponseMatrix(*mcreader, R, sysvar, 2));
         truthclosure->SetName("truthclosure");
         responseclosure->Scale(40e6);
         TH1 *priorsclosuretmp(responseclosure->ProjectionY()),
             *detclosuretmp(truthclosure->ProjectionX()),
             *partclosuretmp(truthclosure->ProjectionY());
-        auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", int(radius*10.)), binningpart.data()),
-             detclosure = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosure_R%02d", int(radius*10.)), binningdet.data()),
-             partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", int(radius*10.)), binningpart.data());
+        auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", R), binningpart.data()),
+             detclosure = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosure_R%02d", R), binningdet.data()),
+             partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", R), binningpart.data());
         priorsclosure->SetDirectory(nullptr);
         detclosure->SetDirectory(nullptr);
         partclosure->SetDirectory(nullptr);
@@ -305,8 +312,8 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         }
 
         // Write everything to file
-        writer->mkdir(Form("R%02d", int(radius*10)));
-        writer->cd(Form("R%02d", int(radius*10)));
+        writer->mkdir(Form("R%02d", R));
+        writer->cd(Form("R%02d", R));
         auto basedir = gDirectory;
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
