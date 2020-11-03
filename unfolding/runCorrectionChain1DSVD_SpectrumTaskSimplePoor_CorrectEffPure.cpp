@@ -8,8 +8,10 @@
 struct unfoldingResults {
     int fReg;
     TH1 *fUnfolded;
+    TH1 *fNormalizedNoEff;
     TH1 *fNormalized;
     TH1 *fBackfolded;
+    TH1 *fUnfoldedClosureNoEff;
     TH1 *fUnfoldedClosure;
     TH1 *fDvector;
     TH1 *fDvectorClosure;
@@ -24,6 +26,7 @@ struct UnfoldingConfiguration {
     int fReg;
     double fRadius;
     TH1 *fRaw;
+    TH1 *fJetFindingEff;
     RooUnfoldResponse *fResponseMatrix;
     TH1 *fDetLevelClosure;
     RooUnfoldResponse *fResponseMatrixClosure;
@@ -82,10 +85,14 @@ class UnfoldingRunner {
             backfolded->SetNameTitle(Form("backfolded_reg%d", config.fReg), Form("back-folded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             backfolded->SetDirectory(nullptr);
             specunfolded->Scale(1., "width");
-            auto specnormalized = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedReg%d", config.fReg)));
+            auto specnormalizedNoEff = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedNoEffReg%d", config.fReg)));
+            specnormalizedNoEff->SetNameTitle(Form("normalizedNoEff_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d, no correction for jet finding efficiency", config.fRadius, config.fReg));
+            specnormalizedNoEff->SetDirectory(nullptr);
+            specnormalizedNoEff->Scale(1. / (acceptance));
+            auto specnormalized = static_cast<TH1 *>(specnormalizedNoEff->Clone(Form("normalizedReg%d", config.fReg)));
             specnormalized->SetNameTitle(Form("normalized_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specnormalized->SetDirectory(nullptr);
-            specnormalized->Scale(1. / (acceptance));
+            specnormalized->Divide(config.fJetFindingEff);
             TH1 *dvec(nullptr);
             auto imp = unfolder.Impl();
             if(imp){
@@ -97,10 +104,14 @@ class UnfoldingRunner {
             // run closure test
             std::cout << "[SVD unfolding] Running closure test" << std::endl;
             RooUnfoldSvd unfolderClosure(config.fResponseMatrixClosure, config.fDetLevelClosure, config.fReg);
-            auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
+            auto specunfoldedClosureNoEff = unfolderClosure.Hreco(errorTreatment);
+            specunfoldedClosureNoEff->SetDirectory(nullptr);
+            specunfoldedClosureNoEff->SetNameTitle(Form("unfoldedClosureNoEff_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d, no correction for jet finding efficiency", config.fRadius, config.fReg));
+            specunfoldedClosureNoEff->Scale(1., "width");
+            auto specunfoldedClosure = static_cast<TH1 *>(specunfoldedClosureNoEff->Clone());
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
-            specunfoldedClosure->Scale(1., "width");
+            specunfoldedClosure->Divide(config.fJetFindingEff);
             TH1 *dvecClosure(nullptr);
             imp = unfolderClosure.Impl();
             if(imp) {
@@ -108,7 +119,7 @@ class UnfoldingRunner {
                 dvecClosure->SetNameTitle(Form("dvectorClosure_Reg%d", config.fReg), Form("D-vector of the closure test reg %d", config.fReg));
                 dvecClosure->SetDirectory(nullptr);
             }
-            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, dvec, dvecClosure, 
+            return {config.fReg, specunfolded, specnormalizedNoEff, specnormalized, backfolded, specunfoldedClosureNoEff, specunfoldedClosure, dvec, dvecClosure, 
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
                     CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
         }
@@ -204,8 +215,34 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
     return combined;
 }
 
+std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, double R, std::string_view sysvar, std::vector<double> binningpart, std::vector<double> binningdet) {
+    std::stringstream dirnamebuilder;
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_INT7";
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
+    reader.cd(dirnamebuilder.str().data());
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    auto raweff = static_cast<TH2 *>(histlist->FindObject("hJetfindingEfficiencyCore")),
+         rawpure = static_cast<TH2 *>(histlist->FindObject("hPurityDet"));
 
-void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool doMT = false){
+    std::unique_ptr<TH1> effall(raweff->ProjectionX("effall")),
+                         efftag(raweff->ProjectionX("efftag", 3 ,3)),
+                         pureall(rawpure->ProjectionX("pureall")),
+                         puretag(rawpure->ProjectionX("puretag", 3, 3)),
+                         effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data())),
+                         pureAllRebinned(pureall->Rebin(binningdet.size()-1, "pureAllRebin", binningdet.data()));
+    auto jetfindingeff = efftag->Rebin(binningpart.size()-1, Form("hJetfindingEfficiency_R%02d", int(R*10.)), binningpart.data()),
+         jetfindingpure = puretag->Rebin(binningdet.size()-1, Form("hJetfindingPurity_R%02d", int(R*10.)), binningdet.data());
+    jetfindingeff->SetDirectory(nullptr);
+    jetfindingeff->Divide(jetfindingeff, effAllRebinned.get(), 1., 1., "b");
+    jetfindingeff->SetTitle(Form("Jet finding efficiency for R = %.1f", double(R)/10.));
+    jetfindingpure->SetDirectory(nullptr);
+    jetfindingpure->Divide(jetfindingpure, pureAllRebinned.get(), 1., 1., "b");
+    jetfindingpure->SetTitle(Form("Jet finding purity for R = %.1f", double(R)/10.));
+    return {{"efficiency", jetfindingeff}, {"purity", jetfindingpure}};
+}
+
+
+void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool doMT = false){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
     outputfile << "correctedSVD_poor";
@@ -239,9 +276,15 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         std::unique_ptr<TH1> mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
                              ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
                              ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
-        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
+        auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
+        hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
+        hrawOrig->Scale(crosssection/mbspectrum.first);
+
+        auto effpure = makeJetFindingEffPure(*mcreader, radius, sysvar, binningpart, binningdet);
+
+        auto hraw = static_cast<TH1 *>(hrawOrig->Clone());
         hraw->SetNameTitle(Form("hraw_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f", radius));
-        hraw->Scale(crosssection/mbspectrum.first);
+        hraw->Multiply(effpure["purity"]);
 
         // Get the response matrix
         auto rawresponse = getResponseMatrix(*mcreader, radius, sysvar);
@@ -267,10 +310,12 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
             *detclosuretmp(truthclosure->ProjectionX()),
             *partclosuretmp(truthclosure->ProjectionY());
         auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", int(radius*10.)), binningpart.data()),
-             detclosure = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosure_R%02d", int(radius*10.)), binningdet.data()),
+             detclosureOrig = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosureOrig_R%02d", int(radius*10.)), binningdet.data()),
              partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", int(radius*10.)), binningpart.data());
+        auto detclosure = static_cast<TH1 *>(detclosureOrig->Clone(Form("detclosure_R%02d", int(radius*10.))));
         priorsclosure->SetDirectory(nullptr);
-        detclosure->SetDirectory(nullptr);
+        detclosureOrig->SetDirectory(nullptr);
+        detclosure->Multiply(effpure["purity"]);
         partclosure->SetDirectory(nullptr);
         auto rebinnedresponseclosure = makeRebinned2D(responseclosure, binningdet, binningpart);
         rebinnedresponseclosure->SetName(Form("%s_closure", rebinnedresponseclosure->GetName()));
@@ -282,7 +327,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
 
         UnfoldingPool work;
         for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
-            work.InsertWork({ireg, radius, hraw, &responsematrix, detclosure, &responsematrixClosure});
+            work.InsertWork({ireg, radius, hraw, effpure["efficiency"], &responsematrix, detclosure, &responsematrixClosure});
         }
 
         std::set<unfoldingResults> unfolding_results;
@@ -302,7 +347,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
             UnfoldingRunner worker(&work);
             worker.DoWork();
             for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
-        }
+        };
 
         // Write everything to file
         writer->mkdir(Form("R%02d", int(radius*10)));
@@ -315,6 +360,8 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         ej2spectrum.second->Write();
         trgeffej1->Write();
         trgeffej2->Write();
+        effpure["purity"]->Write();
+        hrawOrig->Write();
         hraw->Write();
         auto hnorm = new TH1F("hNorm", "Norm", 1, 0.5, 1.5);
         hnorm->SetBinContent(1, mbspectrum.first);
@@ -328,6 +375,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         rebinnedresponse->Write();
         truefull->Write();
         effkine->Write();
+        effpure["efficiency"]->Write();
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
         priorsclosure->Write("priorsclosure");
@@ -339,10 +387,12 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
             basedir->mkdir(Form("reg%d", reg.fReg));
             basedir->cd(Form("reg%d", reg.fReg));
             if(reg.fUnfolded) reg.fUnfolded->Write();
+            if(reg.fNormalizedNoEff) reg.fNormalizedNoEff->Write();
             if(reg.fNormalized) reg.fNormalized->Write();
             if(reg.fBackfolded) reg.fBackfolded->Write();
             if(reg.fDvector) reg.fDvector->Write();
             if(reg.fPearson) reg.fPearson->Write();
+            if(reg.fUnfoldedClosureNoEff) reg.fUnfoldedClosureNoEff->Write();
             if(reg.fUnfoldedClosure) reg.fUnfoldedClosure->Write();
             if(reg.fDvectorClosure) reg.fDvectorClosure->Write();
             if(reg.fPearsonClosure) reg.fPearsonClosure->Write();
