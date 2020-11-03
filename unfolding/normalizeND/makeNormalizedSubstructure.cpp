@@ -44,6 +44,16 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
     return result;
 }
 
+TH2 *makeRawHistFromSparse(THnSparse *hsparse, int triggercluster){
+    int first = hsparse->GetAxis(2)->GetFirst(),
+        last = hsparse->GetAxis(2)->GetLast();
+    hsparse->GetAxis(2)->SetRange(triggercluster+1, triggercluster+1);
+    auto rawlevel = hsparse->Projection(1,0);
+    rawlevel->SetDirectory(nullptr);
+    hsparse->GetAxis(2)->SetRange(first,last);
+    return rawlevel;
+}
+
 void makeNormalizedSubstructure(const char *filedata, const char *filemc, const char *binvarname = "default") {
     const double kVerySmall = 1e-5;
     std::vector<double> ptbinning = getDetPtBinning(binvarname);
@@ -54,6 +64,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
     reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
+    std::map<std::string, int> triggerclusters = {{"INT7", 0}, {"EJ2", 0}, {"EJ1", 1}};
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::string outdirname(Form("R%02d", R));
@@ -95,7 +106,16 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
             if(triggereffFine) triggereffFine->Write();
 
             for(auto observable : observables) {
-                auto rawhist = static_cast<TH2 *>(histlist->FindObject(Form("h%sVsPtWeighted", observable.data())));
+                std::string histname = Form("h%sVsPtWeighted", observable.data());
+                auto rawobject = histlist->FindObject(histname.data());
+                TH2 *rawhist(nullptr);
+                if((rawobject->IsA() == THnSparse::Class()) || rawobject->InheritsFrom(THnSparse::Class())) {
+                    std::cout << "Extracting raw data from THnSparse" << std::endl;
+                    rawhist = makeRawHistFromSparse(static_cast<THnSparse *>(rawobject), triggerclusters[trg]);
+                } else {
+                    std::cout << "Using old style TH2 raw object" << std::endl;
+                    rawhist = static_cast<TH2 *>(rawobject);
+                }
                 rawhist->SetDirectory(nullptr);
                 rawhist->SetNameTitle(Form("h%sVsPt%sRaw", observable.data(), trg.data()), Form("%s vs. Pt for trigger %s (raw)", observable.data(), trg.data()));
                 rawhist->Scale(weight);
