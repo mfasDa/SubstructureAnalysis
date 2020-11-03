@@ -56,7 +56,7 @@ std::vector<double> getJetPtBinningNonLinTrueMinBias(){
 }
 
 std::vector<double> getJetPtBinningNonLinTrueMinBiasPoor(){
-  binninghelper binning(5., {{10., 5.}, {40., 10.}, {80., 20.}, {160., 40.}, {300., 140.}});
+  binninghelper binning(0., {{10., 5.}, {40., 10.}, {80., 20.}, {160., 40.}, {300., 140.}});
   return binning.CreateCombinedBinning();
 }
 
@@ -66,7 +66,7 @@ std::vector<double> getJetPtBinningNonLinTrueEMCAL(){
 }
 
 std::vector<double> getJetPtBinningNonLinTruePoor(){
-  binninghelper binning(5., {{30., 5.}, {140., 10.}, {200., 20.}, {320., 40.}, {600., 280.}});
+  binninghelper binning(0., {{30., 5.}, {140., 10.}, {200., 20.}, {320., 40.}, {600., 280.}});
   return binning.CreateCombinedBinning();
 }
 
