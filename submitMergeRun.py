@@ -16,15 +16,8 @@ if __name__ == "__main__":
     if not os.path.exists(outputbase):
         os.makedirs(outputbase, 0o755)
     executable = os.path.join(repo, "processMergeRun.sh")
-    subprocess.call("sbatch --array=1-20 --partition=short -o {OUTPUTDIR}/joboutput_%a.log {EXECUTABLE} {INPUTDIR} {OUTPUTDIR} {FILENAME}".format(OUTPUTDIR=outputbase, EXECUTABLE=executable, INPUTDIR=inputdir, FILENAME=args.filename), shell=True)
-    '''
-    for ipth in range(1, 21):
-        pthardbin = "%02d" %ipth
-        pthinputdir = os.path.join(inputdir, pthardbin)
-        pthoutputdir = os.path.join(outputbase, pthardbin)
-        if not os.path.exists(pthoutputdir):
-            os.makedirs(pthoutputdir)
-        logfile = os.path.join(pthoutputdir, "joboutput.log")
-        jobname = "merge_%s" %pthardbin
-        subprocess.call("sbatch -N1 -n1 --partition=short -J %s -o %s %s %s %s %s" %(jobname, logfile, executable, pthinputdir, pthoutputdir, args.filename), shell=True)
-    '''
+    exefinal = os.path.join(repo, "processMergeFinal.sh")
+    jobid = subprocess.call("sbatch --array=1-20 --partition=short -o {OUTPUTDIR}/joboutput_%a.log {EXECUTABLE} {INPUTDIR} {OUTPUTDIR} {FILENAME}".format(OUTPUTDIR=outputbase, EXECUTABLE=executable, INPUTDIR=inputdir, FILENAME=args.filename), shell=True)
+    print("Submitted merge job under JobID %d" %jobid)
+    jobfinale = subprocess.call("sbatch -N 1 -n1 -d {DEP} -J mergefinal -o {OUTPUTDIR}/mergefinal.log {EXEFINAL} {OUTPUTDIR} {FILENAME}".format(DEP=jobid, OUTPUTDIR=outputbase, EXEFINAL=exefinal, FILENAME=args.filename), shell=True)
+    print("Submitted final merging job under JobID %d" %jobid)
