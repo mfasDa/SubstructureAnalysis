@@ -25,5 +25,5 @@ if __name__ == "__main__":
     resultFinal = subprocess.run("sbatch -N 1 -n1 -d {DEP} -J mergefinal -o {OUTPUTDIR}/mergefinal.log {EXEFINAL} {OUTPUTDIR} {FILENAME}".format(DEP=jobid, OUTPUTDIR=outputbase, EXEFINAL=exefinal, FILENAME=args.filename), shell=True, stdout=subprocess.PIPE)
     soutFinal = resultFinal.stdout.decode("utf-8")
     toks = soutFinal.split(" ")
-    jobidFinal = int(toks[len(toks)-1]
+    jobidFinal = int(toks[len(toks)-1])
     print("Submitted final merging job under JobID %d" %jobidFinal)

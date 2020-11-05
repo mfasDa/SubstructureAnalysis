@@ -14,11 +14,11 @@ eval `$ALIENV list`
 
 ls -l $INPUTBASE
 files=()
-dirs=($(ls -l $INPUTBASE))
+dirs=($(ls -1 $INPUTBASE))
 for indir in ${dirs[@]}; do
     echo Doing $indir
-    if [ "x$(echo $indir | grep LHC)" != "x" ]; then continue; fi
-    fname=$indir/merged/$CHUNK/$FILENAME
+    if [ "x$(echo $indir | grep LHC)" == "x" ]; then continue; fi
+    fname=$INPUTBASE/$indir/merged/$CHUNK/$FILENAME
     echo Doing Filename $fname
     if [ -f $fname ]; then
         echo Adding input file $fname
