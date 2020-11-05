@@ -15,7 +15,7 @@ if __name__ == "__main__":
     outputbase = os.path.join(inputdir, "merged")
     if not os.path.exists(outputbase):
         os.makedirs(outputbase, 0o755)
-    executable = os.path.join(repo, "processMergeRun.sh")
+    executable = os.path.join(repo, "processMergeMCDatasets.sh")
     exefinal = os.path.join(repo, "processMergeFinal.sh")
     resultSlots = subprocess.run("sbatch --array=1-20 --partition=short -o {OUTPUTDIR}/joboutput_%a.log {EXECUTABLE} {INPUTDIR} {OUTPUTDIR} {FILENAME}".format(OUTPUTDIR=outputbase, EXECUTABLE=executable, INPUTDIR=inputdir, FILENAME=args.filename), shell=True, stdout=subprocess.PIPE)
     soutSlots = resultSlots.stdout.decode("utf-8")
@@ -25,5 +25,5 @@ if __name__ == "__main__":
     resultFinal = subprocess.run("sbatch -N 1 -n1 -d {DEP} -J mergefinal -o {OUTPUTDIR}/mergefinal.log {EXEFINAL} {OUTPUTDIR} {FILENAME}".format(DEP=jobid, OUTPUTDIR=outputbase, EXEFINAL=exefinal, FILENAME=args.filename), shell=True, stdout=subprocess.PIPE)
     soutFinal = resultFinal.stdout.decode("utf-8")
     toks = soutFinal.split(" ")
-    jobidFinal = int(toks[len(toks)-1]
+    jobidFinal = int(toks[len(toks)-1])
     print("Submitted final merging job under JobID %d" %jobidFinal)
