@@ -9,17 +9,19 @@ UNFOLDINGMACRO=$6
 
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh printenv AliPhysics/latest`
+eval `$ALIENV list`
 
 SOURCEDIR=/software/markus/alice/SubstructureAnalysis/unfolding/1D
-UNFOLDINGMETHOD=
+UNFOLDINGMETHOD=""
 if [ "x$(echo $UNFOLDINGMACRO | grep SVD)" != "x" ]; then
-    UNFOLDINGMETHOD=SVD
-else if [ "x$(echo $UNFOLDINGMACRO | grep Bayes)" != "x" ]; then
-    UNFOLDINGMETHOD=Bayes
+    UNFOLDINGMETHOD="SVD"
+elif [ "x$(echo $UNFOLDINGMACRO | grep Bayes)" != "x" ]; then
+    UNFOLDINGMETHOD="Bayes"
 else
-    echo Unknown unfolding method, skipping ...
+    echo "Unknown unfolding method, skipping ..."
     exit 1
 fi
+echo "Using unfolding method $UUNFOLDINGMETHOD"
 SCRIPT=$SOURCEDIR/$UNFOLDINGMETHOD/$UNFOLDINGMACRO
 if [ ! -f $SCRIPT ]; then
     echo Unfolding macro does not exist, skipping ...
