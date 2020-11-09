@@ -6,7 +6,7 @@ import sys
 import subprocess
 
 def submitMergeMinpthard(sourcedir, workdir, minpthard, filename):
-    executable = os.path.join(sourcedir, "processMergeMinpthard.sh")
+    executable = os.path.join(sourcedir, "processMergeMinPthardbin.sh")
     jobname = "mergeMin_%d" %minpthard
     logfile = os.path.join(workdir, "jobmergemin_%d.log" %minpthard)
     subprocess.call("sbatch -N 1 -n 1 -J %s -o %s %s %s %d %s" %(jobname, logfile, executable, workdir, minpthard, filename), shell=True)

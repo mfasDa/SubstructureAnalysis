@@ -13,7 +13,7 @@ OUTPUTFILE=$(printf "%s_minpthard%d.root" $FILEBASE $MINPTHARD)
 cd $WORKDIR
 cmd="hadd -f $OUTPUTFILE"
 for fl in `seq $MINPTHARD 20`; do
-    ADDFILE=$(printf " %02d/%s" $FILENAME)
+    ADDFILE=$(printf " %02d/%s" $fl $FILENAME)
     cmd=$(printf "%s %s" "$cmd" $ADDFILE)
 done
 eval $cmd
