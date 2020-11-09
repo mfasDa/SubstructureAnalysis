@@ -73,8 +73,8 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default=os.getcwd(), help="Output directory")
     parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="File to copy")
     args = parser.parse_args()
-    trainruns = getTrainIDsFast()
-    #trainruns = getTrainIDs(args.mintrain, args.maxtrain)
+    #trainruns = getTrainIDsFast()
+    trainruns = getTrainIDs(args.mintrain, args.maxtrain)
     for pthardbin,trainpath in trainruns.items():
         print("Using train {TRAINRUN} for pt-hard bin {PTHARDBIN} ...".format(TRAINRUN=trainpath, PTHARDBIN=pthardbin))
         gridpath = os.path.join(trainbasedir, trainpath)
