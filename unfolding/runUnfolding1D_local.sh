@@ -21,7 +21,7 @@ else
     echo "Unknown unfolding method, skipping ..."
     exit 1
 fi
-echo "Using unfolding method $UUNFOLDINGMETHOD"
+echo "Using unfolding method $UNFOLDINGMETHOD"
 SCRIPT=$SOURCEDIR/$UNFOLDINGMETHOD/$UNFOLDINGMACRO
 if [ ! -f $SCRIPT ]; then
     echo Unfolding macro does not exist, skipping ...
