@@ -12,9 +12,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     sourcedir = os.path.abspath(os.path.dirname(sys.argv[0]))
-    executable = os.path.join(sourcedir, "runGetnTrainLocal.sh")
+    executable = os.path.join(sourcedir, "runGenTrainLocal.sh")
     outputdir = os.path.abspath(args.outputdir)
     logdir = os.path.join(outputdir, "logs")
     if not os.path.exists(logdir):
         os.makedirs(logdir, 0o755)
-    subprocess.call("sbatch --array=1-{NJOBS} --partition=short -o {LOGDIR}/joboutput_%a.log {EXECUTABLE} {CONFIGDIR} {OUTPUTDIR}".format(NJOBS=args.njobs, LOGDIR=logdir, CONFIGDIR=args.configdir, OUTPUTDIR=outputdir), shell=True)
+    subprocess.call("sbatch --array=1-{NJOBS} --partition=short -J gentrain -o {LOGDIR}/joboutput_%a.log {EXECUTABLE} {CONFIGDIR} {OUTPUTDIR}".format(NJOBS=args.njobs, LOGDIR=logdir, EXECUTABLE=executable, CONFIGDIR=args.configdir, OUTPUTDIR=outputdir), shell=True)
