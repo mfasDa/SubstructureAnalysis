@@ -72,9 +72,13 @@ if __name__ == "__main__":
     parser.add_argument("maxtrain", metavar="MAXTRAIN", type=int, help="Max. train ID")
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default=os.getcwd(), help="Output directory")
     parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="File to copy")
+    parser.add_argument("-t", "--testmode", metavar="TESTMODE", type=bool, action="store_true", help="Run test mode on existing dataset")
     args = parser.parse_args()
-    #trainruns = getTrainIDsFast()
-    trainruns = getTrainIDs(args.mintrain, args.maxtrain)
+    trainruns=None
+    if args.testmode:
+        trainruns = getTrainIDsFast()
+    else:
+        trainruns = getTrainIDs(args.mintrain, args.maxtrain)
     for pthardbin,trainpath in trainruns.items():
         print("Using train {TRAINRUN} for pt-hard bin {PTHARDBIN} ...".format(TRAINRUN=trainpath, PTHARDBIN=pthardbin))
         gridpath = os.path.join(trainbasedir, trainpath)
