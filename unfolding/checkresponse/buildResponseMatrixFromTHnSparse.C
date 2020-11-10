@@ -4,21 +4,20 @@
 #include "../../helpers/math.C"
 #include "../binnings/binningPt2D.C"
 
-RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = -1) {
-    std::vector<double> detobsbinning, partobsbinning;
-    auto detaxis = responsedata->GetAxis(0), partaxis = responsedata->GetAxis(2);
-    detobsbinning.emplace_back(detaxis->GetBinLowEdge(1));
-    partobsbinning.emplace_back(partaxis->GetBinLowEdge(1));
-    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
-        auto step = partaxis->GetBinUpEdge(bin+1);
+std::vector<double> makeObservableBinning(const TAxis *obsaxis, double obsmax = 10000000) {
+    std::vector<double> obsbinning;
+    obsbinning.emplace_back(obsaxis->GetBinLowEdge(1)); 
+    for(auto bin : ROOT::TSeqI(0, obsaxis->GetNbins())) {
+        auto step = obsaxis->GetBinUpEdge(bin+1);
         if(step > obsmax) continue;
-        partobsbinning.emplace_back(step);
+        obsbinning.emplace_back(step);
     } 
-    for(auto bin : ROOT::TSeqI(0, detaxis->GetNbins())) {
-        auto step = detaxis->GetBinUpEdge(bin+1);
-        if(step > obsmax) continue;
-        detobsbinning.emplace_back(step);
-    } 
+    return obsbinning;
+}
+
+RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = 1000000) {
+    std::vector<double> detobsbinning = makeObservableBinning(responsedata->GetAxis(0)), 
+                        partobsbinning = makeObservableBinning(responsedata->GetAxis(2));
     TH2F dettemplate("dettemplate", "det template", detobsbinning.size() - 1, detobsbinning.data(), detptbinning.size() - 1, detptbinning.data()),
          parttemplate("parttemplate", "part template", partobsbinning.size() - 1, partobsbinning.data(), partptbinning.size() - 1, partptbinning.data());
 
@@ -57,17 +56,10 @@ TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning)
     return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
 }
 
-TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax, double obsmax) {
+TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax, double obsmax = 10000000) {
     std::cout << "Extracting kinematic efficiency for det. pt range from " << detptmin << " GeV/c to " << detptmax << " GeV/c" << std::endl;
-    std::vector<double> partobsbinning;
-    auto partaxis = responsedata->GetAxis(2);
-    partobsbinning.emplace_back(partaxis->GetBinLowEdge(1)); 
-    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
-        auto step = partaxis->GetBinUpEdge(bin+1);
-        if(step > obsmax) continue;
-        partobsbinning.emplace_back(step);
-    } 
-    
+    std::vector<double> partobsbinning = makeObservableBinning(responsedata->GetAxis(2), obsmax);
+
     std::unique_ptr<TH2> truefull(responsedata->Projection(3, 2));
     truefull->SetName("truefull");
     responsedata->GetAxis(1)->SetRangeUser(detptmin, detptmax);
@@ -91,6 +83,35 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
     }
     std::cout << "Finish projection " << std::endl;
 
+    return result;
+}
+
+TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &ptbinning, double obsmax = 1000000){
+    // Axis 0 - observable
+    // Axis 1 - pt
+    // Axis 2 - tag status
+    auto obsbinning = makeObservableBinning(inputhist->GetAxis(0));
+    auto histall = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
+    histall->SetName("histall");
+    inputhist->GetAxis(2)->SetRange(4, 4);
+    auto histtag = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
+    histtag->SetName("histtag");
+    inputhist->GetAxis(2)->SetRange(0, inputhist->GetAxis(2)->GetNbins()+1);
+
+    TH2 *result = new TH2D("effPure", "Kinematic efficiency or purity", obsbinning.size()-1, obsbinning.data(), ptbinning.size()-1, ptbinning.data());
+    result->SetDirectory(nullptr);
+    for(auto iptbin : ROOT::TSeqI(0, result->GetYaxis()->GetNbins())){
+        double ptmin = result->GetYaxis()->GetBinLowEdge(iptbin+1),
+               ptmax = result->GetYaxis()->GetBinUpEdge(iptbin+1);
+        std::cout << "Doing bin " << iptbin << "(" << ptmin << " ... " << ptmax << ")" << std::endl;
+        std::unique_ptr<TH1> sliceall(histall->ProjectionX("slicefull", histall->GetYaxis()->FindBin(ptmin), histall->GetYaxis()->FindBin(ptmax))),
+                             slicetag(histtag->ProjectionX("slicetag", histtag->GetYaxis()->FindBin(ptmin), histtag->GetYaxis()->FindBin(ptmax))); 
+        slicetag->Divide(slicetag.get(), sliceall.get(), 1., 1., "b");
+        for(auto iobsbin : ROOT::TSeqI(0, slicetag->GetXaxis()->GetNbins())){
+            result->SetBinContent(iobsbin+1, iptbin+1, slicetag->GetBinContent(iobsbin+1));
+            result->SetBinError(iobsbin+1, iptbin+1, slicetag->GetBinError(iobsbin+1));
+        }
+    }
     return result;
 }
 
@@ -129,6 +150,18 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
             effKine->SetNameTitle(Form("EffKine%s_R%02d", observable.data(), R), Form("Kinematic efficiency for %s for R=%.1f", observable.data(), double(R)/10.));
             outputobjects.Add(responsematrix);
             outputobjects.Add(effKine);
+
+            // extract jetfinding efficiency and purity
+            auto sparsePurity = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingPurity", observable.data()))),
+                 sparseEfficiency = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingEfficiency", observable.data())));
+            auto jetfindingeff = extractEfficiencyPurity(sparseEfficiency, partptbinning, obsmax),
+                 jetfindingpurity = extractEfficiencyPurity(sparsePurity, detptbinning, obsmax);
+            jetfindingeff->SetDirectory(nullptr);
+            jetfindingeff->SetNameTitle(Form("JetFindingEff_%s_R%02d", observable.data(), R), Form("Jet finding efficiency for %s for R = %.1f", observable.data(), double(R)/10.));
+            outputobjects.Add(jetfindingeff);
+            jetfindingpurity->SetDirectory(nullptr);
+            jetfindingpurity->SetNameTitle(Form("JetFindingPurity_%s_R%02d", observable.data(), R), Form("Jet finding purity for %s for R = %.1f", observable.data(), double(R)/10.));
+            outputobjects.Add(jetfindingpurity);
 
             // Creating objects for the closure test
             auto closureresponsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseClosureSparse", observable.data())));
