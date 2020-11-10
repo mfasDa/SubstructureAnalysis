@@ -25,7 +25,7 @@ TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, doubl
     return result;
 }
 
-void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, const char *observablename = "all", const char *jetrstring = "all"){
+void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, const char *observablename = "all", const char *jetrstring = "all", bool correctEffPure = true){
     std::stringstream outfilename;
     outfilename << "UnfoldedSD";
     if(std::string_view(observablename) != std::string_view("all")) outfilename << "_" << observablename;
@@ -72,12 +72,23 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 hist->SetDirectory(nullptr);
                 rawtriggers[t] = hist;
             }
-            auto rawcombined = makeCombinedTriggers(rawtriggers, kMinPtEJ2, kMinPtEJ1, observable.data());
+            auto rawcombined = makeCombinedTriggers(rawtriggers, kMinPtEJ2, kMinPtEJ1, observable.data()),
+                 rawcombinedOriginal = static_cast<TH2 *>(rawcombined->Clone());
+            rawcombinedOriginal->SetDirectory(nullptr);
 
             responsedirectory->cd("response");
             auto responsematrix = static_cast<RooUnfoldResponse *>(gDirectory->Get(Form("Responsematrix%s_%s", observable.data(), rstring.data())));
             auto effKine = static_cast<TH2 *>(gDirectory->Get(Form("EffKine%s_%s", observable.data(), rstring.data())));
             effKine->SetDirectory(nullptr);
+
+            // get jet finding efficiency and purity (if available)
+            TH2 *jetfindingeff(nullptr), *jetfindingpurity(nullptr);
+            if(correctEffPure) {
+                jetfindingeff = static_cast<TH2 *>(gDirectory->Get(Form("JetFindingEff_%s_R%02d", observable.data(), R))),
+                jetfindingpurity = static_cast<TH2 *>(gDirectory->Get(Form("JetFindingPurity_%s_R%02d", observable.data(), R)));
+                if(jetfindingeff) jetfindingeff->SetDirectory(nullptr);
+                if(jetfindingpurity) jetfindingpurity->SetDirectory(nullptr);
+            }
 
             // get stuff for closure test
             responsedirectory->cd("closuretest");
@@ -89,11 +100,19 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                  partLevelClosureCut = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthcut%s_%s", observable.data(), rstring.data())));
             detLevelClosure->SetDirectory(nullptr);
             partLevelClosure->SetDirectory(nullptr);
+            auto detLevelClosureOriginal = static_cast<TH2 *>(detLevelClosure->Clone());
+            detLevelClosureOriginal->SetDirectory(nullptr);
             if(partLevelClosureCut) partLevelClosureCut->SetDirectory(nullptr);
 
-            std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists,
-                               unfoldedHistsClosure, refoldedHistsClosure, correctedHistsClosure;
+            std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists, correctedHistsNoEff,
+                               unfoldedHistsClosure, refoldedHistsClosure, correctedHistsClosure, correctedHistsClosureNoEff;
             std::vector<TList *> pearsonPt, pearsonShape, pearsonClosurePt, pearsonClosureShape;
+
+            if(jetfindingpurity) {
+                // Correct rawspectrum for jet finding purity
+                rawcombined->Multiply(jetfindingpurity);
+                detLevelClosure->Multiply(jetfindingpurity);
+            }
 
             for(auto iter : ROOT::TSeqI(1, 31)) {
                 std::cout << "Iteration " << iter << std::endl;
@@ -113,7 +132,12 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 corrected->SetDirectory(nullptr);
                 corrected->SetNameTitle(Form("correctedIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
                 corrected->Divide(effKine);
+                auto correctedNoJetFindingEff = static_cast<TH2 *>(corrected->Clone());
+                correctedNoJetFindingEff->SetDirectory(nullptr);
+                correctedNoJetFindingEff->SetNameTitle(Form("correctedNoJetFindingEffIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution except jet finding efficiency for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                if(jetfindingeff) corrected->Divide(jetfindingeff);
                 correctedHists.push_back(corrected);
+                correctedHistsNoEff.push_back(correctedNoJetFindingEff);
                 
                 // Pearson coefficients
                 auto covmat = unfolder.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
@@ -165,7 +189,12 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 correctedClosure->SetDirectory(nullptr);
                 correctedClosure->SetNameTitle(Form("correctedClosureIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
                 correctedClosure->Divide(effKineClosure);
+                auto correctedClosureNoJetFindingEff = static_cast<TH2 *>(correctedClosure->Clone());
+                correctedClosureNoJetFindingEff->SetDirectory(nullptr);
+                correctedClosureNoJetFindingEff->SetNameTitle(Form("correctedClosureNoJetFindingEffIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution except jet finding efficiency of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
+                if(jetfindingeff) correctedClosure->Divide(jetfindingeff);
                 correctedHistsClosure.push_back(correctedClosure);
+                correctedHistsClosureNoEff.push_back(correctedClosureNoJetFindingEff);
 
                 // Pearson coefficients for the closure test
                 auto covmatClosure = unfolderClosure.Ereco((RooUnfold::ErrorTreatment)RooUnfold::kCovariance);
@@ -217,17 +246,22 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
             }
             rawcombined->SetNameTitle(Form("rawlevel%s_%s_combined", observable.data(), rstring.data()), Form("Raw %s distribution for %s, all triggers", observable.data(), rtitle.data()));
             rawcombined->Write();
+            rawcombinedOriginal->SetNameTitle(Form("rawlevelOriginal%s_%s_combined", observable.data(), rstring.data()), Form("Raw %s distribution for %s, all triggers (Original)", observable.data(), rtitle.data()));
+            rawcombinedOriginal->Write();
+            if(jetfindingpurity) jetfindingpurity->Write();
 
             routbase->mkdir("response");
             routbase->cd("response");
             responsematrix->Write();
             effKine->Write();
+            if(jetfindingeff) jetfindingeff->Write();
 
             routbase->mkdir("closuretest");
             routbase->cd("closuretest");
             responsematrixClosure->Write();
             effKineClosure->Write();
             detLevelClosure->Write();
+            detLevelClosureOriginal->Write();
             partLevelClosure->Write();
             if(partLevelClosureCut) partLevelClosureCut->Write();
 
@@ -239,11 +273,13 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 (*std::find_if(unfoldedHists.begin(), unfoldedHists.end(), objectfinder))->Write();
                 (*std::find_if(refoldedHists.begin(), refoldedHists.end(), objectfinder))->Write();
                 (*std::find_if(correctedHists.begin(), correctedHists.end(), objectfinder))->Write();
+                (*std::find_if(correctedHistsNoEff.begin(), correctedHistsNoEff.end(), objectfinder))->Write();
                 (*std::find_if(pearsonShape.begin(), pearsonShape.end(), objectfinder))->Write();
                 (*std::find_if(pearsonPt.begin(), pearsonPt.end(), objectfinder))->Write();
                 (*std::find_if(unfoldedHistsClosure.begin(), unfoldedHistsClosure.end(), objectfinder))->Write();
                 (*std::find_if(refoldedHistsClosure.begin(), refoldedHistsClosure.end(), objectfinder))->Write();
                 (*std::find_if(correctedHistsClosure.begin(), correctedHistsClosure.end(), objectfinder))->Write();
+                (*std::find_if(correctedHistsClosureNoEff.begin(), correctedHistsClosureNoEff.end(), objectfinder))->Write();
                 (*std::find_if(pearsonClosureShape.begin(), pearsonClosureShape.end(), objectfinder))->Write();
                 (*std::find_if(pearsonClosurePt.begin(), pearsonClosurePt.end(), objectfinder))->Write();
             }
