@@ -12,7 +12,7 @@ def submitMergeMinpthard(sourcedir, workdir, minpthard, filename):
     subprocess.call("sbatch -N 1 -n 1 -J %s -o %s %s %s %d %s" %(jobname, logfile, executable, workdir, minpthard, filename), shell=True)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("submitMergeMinPthard.py", "Submitter for pt-hard dependent merge")
+    parser = argparse.ArgumentParser("submitMergeMinPthardMulti.py", "Submitter for pt-hard dependent merge")
     parser.add_argument("-w", "--workdir", metavar="WORKDIR", type=str, default=os.getcwd(), help="Working directory")
     parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="File to merge")
     args = parser.parse_args()
