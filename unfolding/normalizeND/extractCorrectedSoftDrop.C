@@ -2,10 +2,16 @@
 #include "../../meta/root.C"
 #include "../../meta/root6tools.C"
 
-void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", int defaultiteration = 6){
+void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", bool withEfficiencyCorrection = true, int defaultiteration = 6){
     const double ptmin = 15., ptmax = 200.;
+    std::stringstream outfilename;
+    outfilename << "CorrectedSoftDrop";
+    if(!withEfficiencyCorrection) {
+        outfilename << "_noEffCorr";
+    }
+    outfilename << ".root";
     std::unique_ptr<TFile> reader(TFile::Open(filename, "READ")),
-                           writer(TFile::Open("CorrectedSoftDrop.root", "RECREATE"));
+                           writer(TFile::Open(outfilename.str().data(), "RECREATE"));
     std::vector<std::string> observables = {"Zg", "Rg", "Thetag", "Nsd"};
 
     for(auto obs : observables) {
@@ -20,7 +26,13 @@ void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", int defa
                         rtitle = Form("R = %.1f", double(R)/10.);
             basedir->cd(rstring.data());
             gDirectory->cd(Form("Iter%d", defaultiteration));
-            auto correctedhist = static_cast<TH2 *>(gDirectory->Get(Form("correctedIter%d_%s_%s", defaultiteration, obs.data(), rstring.data())));
+            std::stringstream inputhist;
+            inputhist << "corrected";
+            if(!withEfficiencyCorrection) {
+                inputhist << "NoJetFindingEff";
+            }
+            inputhist << "Iter" << defaultiteration << "_" << obs << "_" << rstring;
+            auto correctedhist = static_cast<TH2 *>(gDirectory->Get(inputhist.str().data()));
             for(auto iptb : ROOT::TSeqI(0, correctedhist->GetYaxis()->GetNbins())) {
                 auto ptlow = correctedhist->GetYaxis()->GetBinLowEdge(iptb+1),
                      pthigh = correctedhist->GetYaxis()->GetBinUpEdge(iptb+1),
