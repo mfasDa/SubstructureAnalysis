@@ -15,7 +15,7 @@ std::vector<double> makeObservableBinning(const TAxis *obsaxis, double obsmax = 
     return obsbinning;
 }
 
-RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = 1000000) {
+RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = 1000000, bool verbose = false) {
     std::vector<double> detobsbinning = makeObservableBinning(responsedata->GetAxis(0)), 
                         partobsbinning = makeObservableBinning(responsedata->GetAxis(2));
     TH2F dettemplate("dettemplate", "det template", detobsbinning.size() - 1, detobsbinning.data(), detptbinning.size() - 1, detptbinning.data()),
@@ -25,6 +25,8 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
          &ptpartmax = partptbinning.back(),
          &ptdetmin = detptbinning.front(),
          &ptdetmax = detptbinning.back();
+    std::cout << "Using part. min. pt " << ptpartmin << " and max " << ptpartmax << std::endl;
+    std::cout << "Using det. min. pt " << ptdetmin << " and max " << ptdetmax << std::endl;
 
     auto resultresponse = new RooUnfoldResponse(Form("%s_rebinned", responsedata->GetName()), Form("%s rebinned", responsedata->GetTitle()));
     resultresponse->UseOverflow(false);
@@ -39,7 +41,7 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
                ptpart = responsedata->GetAxis(3)->GetBinCenter(coordinate[3]);
         // check whether pt is within det-level and part-level range
         if(ptdet < ptdetmin || ptdet > ptdetmax || ptpart < ptpartmin || ptpart > ptpartmax) {
-            std::cout << "Point (" << ptpart << " part - " << ptdet << " det) outside range" << std::endl;
+            if(verbose) std::cout << "Point (" << ptpart << " part - " << ptdet << " det) outside range" << std::endl;
             continue;
         }
         resultresponse->Fill(zgdet, ptdet, zgpart, ptpart, weight);
@@ -115,7 +117,7 @@ TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &pt
     return result;
 }
 
-void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root", const char *detbinningvar = "default") {
+void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root", const char *detbinningvar = "default", bool verbose = false) {
     std::vector<double> detptbinning = getDetPtBinning(detbinningvar),
                         partptbinning = {0, 10, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
     if(!detptbinning.size()) {
@@ -143,7 +145,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
                 std::cerr << "Did not find response matrix sparse for observable " << observable << std::endl;
                 histlist->ls();
             }
-            auto responsematrix = makeResponse(responsedata, detptbinning, partptbinning, obsmax);
+            auto responsematrix = makeResponse(responsedata, detptbinning, partptbinning, obsmax, verbose);
             responsematrix->SetNameTitle(Form("Responsematrix%s_R%02d", observable.data(), R), Form("Response matrix for %s for R=%.1f", observable.data(), double(R)/10.));
             std::cout << "Extracting kinematic efficiency for observable " << observable << std::endl;
             auto effKine = extractKinematicEfficiency(responsedata, partptbinning, *detptbinning.begin(), *detptbinning.rbegin(), obsmax);
@@ -170,7 +172,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
                 std::cerr << "Did not find closure response matrix sparse for observable " << observable << std::endl;
                 histlist->ls();
             }
-            auto closureresponsematrix = makeResponse(closureresponsedata, detptbinning, partptbinning, obsmax);
+            auto closureresponsematrix = makeResponse(closureresponsedata, detptbinning, partptbinning, obsmax, verbose);
             closureresponsematrix->SetNameTitle(Form("ResponsematrixClosure%s_R%02d", observable.data(), R), Form("Response matrix for closure test for %s for R=%.1f", observable.data(), double(R)/10.));
             std::cout << "Extracting closure kinematic efficiency for observable " << observable << std::endl;
             auto closureeffkine = extractKinematicEfficiency(closureresponsedata, partptbinning, *detptbinning.begin(), *detptbinning.rbegin(), obsmax);
