@@ -22,7 +22,7 @@ def copyFile(gridfile, outputfile):
 def getPtHardBinForTrain(inputdir):
     status, stdout = subprocess.getstatusoutput("alien.py cat {INPUTDIR}/env.sh | grep PERIOD_NAME".format(INPUTDIR=inputdir))
     periodname = stdout[stdout.index("=")+1:].replace("'", "")
-    return int(toks = periodname.split("_")[1].replace("pthard", ""))
+    return int(periodname.split("_")[1].replace("pthard", ""))
 
 def getTrainIDs(mintrain, maxtrain):
     dirs = listGridDir(trainbasedir)
@@ -30,7 +30,7 @@ def getTrainIDs(mintrain, maxtrain):
     for dr in dirs:
         trainid = int(dr[:dr.index("_")])
         if trainid >= mintrain and trainid <= maxtrain:
-            trains[getPtHardBinForTrain(os.path.join(trainbasedir, dr))] = trainid
+            trains[getPtHardBinForTrain(os.path.join(trainbasedir, dr))] = dr
     return trains
 
 def getTrainIDsFast():
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument("maxtrain", metavar="MAXTRAIN", type=int, help="Max. train ID")
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default=os.getcwd(), help="Output directory")
     parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="File to copy")
-    parser.add_argument("-t", "--testmode", metavar="TESTMODE", type=bool, action="store_true", help="Run test mode on existing dataset")
+    parser.add_argument("-t", "--testmode", action="store_true", help="Run test mode on existing dataset")
     args = parser.parse_args()
     trainruns=None
     if args.testmode:
