@@ -1,5 +1,6 @@
-#include "../mets/stl.C"
+#include "../meta/stl.C"
 #include "../meta/root.C"
+#include "../meta/aliphysics.C"
 
 std::vector<std::string> scalehists = {
     "fHistTrialsAfterSel",
@@ -27,6 +28,7 @@ void scaleList(AliEmcalList *list)
 
 std::vector<AliEmcalList *> readFile(const char *name)
 {
+    std::cout << "Reading " << name << std::endl;
     TFile *reader = TFile::Open(name, "READ");
     std::vector<AliEmcalList *> data;
     for (auto key : TRangeDynCast<TKey>(reader->GetListOfKeys()))
