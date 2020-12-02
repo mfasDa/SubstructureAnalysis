@@ -73,6 +73,8 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
             reader->cd(Form("SoftDropResponse_FullJets_R%02d_%s", R, trg.data()));
             auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
             double weight = 1;
+            /*
+            Using trigger cluster CENT(1) for EJ1 - no correction for CENTNOTRD needed
             if(trg == "EJ1") {
                 // Scale for the additional cluster luminosity
                 auto trgcounter = static_cast<TH1 *>(histlist->FindObject("fHistTriggerClasses"));
@@ -81,6 +83,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
                 weight = ntrgcent/ntrgcentnotrd;
                 std::cout << "Applying downscale weight " << weight << " for trigger " << trg << std::endl;
             }
+            */
 
             TH1 *triggereff = nullptr,
                 *triggereffFine = nullptr;
