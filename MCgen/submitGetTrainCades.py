@@ -12,10 +12,10 @@ class ScriptWriter:
         if interpreter == "bash":
             interpreterstring = "/bin/bash"
         elif interpreter == "python2":
-            interpreterstring "/usr/bin/env python"
+            interpreterstring = "/usr/bin/env python"
         elif interpreter == "python3":
-            interpreterstring "/usr/bin/env python3"
-        self.__write("#! {INTERPERTER}".format(INTERPRETER=interpreterstring))
+            interpreterstring = "/usr/bin/env python3"
+        self.__write("#! {INTERPERTER}".format(INTERPERTER=interpreterstring))
         
     def sbatch(self, instruction):
         self.__write("#SBATCH {INSTRUCTION}".format(INSTRUCTION=instruction))
@@ -37,19 +37,22 @@ def create_jobscript(configdir, outputdir, executable, njobs):
         os.makedirs(logdir, 0o755)
     jobscriptname = os.path.join(outputdir, "jobscript.sh")
     scriptwriter = ScriptWriter(jobscriptname, "bash")
+    scriptwriter.sbatch("-N 1")
+    scriptwriter.sbatch("-n 1")
     scriptwriter.sbatch("--array=1-{NJOBS}".format(NJOBS=njobs))
     scriptwriter.sbatch("--partition=gpu")
     scriptwriter.sbatch("-A birthright")
     scriptwriter.sbatch("--time=02:00:00")
+    scriptwriter.sbatch("--cpus-per-task=1")
     scriptwriter.sbatch("-J gentrain")
-    ScriptWriter.sbatch("--mem 16G")
+    scriptwriter.sbatch("--mem-per-cpu 2G")
     scriptwriter.sbatch("-o {LOGDIR}/joboutput_%a.log".format(LOGDIR=logdir))
     scriptwriter.instruction("PROCID=$SLURM_JOB_ID")
     scriptwriter.instruction("CHUNKID=$SLURM_ARRAY_TASK_ID")
     scriptwriter.instruction("module load PE-gnu singularity")
     singularity_env = "singularity exec -B /nfs/home:/nfs/home -B /lustre:/lustre /home/mfasel_alice/mfasel_cc7_alice.simg"
     envscript = "/home/mfasel_alice/alice_setenv"
-    runcmd = "{EXECUTABLE} {CONFIGDIR} {OUTPUTDIR} $PROCID $CHUNKID {ENVSCRIPT}".format(EXECUTABLE=executable, CONFIGDIR=configdir, OUTPUTDIR=outputdir)
+    runcmd = "{EXECUTABLE} {CONFIGDIR} {OUTPUTDIR} $PROCID $CHUNKID {ENVSCRIPT}".format(EXECUTABLE=executable, CONFIGDIR=configdir, OUTPUTDIR=outputdir, ENVSCRIPT=envscript)
     scriptwriter.instruction("{SINGULARITY} {RUNCMD}".format(SINGULARITY=singularity_env, RUNCMD=runcmd))
     scriptwriter.close()
     return jobscriptname
@@ -64,5 +67,6 @@ if __name__ == "__main__":
     sourcedir = os.path.abspath(os.path.dirname(sys.argv[0]))
     executable = os.path.join(sourcedir, "runGenTrainContainer.sh")
     outputdir = os.path.abspath(args.outputdir)
-    jobscript = create_jobscript(configdir, outputdir, executable, args.njobs)
+    jobscript = create_jobscript(args.configdir, outputdir, executable, args.njobs)
+    print("Submitting script {JOBSCRIPT}".format(JOBSCRIPT=jobscript))
     subprocess.call("sbatch {JOBSCRIPT}".format(JOBSCRIPT=jobscript), shell=True)
