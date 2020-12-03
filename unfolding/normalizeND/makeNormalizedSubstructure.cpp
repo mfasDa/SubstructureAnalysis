@@ -54,7 +54,7 @@ TH2 *makeRawHistFromSparse(THnSparse *hsparse, int triggercluster){
     return rawlevel;
 }
 
-void makeNormalizedSubstructure(const char *filedata, const char *filemc, const char *binvarname = "default") {
+void makeNormalizedSubstructure(const char *filedata, const char *filemc, const char *binvarname = "default", bool useCENTNOTRD = false) {
     const double kVerySmall = 1e-5;
     std::vector<double> ptbinning = getDetPtBinning(binvarname);
 
@@ -64,7 +64,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
     reader->ls();
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
-    std::map<std::string, int> triggerclusters = {{"INT7", 0}, {"EJ2", 0}, {"EJ1", 1}};
+    std::map<std::string, int> triggerclusters = {{"INT7", 0}, {"EJ2", 0}, {"EJ1", useCENTNOTRD ? 2 : 1}};
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::string outdirname(Form("R%02d", R));
@@ -73,17 +73,15 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
             reader->cd(Form("SoftDropResponse_FullJets_R%02d_%s", R, trg.data()));
             auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
             double weight = 1;
-            /*
-            Using trigger cluster CENT(1) for EJ1 - no correction for CENTNOTRD needed
-            if(trg == "EJ1") {
+            if(useCENTNOTRD && trg == "EJ1") {
                 // Scale for the additional cluster luminosity
+                // In case CENTNOTRD cluster was used in projection (clusterbin 2)
                 auto trgcounter = static_cast<TH1 *>(histlist->FindObject("fHistTriggerClasses"));
                 double ntrgcent = trgcounter->GetBinContent(trgcounter->GetXaxis()->FindBin("CEMC7EJ1-B-NOPF-CENT")),
                        ntrgcentnotrd = trgcounter->GetBinContent(trgcounter->GetXaxis()->FindBin("CEMC7EJ1-B-NOPF-CENTNOTRD"));
                 weight = ntrgcent/ntrgcentnotrd;
                 std::cout << "Applying downscale weight " << weight << " for trigger " << trg << std::endl;
             }
-            */
 
             TH1 *triggereff = nullptr,
                 *triggereffFine = nullptr;
