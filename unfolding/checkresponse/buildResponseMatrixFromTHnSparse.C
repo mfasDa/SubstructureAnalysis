@@ -4,7 +4,7 @@
 #include "../../helpers/math.C"
 #include "../binnings/binningPt2D.C"
 
-std::vector<double> makeObservableBinning(const TAxis *obsaxis, double obsmax = 10000000) {
+std::vector<double> makeObservableBinning(const TAxis *obsaxis, double obsmax = DBL_MAX) {
     std::vector<double> obsbinning;
     obsbinning.emplace_back(obsaxis->GetBinLowEdge(1)); 
     for(auto bin : ROOT::TSeqI(0, obsaxis->GetNbins())) {
@@ -15,16 +15,20 @@ std::vector<double> makeObservableBinning(const TAxis *obsaxis, double obsmax = 
     return obsbinning;
 }
 
-RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = 1000000, bool verbose = false) {
-    std::vector<double> detobsbinning = makeObservableBinning(responsedata->GetAxis(0)), 
-                        partobsbinning = makeObservableBinning(responsedata->GetAxis(2));
+RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, double obsmax = DBL_MAX, bool verbose = false) {
+    std::vector<double> detobsbinning = makeObservableBinning(responsedata->GetAxis(0), obsmax), 
+                        partobsbinning = makeObservableBinning(responsedata->GetAxis(2), obsmax);
     TH2F dettemplate("dettemplate", "det template", detobsbinning.size() - 1, detobsbinning.data(), detptbinning.size() - 1, detptbinning.data()),
          parttemplate("parttemplate", "part template", partobsbinning.size() - 1, partobsbinning.data(), partptbinning.size() - 1, partptbinning.data());
 
     auto &ptpartmin = partptbinning.front(),
          &ptpartmax = partptbinning.back(),
          &ptdetmin = detptbinning.front(),
-         &ptdetmax = detptbinning.back();
+         &ptdetmax = detptbinning.back(),
+         &obspartmin = partobsbinning.front(),
+         &obspartmax = partobsbinning.back(),
+         &obsdetmin = detobsbinning.front(),
+         &obsdetmax = detobsbinning.back();
     std::cout << "Using part. min. pt " << ptpartmin << " and max " << ptpartmax << std::endl;
     std::cout << "Using det. min. pt " << ptdetmin << " and max " << ptdetmax << std::endl;
 
@@ -44,6 +48,10 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
             if(verbose) std::cout << "Point (" << ptpart << " part - " << ptdet << " det) outside range" << std::endl;
             continue;
         }
+        if(zgdet < obsdetmin || zgdet > obsdetmax || zgpart < obspartmin || zgpart > obspartmax) {
+            if(verbose) std::cout << "Point (" << zgpart << " part - " << zgdet << " det) outside range in SD" << std::endl;
+            continue;
+        }
         resultresponse->Fill(zgdet, ptdet, zgpart, ptpart, weight);
     }
     return resultresponse;
@@ -58,7 +66,7 @@ TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning)
     return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
 }
 
-TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax, double obsmax = 10000000) {
+TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax, double obsmax = DBL_MAX) {
     std::cout << "Extracting kinematic efficiency for det. pt range from " << detptmin << " GeV/c to " << detptmax << " GeV/c" << std::endl;
     std::vector<double> partobsbinning = makeObservableBinning(responsedata->GetAxis(2), obsmax);
 
@@ -78,7 +86,7 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
         std::unique_ptr<TH1> slicefull(truefull->ProjectionX("slicefull", truefull->GetYaxis()->FindBin(ptmin), truefull->GetYaxis()->FindBin(ptmax))),
                              slicetruncated(truncated->ProjectionX("slicetruncated", truncated->GetYaxis()->FindBin(ptmin), truncated->GetYaxis()->FindBin(ptmax))); 
         slicetruncated->Divide(slicetruncated.get(), slicefull.get(), 1., 1., "b");
-        for(auto iobsbin : ROOT::TSeqI(0, slicetruncated->GetXaxis()->GetNbins())){
+        for(auto iobsbin : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(iobsbin+1, iptbin+1, slicetruncated->GetBinContent(iobsbin+1));
             result->SetBinError(iobsbin+1, iptbin+1, slicetruncated->GetBinError(iobsbin+1));
         }
@@ -88,11 +96,11 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
     return result;
 }
 
-TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &ptbinning, double obsmax = 1000000){
+TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &ptbinning, double obsmax = DBL_MAX){
     // Axis 0 - observable
     // Axis 1 - pt
     // Axis 2 - tag status
-    auto obsbinning = makeObservableBinning(inputhist->GetAxis(0));
+    auto obsbinning = makeObservableBinning(inputhist->GetAxis(0), obsmax);
     auto histall = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
     histall->SetName("histall");
     inputhist->GetAxis(2)->SetRange(4, 4);
@@ -109,7 +117,7 @@ TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &pt
         std::unique_ptr<TH1> sliceall(histall->ProjectionX("slicefull", histall->GetYaxis()->FindBin(ptmin), histall->GetYaxis()->FindBin(ptmax))),
                              slicetag(histtag->ProjectionX("slicetag", histtag->GetYaxis()->FindBin(ptmin), histtag->GetYaxis()->FindBin(ptmax))); 
         slicetag->Divide(slicetag.get(), sliceall.get(), 1., 1., "b");
-        for(auto iobsbin : ROOT::TSeqI(0, slicetag->GetXaxis()->GetNbins())){
+        for(auto iobsbin : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(iobsbin+1, iptbin+1, slicetag->GetBinContent(iobsbin+1));
             result->SetBinError(iobsbin+1, iptbin+1, slicetag->GetBinError(iobsbin+1));
         }
@@ -138,6 +146,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
         TObjArray outputobjects, cobjects;
         for(auto observable : observables) {
             double obsmax = DBL_MAX;
+            if(observable == "Nsd") obsmax = 11.;
             std::cout << "Next observable " << observable << std::endl;
             THnSparse* responsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseSparse", observable.data())));           
             std::cout << "Extracting response matrix for observable " << observable << std::endl;
