@@ -57,11 +57,14 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
     return resultresponse;
 }
 
-TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning) {
+TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning, double obsmax = DBL_MAX) {
     auto partaxis = inputspectrum->GetXaxis();
     std::vector<double> partobsbinning;
     partobsbinning.emplace_back(partaxis->GetBinLowEdge(1)); 
-    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
+    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
+        if(partaxis->GetBinCenter(bin+1) > obsmax) break;
+        partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
+    }
     
     return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
 }
@@ -125,7 +128,7 @@ TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &pt
     return result;
 }
 
-void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root", const char *detbinningvar = "default", bool verbose = false) {
+void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root", const char *detbinningvar = "default", double maxnsd = 11., bool verbose = false) {
     std::vector<double> detptbinning = getDetPtBinning(detbinningvar),
                         partptbinning = {0, 10, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
     if(!detptbinning.size()) {
@@ -146,7 +149,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
         TObjArray outputobjects, cobjects;
         for(auto observable : observables) {
             double obsmax = DBL_MAX;
-            if(observable == "Nsd") obsmax = 11.;
+            if(observable == "Nsd") obsmax = maxnsd;
             std::cout << "Next observable " << observable << std::endl;
             THnSparse* responsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseSparse", observable.data())));           
             std::cout << "Extracting response matrix for observable " << observable << std::endl;
@@ -187,8 +190,8 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
             auto closureeffkine = extractKinematicEfficiency(closureresponsedata, partptbinning, *detptbinning.begin(), *detptbinning.rbegin(), obsmax);
             closureeffkine->SetNameTitle(Form("EffKineClosure%s_R%02d", observable.data(), R), Form("Kinematic efficiency for %s for R=%.1f", observable.data(), double(R)/10.));
             std::cout << "Extracting det. level spectrum and true spectrum (opposite sample)" << std::endl;
-            auto closuretruth = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sPartLevelClosureNoRespFine", observable.data()))), partptbinning),
-                 closuredet = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sDetLevelClosureNoRespFine", observable.data()))), detptbinning);
+            auto closuretruth = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sPartLevelClosureNoRespFine", observable.data()))), partptbinning, obsmax),
+                 closuredet = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sDetLevelClosureNoRespFine", observable.data()))), detptbinning, obsmax);
             closuretruth->SetDirectory(nullptr);
             closuredet->SetDirectory(nullptr);
             closuretruth->SetNameTitle(Form("closuretruth%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f", observable.data(), double(R)/10.));
@@ -205,7 +208,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
                 std::cout << "Building non-fully efficient truth (" << detptbinning.front() << " ... " << detptbinning.back() << ")" << std::endl;
                 noclosureresponsedata->GetAxis(1)->SetRangeUser(detptbinning.front() + 1e-5, detptbinning.back() - 1e-5);
                 auto h2truecutfine = noclosureresponsedata->Projection(3,2);
-                auto h2truecut = makeRebinnedPt(h2truecutfine, partptbinning);
+                auto h2truecut = makeRebinnedPt(h2truecutfine, partptbinning, obsmax);
                 h2truecut->SetDirectory(nullptr);
                 h2truecut->SetNameTitle(Form("closuretruthcut%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f, cut det. pt", observable.data(), double(R)/10.));
                 cobjects.Add(h2truecut);

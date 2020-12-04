@@ -44,17 +44,40 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
     return result;
 }
 
-TH2 *makeRawHistFromSparse(THnSparse *hsparse, int triggercluster){
+TH2 *makeRawHistFromSparse(THnSparse *hsparse, int triggercluster, double obsmax = DBL_MAX){
     int first = hsparse->GetAxis(2)->GetFirst(),
         last = hsparse->GetAxis(2)->GetLast();
     hsparse->GetAxis(2)->SetRange(triggercluster+1, triggercluster+1);
     auto rawlevel = hsparse->Projection(1,0);
+    std::vector<double> currentbinning = {rawlevel->GetXaxis()->GetBinLowEdge(1)};
+    for(auto b : ROOT::TSeqI(0, rawlevel->GetXaxis()->GetNbins())) currentbinning.emplace_back(rawlevel->GetXaxis()->GetBinUpEdge(b+1));
+    if(obsmax < currentbinning.back()) {
+        std::cout << "Distribution obtained from " << hsparse->GetName() << " requested to be restricted to " << obsmax << std::endl;
+        std::vector<double> newbinning;
+        for(auto b : currentbinning) {
+            if(b < obsmax) newbinning.emplace_back(b);
+        }
+        std::vector<double> ybinning = {rawlevel->GetYaxis()->GetBinLowEdge(1)};
+        for(auto b : ROOT::TSeqI(0, rawlevel->GetYaxis()->GetNbins())) ybinning.emplace_back(rawlevel->GetYaxis()->GetBinUpEdge(b+1));
+        // Rebin requested
+        auto rawlevelOrig = rawlevel;
+        rawlevel = new TH2D(Form("%s_restricted", rawlevel->GetName()), rawlevel->GetTitle(), newbinning.size()-1, newbinning.data(), ybinning.size()-1, ybinning.data());
+        for(auto xb : ROOT::TSeqI(0, rawlevel->GetXaxis()->GetNbins())) {
+            for(auto yb : ROOT::TSeqI(0, rawlevel->GetYaxis()->GetNbins())) {
+                auto xborig = rawlevelOrig->GetXaxis()->FindBin(rawlevel->GetXaxis()->GetBinCenter(xb+1)),
+                     yborig = rawlevelOrig->GetYaxis()->FindBin(rawlevel->GetYaxis()->GetBinCenter(yb+1));
+                rawlevel->SetBinContent(xb+1, yb+1, rawlevelOrig->GetBinContent(xborig, yborig));
+                rawlevel->SetBinError(xb+1, yb+1, rawlevelOrig->GetBinError(xborig, yborig));
+            }
+        }
+        delete rawlevelOrig;
+    }
     rawlevel->SetDirectory(nullptr);
     hsparse->GetAxis(2)->SetRange(first,last);
     return rawlevel;
 }
 
-void makeNormalizedSubstructure(const char *filedata, const char *filemc, const char *binvarname = "default", bool useCENTNOTRD = false) {
+void makeNormalizedSubstructure(const char *filedata, const char *filemc, const char *binvarname = "default", bool useCENTNOTRD = false, double maxNSD = 11) {
     const double kVerySmall = 1e-5;
     std::vector<double> ptbinning = getDetPtBinning(binvarname);
 
@@ -65,6 +88,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
     std::vector<std::string> triggers = {"INT7", "EJ2", "EJ1"},
                              observables = {"Zg", "Rg", "Thetag", "Nsd"};
     std::map<std::string, int> triggerclusters = {{"INT7", 0}, {"EJ2", 0}, {"EJ1", useCENTNOTRD ? 2 : 1}};
+    double obsmax = DBL_MAX;
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::string outdirname(Form("R%02d", R));
@@ -107,12 +131,13 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
             if(triggereffFine) triggereffFine->Write();
 
             for(auto observable : observables) {
+                if(observable == "Nsd") obsmax = maxNSD;
                 std::string histname = Form("h%sVsPtWeighted", observable.data());
                 auto rawobject = histlist->FindObject(histname.data());
                 TH2 *rawhist(nullptr);
                 if((rawobject->IsA() == THnSparse::Class()) || rawobject->InheritsFrom(THnSparse::Class())) {
                     std::cout << "Extracting raw data from THnSparse" << std::endl;
-                    rawhist = makeRawHistFromSparse(static_cast<THnSparse *>(rawobject), triggerclusters[trg]);
+                    rawhist = makeRawHistFromSparse(static_cast<THnSparse *>(rawobject), triggerclusters[trg], obsmax);
                 } else {
                     std::cout << "Using old style TH2 raw object" << std::endl;
                     rawhist = static_cast<TH2 *>(rawobject);
