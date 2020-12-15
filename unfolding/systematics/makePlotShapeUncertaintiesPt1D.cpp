@@ -5,13 +5,19 @@
 #include "../../struct/GraphicsPad.cxx"
 #include "../../struct/Restrictor.cxx"
 
+void ZeroStat(TH1 *hist) {
+    for(auto b : ROOT::TSeqI(0, hist->GetXaxis()->GetNbins())) {
+        hist->SetBinError(b+1, 0);
+    }
+}
+
 void makePlotShapeUncertaintiesPt1D(const std::string_view ufile){
-    Restrictor reported(20, 320);
+    Restrictor reported(15, 320);
     auto plot = new ROOT6tools::TSavableCanvas("shapeUncertaintiesSpectrum", "Shape Uncertainties", 1200, 800);
     plot->Divide(3,2);
 
-    std::map<std::string, Color_t> styles = {{"binvar", kRed}, {"priors", kViolet}, {"regularization", kGreen}, {"truncation", kMagenta}, {"unfoldingmethod",kBlue}};
-    std::map<std::string, std::string> titles {{"binvar", "Binning"}, {"priors", "Priors"}, {"regularization", "Regularization"}, {"truncation", "Truncation"}, {"unfoldingmethod", "Unfolding method"}};
+    std::map<std::string, Color_t> styles = {{"binvar", kRed}, {"priors", kViolet}, {"regularization", kGreen}, {"truncation", kMagenta}, {"unfoldingmethod",kBlue}, {"minpthard", kGray}};
+    std::map<std::string, std::string> titles {{"binvar", "Binning"}, {"priors", "Priors"}, {"regularization", "Regularization"}, {"truncation", "Truncation"}, {"unfoldingmethod", "Unfolding method"}, {"minpthard", "min. p_{t,hard}"}};
 
     std::unique_ptr<TFile> reader(TFile::Open(ufile.data(), "READ"));
     int ipad = 0;
@@ -29,14 +35,16 @@ void makePlotShapeUncertaintiesPt1D(const std::string_view ufile){
         reader->cd(Form("R%02d", int(r*10)));
         auto combined = reported(static_cast<TH1 *>(gDirectory->Get("combinedUncertainty")));
         combined->SetDirectory(nullptr);
+        ZeroStat(combined);
         combined->SetLineColor(kBlack);
-        combined->Draw("same");
+        combined->Draw("boxsame");
         if(leg) leg->AddEntry(combined, "sum", "l");
         for(auto [source, style] : styles) {
             auto uncertainty = reported(static_cast<TH1 *>(gDirectory->Get(Form("uncertainty%s", source.data()))));
             uncertainty->SetDirectory(nullptr);
+            ZeroStat(uncertainty);
             uncertainty->SetLineColor(style);
-            uncertainty->Draw("same");
+            uncertainty->Draw("boxsame");
             if(leg) leg->AddEntry(uncertainty, titles.find(source)->second.data(), "lep");
         }
         ipad++;
