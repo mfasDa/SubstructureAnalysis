@@ -19,7 +19,7 @@ void makeCombinedSpectrum1D(const char *correlatedSys, const char *shapeSys) {
     std::unique_ptr<TFile> correader(TFile::Open(correlatedSys, "READ")),
                            shapereader(TFile::Open(shapeSys, "READ"));
     std::unique_ptr<TFile> writer(TFile::Open("jetspectrum.root", "RECREATE"));
-    Restrictor reported(20., 320.);
+    Restrictor reported(15., 320.);
     for(auto r : ROOT::TSeqI(2, 7)){
         std::string rstring(Form("R%02d", r));
         correader->cd(rstring.data());
