@@ -94,11 +94,11 @@ AliEmcalList *createMerged(std::map<int, AliEmcalList *> &pthardbins)
     return result;
 }
 
-void mergePtHardBins(const char *filename = "AnalysisResults.root")
+void mergePtHardBins(const char *filename = "AnalysisResults.root", int maxbin = 20)
 {
     std::map<int, std::vector<AliEmcalList *>> pthardbins;
     std::vector<std::string> histnames;
-    for (auto ipth : ROOT::TSeqI(1, 21))
+    for (auto ipth : ROOT::TSeqI(1, maxbin+1))
     {
         auto histlists = readFile(Form("%02d/%s", ipth, filename));
         if (ipth == 1)
