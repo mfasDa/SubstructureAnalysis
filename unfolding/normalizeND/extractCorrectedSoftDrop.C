@@ -12,7 +12,8 @@ void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", bool wit
     outfilename << ".root";
     std::unique_ptr<TFile> reader(TFile::Open(filename, "READ")),
                            writer(TFile::Open(outfilename.str().data(), "RECREATE"));
-    std::vector<std::string> observables = {"Zg", "Rg", "Thetag", "Nsd"};
+    std::vector<std::string> observables;
+    for(auto key : TRangeDynCast<TKey>(reader->GetListOfKeys())) observables.push_back(key->GetName());
 
     for(auto obs : observables) {
         writer->mkdir(obs.data());
