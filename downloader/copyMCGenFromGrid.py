@@ -19,18 +19,23 @@ def hasFile(inputdir, filename):
 def copyFile(gridfile, outputfile):
     subprocess.call("alien_cp {GRIDFILE} file://{OUTPUTFILE}".format(GRIDFILE=gridfile, OUTPUTFILE=outputfile), shell=True)
 
-def getPtHardBinForTrain(inputdir):
+def getPtHardBinForTrain(inputdir, tagpos):
     status, stdout = subprocess.getstatusoutput("alien.py cat {INPUTDIR}/env.sh | grep PERIOD_NAME".format(INPUTDIR=inputdir))
     periodname = stdout[stdout.index("=")+1:].replace("'", "")
-    return int(periodname.split("_")[1].replace("pthard", ""))
+    print("Period name: {PERIODNAME}".format(PERIODNAME=periodname))
+    if "pthard" in periodname:
+        return int(periodname.split("_")[tagpos].replace("pthard", ""))
+    elif "ktmin" in periodname:
+        tokens = periodname.split("_")
+        return int(tokens[len(tokens)-1])
 
-def getTrainIDs(mintrain, maxtrain):
+def getTrainIDs(mintrain, maxtrain, tagpos):
     dirs = listGridDir(trainbasedir)
     trains = {}
     for dr in dirs:
         trainid = int(dr[:dr.index("_")])
         if trainid >= mintrain and trainid <= maxtrain:
-            trains[getPtHardBinForTrain(os.path.join(trainbasedir, dr))] = dr
+            trains[getPtHardBinForTrain(os.path.join(trainbasedir, dr), tagpos)] = dr
     return trains
 
 def getTrainIDsFast():
@@ -73,12 +78,13 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default=os.getcwd(), help="Output directory")
     parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="File to copy")
     parser.add_argument("-t", "--testmode", action="store_true", help="Run test mode on existing dataset")
+    parser.add_argument("-p", "--postag", metavar="POSTAG", type=int, default=1, help="Position of the pt-hard tag")
     args = parser.parse_args()
     trainruns=None
     if args.testmode:
         trainruns = getTrainIDsFast()
     else:
-        trainruns = getTrainIDs(args.mintrain, args.maxtrain)
+        trainruns = getTrainIDs(args.mintrain, args.maxtrain, args.postag)
     for pthardbin,trainpath in trainruns.items():
         print("Using train {TRAINRUN} for pt-hard bin {PTHARDBIN} ...".format(TRAINRUN=trainpath, PTHARDBIN=pthardbin))
         gridpath = os.path.join(trainbasedir, trainpath)
