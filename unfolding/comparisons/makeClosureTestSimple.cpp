@@ -2,7 +2,7 @@
 #include "../../meta/root6tools.C"
 #include "../../meta/stl.C"
 
-void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", bool fulleff = false){
+void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", const char *observable = "all", bool fulleff = false){
     std::unique_ptr<TFile> reader(TFile::Open(unfoldingresults, "READ"));
 
     auto style = [](Color_t col, Style_t marker) {
@@ -13,11 +13,16 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", boo
         };
     };
 
+    std::vector<std::string> observablesAll =  {"Zg", "Rg", "Nsd", "Thetag"}, observablesSelected;
+    if(std::string_view(observable) == std::string_view("all")) observablesSelected = observablesAll;
+    else observablesSelected.push_back(observable);
+
     std::map<std::string, std::string> obstitles = {{"Zg", "z_{g}"}, {"Rg", "r_{g}"}, {"Nsd", "n_{SD}"}, {"Thetag", "#Theta_{g}"}};
     std::vector<Color_t> colors = {kRed, kBlue, kGreen, kOrange, kCyan, kMagenta, kGray, kTeal, kViolet, kAzure};
     std::vector<Style_t> markers = {24, 25, 26, 27, 28, 29, 30, 31, 32, 33}; 
-        for(auto obs : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
+    for(auto obs : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
         std::string_view obsname(obs->GetName());
+        if(std::find_if(observablesSelected.begin(), observablesSelected.end(), [&obsname](const std::string &test) {return test == std::string(obsname); }) == observablesSelected.end()) continue;
         auto obstitle = obstitles[obsname.data()];
         std::cout << "Processing observable " << obsname << std::endl;
 
