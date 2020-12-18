@@ -24,7 +24,11 @@ def getPtHardBinForTrain(inputdir, tagpos):
     periodname = stdout[stdout.index("=")+1:].replace("'", "")
     print("Period name: {PERIODNAME}".format(PERIODNAME=periodname))
     if "pthard" in periodname:
-        return int(periodname.split("_")[tagpos].replace("pthard", ""))
+        tokens = periodname.split("_")
+        for tok in tokens:
+            if "pthard" in tok:
+                tok = tok.replace("pthard", "")
+                return int(tok)
     elif "ktmin" in periodname:
         tokens = periodname.split("_")
         return int(tokens[len(tokens)-1])
