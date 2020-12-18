@@ -94,11 +94,22 @@ AliEmcalList *createMerged(std::map<int, AliEmcalList *> &pthardbins)
     return result;
 }
 
-void mergePtHardBins(const char *filename = "AnalysisResults.root", int maxbin = 20)
+std::vector<int> getPtHardBins() {
+    std::vector<int> result;
+    std::unique_ptr<TObjArray> dirs(gSystem->GetFromPipe("ls -1 $PWD").Tokenize("\n"));
+    for(auto cont : TRangeDynCast<TObjString>(dirs.get())){
+        TString &contstr = cont->String();
+        if(contstr.IsDigit()) result.push_back(contstr.Atoi());
+    }
+    std::sort(result.begin(), result.end(), std::less<int>());
+    return result;
+}
+
+void mergePtHardBins(const char *filename = "AnalysisResults.root")
 {
     std::map<int, std::vector<AliEmcalList *>> pthardbins;
     std::vector<std::string> histnames;
-    for (auto ipth : ROOT::TSeqI(1, maxbin+1))
+    for (auto ipth : getPtHardBins())
     {
         auto histlists = readFile(Form("%02d/%s", ipth, filename));
         if (ipth == 1)
