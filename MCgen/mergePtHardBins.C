@@ -43,7 +43,7 @@ std::vector<AliEmcalList *> readFile(const char *name)
 AliEmcalList *createMerged(std::map<int, AliEmcalList *> &pthardbins)
 {
     AliEmcalList *result = new AliEmcalList;
-    result->SetName(pthardbins[1]->GetName());
+    result->SetName(pthardbins.begin()->second->GetName());
     std::vector<double> binning = {-0.5};
     for (int ib = 0; ib < 21; ib++)
     {
@@ -52,7 +52,7 @@ AliEmcalList *createMerged(std::map<int, AliEmcalList *> &pthardbins)
     std::vector<TH1 *> mergedscalehists;
     for (auto scalehist : scalehists)
     {
-        auto inputhist = static_cast<TH1 *>(pthardbins[1]->FindObject(scalehist.data()));
+        auto inputhist = static_cast<TH1 *>(pthardbins.begin()->second->FindObject(scalehist.data()));
         auto mergedscalehist = new TH1D(inputhist->GetName(), inputhist->GetTitle(), binning.size() - 1, binning.data());
         mergedscalehists.push_back(mergedscalehist);
     }
@@ -109,15 +109,17 @@ void mergePtHardBins(const char *filename = "AnalysisResults.root")
 {
     std::map<int, std::vector<AliEmcalList *>> pthardbins;
     std::vector<std::string> histnames;
+    bool init = false;
     for (auto ipth : getPtHardBins())
     {
         auto histlists = readFile(Form("%02d/%s", ipth, filename));
-        if (ipth == 1)
+        if (!init)
         {
             for (auto hist : histlists)
             {
                 histnames.push_back(hist->GetName());
             }
+            init = true;
         }
         pthardbins[ipth] = histlists;
     }
@@ -132,6 +134,7 @@ void mergePtHardBins(const char *filename = "AnalysisResults.root")
             pth[phb] = histlist;
         }
         auto merged = createMerged(pth);
+        writer->cd();
         merged->Write(merged->GetName(), TObject::kSingleKey);
     }
 }
