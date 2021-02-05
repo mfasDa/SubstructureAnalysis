@@ -62,8 +62,11 @@ TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning,
     std::vector<double> partobsbinning;
     partobsbinning.emplace_back(partaxis->GetBinLowEdge(1)); 
     for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
-        if(partaxis->GetBinCenter(bin+1) > obsmax) break;
-        partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
+        if(partaxis->GetBinCenter(bin+1) < obsmax) {
+            partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
+        } else {
+            break;
+        }
     }
     
     return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
@@ -126,6 +129,24 @@ TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &pt
         }
     }
     return result;
+}
+
+TH2 *makeClosureTruthAll(TList *histos, const char *observable, const std::vector<double> &partptbinning, double obsmax) {
+    auto closuresparse = static_cast<THnSparse *>(histos->FindObject(Form("h%sJetFindingEfficiencyClosureNoResp", observable)));
+    if(!closuresparse) return nullptr;
+    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0));
+    auto projectionresult = makeRebinnedPt(projectionfine.get(), partptbinning, obsmax);
+    projectionresult->SetDirectory(nullptr);
+    return projectionresult;
+}
+
+TH2 *makeClosureDetAll(TList *histos, const char *observable, const std::vector<double> &detptbinning, double obsmax) {
+    auto closuresparse = static_cast<THnSparse *>(histos->FindObject(Form("h%sJetFindingPurityClosureNoResp", observable)));
+    if(!closuresparse) return nullptr;
+    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0));
+    auto projectionresult = makeRebinnedPt(projectionfine.get(), detptbinning, obsmax);
+    projectionresult->SetDirectory(nullptr);
+    return projectionresult;
 }
 
 void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.root", const char *detbinningvar = "default", double maxnsd = 11., bool verbose = false) {
@@ -201,6 +222,32 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
             cobjects.Add(closureeffkine);
             cobjects.Add(closuretruth);
             cobjects.Add(closuredet);
+
+            // Extract jet finding purity, efficiency and det / part spectrum before matching (for efficiency / purity correction)
+            auto sparsePurityCT = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingPurityClosureResp", observable.data()))),
+                 sparseEfficiencyCT = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingEfficiencyClosureResp", observable.data())));
+            if(sparsePurityCT) {
+                auto jetfindingpurityClosure = extractEfficiencyPurity(sparsePurityCT, detptbinning, obsmax);
+                jetfindingpurityClosure->SetDirectory(nullptr);
+                jetfindingpurityClosure->SetNameTitle(Form("JetFindingPurityClosure_%s_R%02d", observable.data(), R), Form("Jet finding purity for %s for R = %.1f (for closure test)", observable.data(), double(R)/10.));
+                cobjects.Add(jetfindingpurityClosure);
+            }
+            if(sparseEfficiencyCT) {
+                auto jetfindingeffClosure = extractEfficiencyPurity(sparseEfficiencyCT, partptbinning, obsmax); 
+                jetfindingeffClosure->SetDirectory(nullptr);
+                jetfindingeffClosure->SetNameTitle(Form("JetFindingEffClosure_%s_R%02d", observable.data(), R), Form("Jet finding efficiency for %s for R = %.1f (for closure test)", observable.data(), double(R)/10.));
+                cobjects.Add(jetfindingeffClosure);
+            }
+            auto histClosureTruthAll = makeClosureTruthAll(histlist, observable.data(), partptbinning, obsmax),
+                 histClosureDetAll = makeClosureDetAll(histlist, observable.data(), detptbinning, obsmax);
+            if(histClosureTruthAll) {
+               histClosureTruthAll->SetNameTitle(Form("closuretruthAll%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test, before part/det matching) for observable %s for R=%.1f", observable.data(), double(R)/10.));
+               cobjects.Add(histClosureTruthAll);
+            }
+            if(histClosureDetAll) {
+                histClosureDetAll->SetNameTitle(Form("closuredetAll%s_R%02d", observable.data(), R), Form("Det. level input spectrum for closure test (before part/det matching) for %s for R=%.1f", observable.data(), double(R)/10.));
+                cobjects.Add(histClosureDetAll);
+            }
 
             // Make non-fully efficient closure truth from THnSparse
             auto noclosureresponsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseClosureNoRespSparse", observable.data())));

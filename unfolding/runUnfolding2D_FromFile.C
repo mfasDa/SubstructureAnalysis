@@ -82,12 +82,17 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
             effKine->SetDirectory(nullptr);
 
             // get jet finding efficiency and purity (if available)
-            TH2 *jetfindingeff(nullptr), *jetfindingpurity(nullptr);
+            TH2 *jetfindingeff(nullptr), *jetfindingpurity(nullptr),
+                *jetfindingeffClosure(nullptr), *jetfindingpurityClosure(nullptr); 
             if(correctEffPure) {
                 jetfindingeff = static_cast<TH2 *>(gDirectory->Get(Form("JetFindingEff_%s_R%02d", observable.data(), R))),
                 jetfindingpurity = static_cast<TH2 *>(gDirectory->Get(Form("JetFindingPurity_%s_R%02d", observable.data(), R)));
                 if(jetfindingeff) jetfindingeff->SetDirectory(nullptr);
                 if(jetfindingpurity) jetfindingpurity->SetDirectory(nullptr);
+                jetfindingeffClosure = static_cast<TH2 *>(gDirectory->Get(Form("JetFindingEffClosure_%s_R%02d", observable.data(), R))),
+                jetfindingpurityClosure = static_cast<TH2 *>(gDirectory->Get(Form("JetFindingPurityClosure_%s_R%02d", observable.data(), R)));
+                if(jetfindingeffClosure) jetfindingeffClosure->SetDirectory(nullptr);
+                if(jetfindingpurityClosure) jetfindingpurityClosure->SetDirectory(nullptr);
             }
 
             // get stuff for closure test
@@ -100,9 +105,21 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                  partLevelClosureCut = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthcut%s_%s", observable.data(), rstring.data())));
             detLevelClosure->SetDirectory(nullptr);
             partLevelClosure->SetDirectory(nullptr);
-            auto detLevelClosureOriginal = static_cast<TH2 *>(detLevelClosure->Clone());
-            detLevelClosureOriginal->SetDirectory(nullptr);
             if(partLevelClosureCut) partLevelClosureCut->SetDirectory(nullptr);
+            TH2 *detLevelClosureAll(nullptr), *partLevelClosureAll(nullptr);
+            if(correctEffPure) {
+                detLevelClosureAll = static_cast<TH2 *>(gDirectory->Get(Form("closuredetAll%s_%s", observable.data(), rstring.data())));
+                partLevelClosureAll = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthAll%s_%s", observable.data(), rstring.data())));
+                if(detLevelClosureAll) detLevelClosureAll->SetDirectory(nullptr);
+                if(partLevelClosureAll) partLevelClosureAll->SetDirectory(nullptr);
+            }
+
+            // Select det. level for closure test
+            // if purity correction requested use detLevelClosureAll
+            // if purity correction not requested or detLevelClosureAll not available use detLevelClosure
+            auto detLevelClosureUse = detLevelClosureAll ? detLevelClosureAll : detLevelClosure;
+            auto detLevelClosureOriginal = static_cast<TH2 *>(detLevelClosureUse->Clone());
+            detLevelClosureOriginal->SetDirectory(nullptr);
 
             std::vector<TH2 *> unfoldedHists, refoldedHists, correctedHists, correctedHistsNoEff,
                                unfoldedHistsClosure, refoldedHistsClosure, correctedHistsClosure, correctedHistsClosureNoEff;
@@ -111,7 +128,9 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
             if(jetfindingpurity) {
                 // Correct rawspectrum for jet finding purity
                 rawcombined->Multiply(jetfindingpurity);
-                detLevelClosure->Multiply(jetfindingpurity);
+            }
+            if(jetfindingpurityClosure) {
+                detLevelClosureUse->Multiply(jetfindingpurityClosure);
             }
 
             for(auto iter : ROOT::TSeqI(1, 31)) {
@@ -173,7 +192,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 pearsonPt.push_back(histsPearsonPt);
 
                 // MC closure test
-                RooUnfoldBayes unfolderClosure(responsematrixClosure, detLevelClosure, iter);
+                RooUnfoldBayes unfolderClosure(responsematrixClosure, detLevelClosureUse, iter);
                 auto unfoldedClosure = static_cast<TH2 *>(unfolderClosure.Hreco(errtreatment));
                 unfoldedClosure->SetNameTitle(Form("unfoldedClosureIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Unfolded distribution of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
                 unfoldedHistsClosure.push_back(unfoldedClosure);
@@ -192,7 +211,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 auto correctedClosureNoJetFindingEff = static_cast<TH2 *>(correctedClosure->Clone());
                 correctedClosureNoJetFindingEff->SetDirectory(nullptr);
                 correctedClosureNoJetFindingEff->SetNameTitle(Form("correctedClosureNoJetFindingEffIter%d_%s_%s", iter, observable.data(), rstring.data()), Form("Corrected distribution except jet finding efficiency of the closure test for %s for %s (iteration %d)", observable.data(), rtitle.data(), iter));
-                if(jetfindingeff) correctedClosure->Divide(jetfindingeff);
+                if(jetfindingeffClosure) correctedClosure->Divide(jetfindingeffClosure);
                 correctedHistsClosure.push_back(correctedClosure);
                 correctedHistsClosureNoEff.push_back(correctedClosureNoJetFindingEff);
 
@@ -264,6 +283,8 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
             detLevelClosureOriginal->Write();
             partLevelClosure->Write();
             if(partLevelClosureCut) partLevelClosureCut->Write();
+            if(detLevelClosureAll) detLevelClosureAll->Write();
+            if(partLevelClosureAll) partLevelClosureAll->Write();
 
             for(auto iter : ROOT::TSeqI(1, 31)) {
                 std::string iterdir = Form("Iter%d", iter);

@@ -16,6 +16,7 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", con
     std::vector<std::string> observablesAll =  {"Zg", "Rg", "Nsd", "Thetag"}, observablesSelected;
     if(std::string_view(observable) == std::string_view("all")) observablesSelected = observablesAll;
     else observablesSelected.push_back(observable);
+    std::string closuretag = fulleff ? "CompClosureFullEff" : "CompClosureCut";
 
     std::map<std::string, std::string> obstitles = {{"Zg", "z_{g}"}, {"Rg", "r_{g}"}, {"Nsd", "n_{SD}"}, {"Thetag", "#Theta_{g}"}};
     std::vector<Color_t> colors = {kRed, kBlue, kGreen, kOrange, kCyan, kMagenta, kGray, kTeal, kViolet, kAzure};
@@ -36,8 +37,16 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", con
             auto rdir = gDirectory;
             rdir->cd("closuretest");
             TH2 *closuretruth (nullptr);
-            if(fulleff) closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", obsname.data(), rstring.data())));
-            else closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthcut%s_%s", obsname.data(), rstring.data())));
+            if(fulleff) {
+                // check truth before matching is present, and use this instead
+                closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthAll%s_%s", obsname.data(), rstring.data())));
+                if(!closuretruth) {
+                    std::cout << "Not found closure truth before matching, using closure truth after matching" << std::endl;
+                    closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruth%s_%s", obsname.data(), rstring.data())));
+                } else {
+                    std::cout << "Found and using closure truth before matching ..." << std::endl;
+                }
+            } else closuretruth = static_cast<TH2 *>(gDirectory->Get(Form("closuretruthcut%s_%s", obsname.data(), rstring.data())));
             closuretruth->SetDirectory(nullptr);
             std::map<int, TH2 *> iterations;
             for(auto iter : ROOT::TSeqI(1, 31)) {
@@ -60,7 +69,7 @@ void makeClosureTestSimple(const char *unfoldingresults = "UnfoldedSD.root", con
                 if((currentcol % 5) == 0) {
                     if(currentplot) currentplot->SaveCanvas(currentplot->GetName());
                     currentcol = 0;
-                    currentplot = new ROOT6tools::TSavableCanvas(Form("CompClosure_%s_%s_sub%d", obsname.data(), rstring.data(), plotcounter), Form("MC closure for %s for %s (%d)", obstitle.data(), rtitle.data(), plotcounter), 1200, 600);
+                    currentplot = new ROOT6tools::TSavableCanvas(Form("%s_%s_%s_sub%d", closuretag.data(), obsname.data(), rstring.data(), plotcounter), Form("MC closure for %s for %s (%d)", obstitle.data(), rtitle.data(), plotcounter), 1200, 600);
                     currentplot->Divide(5,2);
                     plotcounter++;
                 } 
