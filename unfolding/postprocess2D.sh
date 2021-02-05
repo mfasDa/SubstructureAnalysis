@@ -9,7 +9,11 @@ cd $WORKDIR
 ls -l
 hadd -f UnfoldedSD.root UnfoldedSD_*.root
 rm UnfoldedSD_*.root
-mkdir logs
-mv *.log logs/
-zip -r logs.zip logs
-rm -rf logs
+
+#check if we have any logs not packed
+if [ ! -f logs.zip ]; then
+    mkdir logs
+    mv *.log logs/
+    zip -r logs.zip logs
+    rm -rf logs
+fi
