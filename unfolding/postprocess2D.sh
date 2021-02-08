@@ -29,7 +29,7 @@ fi
 doCompressLogs=1
 logfiles=($(ls -1 | grep log | grep unfolding | grep -v zip))
 nlogs=${#logfiles[@]}
-if [ $nlogs -eq 0]; then
+if [ $nlogs -eq 0 ]; then
     echo "Not packing logs because no logfile has been found"
     doCompressLogs=0
 fi
