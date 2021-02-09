@@ -1,9 +1,28 @@
 #! /bin/bash
 WORKDIR=${1:-$PWD}
 
-export ALIBUILD_WORK_DIR=/software/markus/alice/sw
-ALIENV=`which alienv`
-eval `$ALIENV --no-refresh load AliPhysics/latest root6tools/latest`
+packages=()
+if [ "x$ALICE_PHYSICS" == "x" ]; then
+    echo "Package AliPhysics not yet loaded - adding"
+    packages+=("AliPhysics")
+fi
+if [ "x$ROOT6TOOLS_ROOT" == "x" ]; then
+    echo "Package root6tools not yet loaded - adding"
+    packages+=("root6tools")
+fi
+if [ ${#packages[@]} -gt 0 ]; then
+    echo "Missing packages, load"
+    if [ "x$ALIBUILD_WORK_DIR" == "x" ]; then
+        ALIBUILD_WORK_DIR_DEFAULT=/software/markus/alice/sw
+        echo "Setting ALIBUILD_WORK_DIR to $ALIBUILD_WORK_DIR_DEFAULT"
+        export ALIBUILD_WORK_DIR=$ALIBUILD_WORK_DIR_DEFAULT
+    fi
+    ALIENV=`which alienv`
+    for package in ${packages[@]}; do
+        echo "Loading package $package"
+        eval `$ALIENV --no-refresh load $package/latest`
+    done
+fi
 
 cd $WORKDIR
 ls -l
@@ -18,7 +37,7 @@ fls=($(ls -1 | grep UnfoldedSD_))
 nfls=${#fls[@]}
 if [ $nfls -eq 0 ]; then 
     echo "Working directory does not contain any input file - skip merging ..."
-    doRunMerge = 0
+    doRunMerge=0
 fi
 if [ $doRunMerge -gt 0 ]; then
     hadd -f UnfoldedSD.root UnfoldedSD_*.root
@@ -41,9 +60,9 @@ if [ -f logs.zip ]; then
         mv logs.zip logs.$narchives.zip
     fi
 fi
-if [ $doCompressLogs -gt 0]; then
+if [ $doCompressLogs -gt 0 ]; then
     mkdir logs
     mv *.log logs/
     zip -r logs.zip logs
     rm -rf logs
-if
+fi
