@@ -1,0 +1,40 @@
+period: ""                                         # standard yaml file is located in:
+pass: ""                                           # AliPhysics/PWG/EMCAL/config/
+CellEnergy:
+    enabled: true
+    createHistos: true
+    enableNewTempCalib: true
+    enableShaperCorrection: true
+CellBadChannel:
+    enabled: true
+    createHistos: true
+    load1DBadChMap: true
+CellTimeCalib:
+    enabled: true
+    createHistos: true
+    doCalibrateLowGain: true
+    doMergedBCs: true
+    doCalibMergedLG: false
+Clusterizer:
+    enabled: true
+    clusterizer: kClusterizerv2
+    recalDistToBadChannels: true                   # True will recalculate the distance to bad channels
+    load1DBadChMap: true
+    cellE: 0.1
+    seedE: 0.3
+ClusterExotics:
+    enabled: true
+    createHistos: true
+ClusterNonLinearity:
+    enabled: true
+    createHistos: true
+    nonLinFunct: kTestBeamShaper                  # Sets the non-linearity function. Possible options are defined in the header of the cluster non-linearity correction component
+ClusterNonLinearityMCAfterburner:                 # MC Cluster additional non-linearity afterburner correction component - To be applied after the standard non-linearity correction
+    enabled: false 
+ClusterTrackMatcher:                              # Cluster-track matcher component
+    enabled: true 
+   #pt track cut in old version!
+ClusterHadronicCorrection:                        # use no hadronic correction for g-h correlation
+    enabled: true                            
+    createHistos: true
+    doMomDepMatching: true                       # This enables a momentum dependent eta/phi window for track matching 
