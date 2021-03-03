@@ -4,28 +4,33 @@
 #include "../../helpers/math.C"
 #include "../binnings/binningPt2D.C"
 
-RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, const TH2 *priorweight, double obsmax = -1) {
-    std::vector<double> detobsbinning, partobsbinning;
-    auto detaxis = responsedata->GetAxis(0), partaxis = responsedata->GetAxis(2);
-    detobsbinning.emplace_back(detaxis->GetBinLowEdge(1));
-    partobsbinning.emplace_back(partaxis->GetBinLowEdge(1));
-    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
-        auto step = partaxis->GetBinUpEdge(bin+1);
+std::vector<double> makeObservableBinning(const TAxis *obsaxis, double obsmax = DBL_MAX) {
+    std::vector<double> obsbinning;
+    obsbinning.emplace_back(obsaxis->GetBinLowEdge(1)); 
+    for(auto bin : ROOT::TSeqI(0, obsaxis->GetNbins())) {
+        auto step = obsaxis->GetBinUpEdge(bin+1);
         if(step > obsmax) continue;
-        partobsbinning.emplace_back(step);
+        obsbinning.emplace_back(step);
     } 
-    for(auto bin : ROOT::TSeqI(0, detaxis->GetNbins())) {
-        auto step = detaxis->GetBinUpEdge(bin+1);
-        if(step > obsmax) continue;
-        detobsbinning.emplace_back(step);
-    } 
+    return obsbinning;
+}
+
+RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &detptbinning, std::vector<double> &partptbinning, const TH2 *priorweight, double obsmax = -1, bool verbose = false) {
+    std::vector<double> detobsbinning = makeObservableBinning(responsedata->GetAxis(0), obsmax), 
+                        partobsbinning = makeObservableBinning(responsedata->GetAxis(2), obsmax);
     TH2F dettemplate("dettemplate", "det template", detobsbinning.size() - 1, detobsbinning.data(), detptbinning.size() - 1, detptbinning.data()),
          parttemplate("parttemplate", "part template", partobsbinning.size() - 1, partobsbinning.data(), partptbinning.size() - 1, partptbinning.data());
 
     auto &ptpartmin = partptbinning.front(),
          &ptpartmax = partptbinning.back(),
          &ptdetmin = detptbinning.front(),
-         &ptdetmax = detptbinning.back();
+         &ptdetmax = detptbinning.back(),
+         &obspartmin = partobsbinning.front(),
+         &obspartmax = partobsbinning.back(),
+         &obsdetmin = detobsbinning.front(),
+         &obsdetmax = detobsbinning.back();
+    std::cout << "Using part. min. pt " << ptpartmin << " and max " << ptpartmax << std::endl;
+    std::cout << "Using det. min. pt " << ptdetmin << " and max " << ptdetmax << std::endl;
 
     auto resultresponse = new RooUnfoldResponse(Form("%s_rebinned", responsedata->GetName()), Form("%s rebinned", responsedata->GetTitle()));
     resultresponse->UseOverflow(false);
@@ -40,7 +45,11 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
                ptpart = responsedata->GetAxis(3)->GetBinCenter(coordinate[3]);
         // check whether pt is within det-level and part-level range
         if(ptdet < ptdetmin || ptdet > ptdetmax || ptpart < ptpartmin || ptpart > ptpartmax) {
-            std::cout << "Point (" << ptpart << " part - " << ptdet << " det) outside range" << std::endl;
+            if(verbose) std::cout << "Point (" << ptpart << " part - " << ptdet << " det) outside range" << std::endl;
+            continue;
+        }
+        if(zgdet < obsdetmin || zgdet > obsdetmax || zgpart < obspartmin || zgpart > obspartmax) {
+            if(verbose) std::cout << "Point (" << zgpart << " part - " << zgdet << " det) outside range in SD" << std::endl;
             continue;
         }
         // include priorweight
@@ -52,12 +61,18 @@ RooUnfoldResponse *makeResponse(THnSparse *responsedata, std::vector<double> &de
     return resultresponse;
 }
 
-TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning) {
+TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning, double obsmax = DBL_MAX) {
     auto partaxis = inputspectrum->GetXaxis();
     std::vector<double> partobsbinning;
     partobsbinning.emplace_back(partaxis->GetBinLowEdge(1)); 
-    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
-    
+    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
+        if(partaxis->GetBinCenter(bin+1) < obsmax) {
+            partobsbinning.emplace_back(partaxis->GetBinUpEdge(bin+1));
+        } else {
+            break;
+        }
+    }
+        
     return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
 }
 
@@ -73,41 +88,65 @@ TH2 *rebinDist(TH2 *hist, std::vector<double> ptbinning) {
 }
 
 std::map<std::string, TH2 *> readPriorDist(TFile &priorsreader, int R, std::vector<double> ptbinning) {
+    // stand alone simulation are done in the full phi acceptance for efficiency reason,
+    // the response matrix is calculated in the EMCAL acceptance. The priors need to be
+    // scaled in phi to the EMCAL acceptance. In eta both productions are done within the
+    // EMCAL eta limits;
+    const double kSizeEmcalPhi = 1.88;
+    double radius = static_cast<double>(R)/10.;
+    double phiAcceptanceFactor = (kSizeEmcalPhi - 2 * radius)/(TMath::TwoPi());
     std::map<std::string, TH2 *> result;
     std::vector<std::string> observables = {"Zg", "Rg", "Nsd", "Thetag"};
     TString rstring(Form("R%02d", R));
-    for(auto obs : observables) {
-        priorsreader.cd(obs.data());
-        TH2 *hist(nullptr);
-        for(auto h : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
-            TString keyname(h->GetName());
-            if(keyname.Contains(rstring)) {
-                hist = h->ReadObject<TH2>();
-                break;
+    if(priorsreader.GetListOfKeys()->FindObject(rstring.Data())){
+        priorsreader.cd(rstring.Data());
+        for(auto obs : observables) {
+            TH2 *hist(nullptr);
+            for(auto h : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
+                TString keyname(h->GetName());
+                if(keyname.Contains(obs.data())) {
+                    hist = h->ReadObject<TH2>();
+                    break;
+                }
+            }
+            if(hist) {
+                std::cout << "Found histogram with name " << hist->GetName() << " for observable " << obs << " and " << rstring << std::endl;
+                auto rebinned = rebinDist(hist, ptbinning);
+                rebinned->Scale(phiAcceptanceFactor);
+                rebinned->SetName(Form("RebinnedPrior%s%s", obs.data(), rstring.Data()));
+                result[obs] = rebinned;
+            } else {
+                std::cout << "Not found histogram for " << obs << " and " << rstring << std::endl; 
             }
         }
-        if(hist) {
-            std::cout << "Found histogram with name " << hist->GetName() << " for observable " << obs << " and " << rstring << std::endl;
-            auto rebinned = rebinDist(hist, ptbinning);
-            rebinned->SetName(Form("RebinnedPrior%s%s", obs.data(), rstring.Data()));
-            result[obs] = rebinned;
-        } else {
-            std::cout << "Not found histogram for " << obs << " and " << rstring << std::endl; 
+    } else {
+        for(auto obs : observables) {
+            priorsreader.cd(obs.data());
+            TH2 *hist(nullptr);
+            for(auto h : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
+                TString keyname(h->GetName());
+                if(keyname.Contains(rstring)) {
+                    hist = h->ReadObject<TH2>();
+                    break;
+                }
+            }
+            if(hist) {
+                std::cout << "Found histogram with name " << hist->GetName() << " for observable " << obs << " and " << rstring << std::endl;
+                auto rebinned = rebinDist(hist, ptbinning);
+                rebinned->Scale(phiAcceptanceFactor);
+                rebinned->SetName(Form("RebinnedPrior%s%s", obs.data(), rstring.Data()));
+                result[obs] = rebinned;
+            } else {
+                std::cout << "Not found histogram for " << obs << " and " << rstring << std::endl; 
+            }
         }
     }
     return result;
 }
 
-TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax, double obsmax) {
+TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & partptbinning, double detptmin, double detptmax, double obsmax = DBL_MAX) {
     std::cout << "Extracting kinematic efficiency for det. pt range from " << detptmin << " GeV/c to " << detptmax << " GeV/c" << std::endl;
-    std::vector<double> partobsbinning;
-    auto partaxis = responsedata->GetAxis(2);
-    partobsbinning.emplace_back(partaxis->GetBinLowEdge(1)); 
-    for(auto bin : ROOT::TSeqI(0, partaxis->GetNbins())) {
-        auto step = partaxis->GetBinUpEdge(bin+1);
-        if(step > obsmax) continue;
-        partobsbinning.emplace_back(step);
-    } 
+    std::vector<double> partobsbinning = makeObservableBinning(responsedata->GetAxis(2), obsmax);
     
     std::unique_ptr<TH2> truefull(responsedata->Projection(3, 2));
     truefull->SetName("truefull");
@@ -125,7 +164,7 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
         std::unique_ptr<TH1> slicefull(truefull->ProjectionX("slicefull", truefull->GetYaxis()->FindBin(ptmin), truefull->GetYaxis()->FindBin(ptmax))),
                              slicetruncated(truncated->ProjectionX("slicetruncated", truncated->GetYaxis()->FindBin(ptmin), truncated->GetYaxis()->FindBin(ptmax))); 
         slicetruncated->Divide(slicetruncated.get(), slicefull.get(), 1., 1., "b");
-        for(auto iobsbin : ROOT::TSeqI(0, slicetruncated->GetXaxis()->GetNbins())){
+        for(auto iobsbin : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(iobsbin+1, iptbin+1, slicetruncated->GetBinContent(iobsbin+1));
             result->SetBinError(iobsbin+1, iptbin+1, slicetruncated->GetBinError(iobsbin+1));
         }
@@ -135,7 +174,54 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
     return result;
 }
 
-void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResults.root", const char *priorsfile = "jetspectrum_merged.root", const char *detbinningvar = "default") {
+TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &ptbinning, double obsmax = DBL_MAX){
+    // Axis 0 - observable
+    // Axis 1 - pt
+    // Axis 2 - tag status
+    auto obsbinning = makeObservableBinning(inputhist->GetAxis(0), obsmax);
+    auto histall = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
+    histall->SetName("histall");
+    inputhist->GetAxis(2)->SetRange(4, 4);
+    auto histtag = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
+    histtag->SetName("histtag");
+    inputhist->GetAxis(2)->SetRange(0, inputhist->GetAxis(2)->GetNbins()+1);
+
+    TH2 *result = new TH2D("effPure", "Kinematic efficiency or purity", obsbinning.size()-1, obsbinning.data(), ptbinning.size()-1, ptbinning.data());
+    result->SetDirectory(nullptr);
+    for(auto iptbin : ROOT::TSeqI(0, result->GetYaxis()->GetNbins())){
+        double ptmin = result->GetYaxis()->GetBinLowEdge(iptbin+1),
+               ptmax = result->GetYaxis()->GetBinUpEdge(iptbin+1);
+        std::cout << "Doing bin " << iptbin << "(" << ptmin << " ... " << ptmax << ")" << std::endl;
+        std::unique_ptr<TH1> sliceall(histall->ProjectionX("slicefull", histall->GetYaxis()->FindBin(ptmin), histall->GetYaxis()->FindBin(ptmax))),
+                             slicetag(histtag->ProjectionX("slicetag", histtag->GetYaxis()->FindBin(ptmin), histtag->GetYaxis()->FindBin(ptmax))); 
+        slicetag->Divide(slicetag.get(), sliceall.get(), 1., 1., "b");
+        for(auto iobsbin : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
+            result->SetBinContent(iobsbin+1, iptbin+1, slicetag->GetBinContent(iobsbin+1));
+            result->SetBinError(iobsbin+1, iptbin+1, slicetag->GetBinError(iobsbin+1));
+        }
+    }
+    return result;
+}
+
+TH2 *makeClosureTruthAll(TList *histos, const char *observable, const std::vector<double> &partptbinning, double obsmax) {
+    auto closuresparse = static_cast<THnSparse *>(histos->FindObject(Form("h%sJetFindingEfficiencyClosureNoResp", observable)));
+    if(!closuresparse) return nullptr;
+    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0));
+    auto projectionresult = makeRebinnedPt(projectionfine.get(), partptbinning, obsmax);
+    projectionresult->SetDirectory(nullptr);
+    return projectionresult;
+}
+
+TH2 *makeClosureDetAll(TList *histos, const char *observable, const std::vector<double> &detptbinning, double obsmax) {
+    auto closuresparse = static_cast<THnSparse *>(histos->FindObject(Form("h%sJetFindingPurityClosureNoResp", observable)));
+    if(!closuresparse) return nullptr;
+    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0));
+    auto projectionresult = makeRebinnedPt(projectionfine.get(), detptbinning, obsmax);
+    projectionresult->SetDirectory(nullptr);
+    return projectionresult;
+}
+
+void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResults.root", const char *priorsfile = "jetspectrum_merged.root", const char *detbinningvar = "default", double maxnsd = 11., bool verbose = false) {
     std::vector<double> detptbinning = getDetPtBinning(detbinningvar),
                         partptbinning = {0, 10, 15, 20, 30, 40, 50, 60, 80, 100, 120, 140, 160, 180, 200, 240, 500};
     if(!detptbinning.size()) {
@@ -181,13 +267,25 @@ void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResu
             pobjects.Add(priorhists.find(observable)->second);
             pobjects.Add(priorweight);
             
-            auto responsematrix = makeResponse(responsedata, detptbinning, partptbinning, priorweight, obsmax);
+            auto responsematrix = makeResponse(responsedata, detptbinning, partptbinning, priorweight, obsmax, verbose);
             responsematrix->SetNameTitle(Form("Responsematrix%s_R%02d", observable.data(), R), Form("Response matrix for %s for R=%.1f", observable.data(), double(R)/10.));
             std::cout << "Extracting kinematic efficiency for observable " << observable << std::endl;
             auto effKine = extractKinematicEfficiency(responsedata, partptbinning, *detptbinning.begin(), *detptbinning.rbegin(), obsmax);
             effKine->SetNameTitle(Form("EffKine%s_R%02d", observable.data(), R), Form("Kinematic efficiency for %s for R=%.1f", observable.data(), double(R)/10.));
             outputobjects.Add(responsematrix);
             outputobjects.Add(effKine);
+
+            // extract jetfinding efficiency and purity
+            auto sparsePurity = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingPurity", observable.data()))),
+                 sparseEfficiency = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingEfficiency", observable.data())));
+            auto jetfindingeff = extractEfficiencyPurity(sparseEfficiency, partptbinning, obsmax),
+                 jetfindingpurity = extractEfficiencyPurity(sparsePurity, detptbinning, obsmax);
+            jetfindingeff->SetDirectory(nullptr);
+            jetfindingeff->SetNameTitle(Form("JetFindingEff_%s_R%02d", observable.data(), R), Form("Jet finding efficiency for %s for R = %.1f", observable.data(), double(R)/10.));
+            outputobjects.Add(jetfindingeff);
+            jetfindingpurity->SetDirectory(nullptr);
+            jetfindingpurity->SetNameTitle(Form("JetFindingPurity_%s_R%02d", observable.data(), R), Form("Jet finding purity for %s for R = %.1f", observable.data(), double(R)/10.));
+            outputobjects.Add(jetfindingpurity);
 
             // Creating objects for the closure test
             auto closureresponsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseClosureSparse", observable.data())));
@@ -196,14 +294,14 @@ void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResu
                 std::cerr << "Did not find closure response matrix sparse for observable " << observable << std::endl;
                 histlist->ls();
             }
-            auto closureresponsematrix = makeResponse(closureresponsedata, detptbinning, partptbinning, priorweight, obsmax);
+            auto closureresponsematrix = makeResponse(closureresponsedata, detptbinning, partptbinning, priorweight, obsmax, verbose);
             closureresponsematrix->SetNameTitle(Form("ResponsematrixClosure%s_R%02d", observable.data(), R), Form("Response matrix for closure test for %s for R=%.1f", observable.data(), double(R)/10.));
             std::cout << "Extracting closure kinematic efficiency for observable " << observable << std::endl;
             auto closureeffkine = extractKinematicEfficiency(closureresponsedata, partptbinning, *detptbinning.begin(), *detptbinning.rbegin(), obsmax);
             closureeffkine->SetNameTitle(Form("EffKineClosure%s_R%02d", observable.data(), R), Form("Kinematic efficiency for %s for R=%.1f", observable.data(), double(R)/10.));
             std::cout << "Extracting det. level spectrum and true spectrum (opposite sample)" << std::endl;
-            auto closuretruth = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sPartLevelClosureNoRespFine", observable.data()))), partptbinning),
-                 closuredet = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sDetLevelClosureNoRespFine", observable.data()))), detptbinning);
+            auto closuretruth = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sPartLevelClosureNoRespFine", observable.data()))), partptbinning, obsmax),
+                 closuredet = makeRebinnedPt(static_cast<TH2 *>(histlist->FindObject(Form("h%sDetLevelClosureNoRespFine", observable.data()))), detptbinning, obsmax);
             closuretruth->SetDirectory(nullptr);
             closuredet->SetDirectory(nullptr);
             closuretruth->SetNameTitle(Form("closuretruth%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f", observable.data(), double(R)/10.));
@@ -214,13 +312,39 @@ void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResu
             cobjects.Add(closuretruth);
             cobjects.Add(closuredet);
 
+            // Extract jet finding purity, efficiency and det / part spectrum before matching (for efficiency / purity correction)
+            auto sparsePurityCT = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingPurityClosureResp", observable.data()))),
+                 sparseEfficiencyCT = static_cast<THnSparse *>(histlist->FindObject(Form("h%sJetFindingEfficiencyClosureResp", observable.data())));
+            if(sparsePurityCT) {
+                auto jetfindingpurityClosure = extractEfficiencyPurity(sparsePurityCT, detptbinning, obsmax);
+                jetfindingpurityClosure->SetDirectory(nullptr);
+                jetfindingpurityClosure->SetNameTitle(Form("JetFindingPurityClosure_%s_R%02d", observable.data(), R), Form("Jet finding purity for %s for R = %.1f (for closure test)", observable.data(), double(R)/10.));
+                cobjects.Add(jetfindingpurityClosure);
+            }
+            if(sparseEfficiencyCT) {
+                auto jetfindingeffClosure = extractEfficiencyPurity(sparseEfficiencyCT, partptbinning, obsmax); 
+                jetfindingeffClosure->SetDirectory(nullptr);
+                jetfindingeffClosure->SetNameTitle(Form("JetFindingEffClosure_%s_R%02d", observable.data(), R), Form("Jet finding efficiency for %s for R = %.1f (for closure test)", observable.data(), double(R)/10.));
+                cobjects.Add(jetfindingeffClosure);
+            }
+            auto histClosureTruthAll = makeClosureTruthAll(histlist, observable.data(), partptbinning, obsmax),
+                 histClosureDetAll = makeClosureDetAll(histlist, observable.data(), detptbinning, obsmax);
+            if(histClosureTruthAll) {
+               histClosureTruthAll->SetNameTitle(Form("closuretruthAll%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test, before part/det matching) for observable %s for R=%.1f", observable.data(), double(R)/10.));
+               cobjects.Add(histClosureTruthAll);
+            }
+            if(histClosureDetAll) {
+                histClosureDetAll->SetNameTitle(Form("closuredetAll%s_R%02d", observable.data(), R), Form("Det. level input spectrum for closure test (before part/det matching) for %s for R=%.1f", observable.data(), double(R)/10.));
+                cobjects.Add(histClosureDetAll);
+            }
+
             // Make non-fully efficient closure truth from THnSparse
             auto noclosureresponsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseClosureNoRespSparse", observable.data())));
             if(noclosureresponsedata){
                 std::cout << "Building non-fully efficient truth (" << detptbinning.front() << " ... " << detptbinning.back() << ")" << std::endl;
                 noclosureresponsedata->GetAxis(1)->SetRangeUser(detptbinning.front() + 1e-5, detptbinning.back() - 1e-5);
                 auto h2truecutfine = noclosureresponsedata->Projection(3,2);
-                auto h2truecut = makeRebinnedPt(h2truecutfine, partptbinning);
+                auto h2truecut = makeRebinnedPt(h2truecutfine, partptbinning, obsmax);
                 h2truecut->SetDirectory(nullptr);
                 h2truecut->SetNameTitle(Form("closuretruthcut%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f, cut det. pt", observable.data(), double(R)/10.));
                 cobjects.Add(h2truecut);
