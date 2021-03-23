@@ -1,0 +1,46 @@
+period: ""                                         # standard yaml file is located in:
+pass: "pass1"                                           # AliPhysics/PWG/EMCAL/config/
+CellEnergy:
+    enabled: false
+    createHistos: true
+CellBadChannel:
+    enabled: true
+    createHistos: true
+    load1DBadChMap: true
+CellTimeCalib:
+    enabled: false
+    createHistos: true
+Clusterizer:
+    enabled: true
+    clusterizer: kClusterizerv2
+    recalDistToBadChannels: true                   # True will recalculate the distance to bad channels
+    load1DBadChMap: true
+    cellE: 0.1
+    seedE: 0.3
+ClusterExotics:
+    enabled: true
+    createHistos: true
+ClusterNonLinearity:
+    enabled: true
+    nonLinFunct: kTestBeamFinalMC
+ClusterNonLinearityMCAfterburner:                 # MC Cluster additional non-linearity afterburner correction component - To be applied after the standard non-linearity correction
+    enabled: true
+    createHistos: true                            
+    afterburnerVersion: "kPCM_EMCal"      		  # Sets the version of the correction to be used. kPCM_EMCal=Standard, kEMCal_EMCal, kPCM_EMCalFunctionRatio, kEMCal_EMCalFunctionRatio=systematic variations
+    setMCPeriod: "kTestBeamFinalMCRun2"	          # Set here the MC production name. Only specific productions have corrections
+ClusterTrackMatcher:                              # Cluster-track matcher component
+    enabled: true                                 
+ClusterHadronicCorrection:                        # use no hadronic correction for g-h correlation
+    enabled: true                            
+    createHistos: true
+    doMomDepMatching: true                         # This enables a momentum dependent eta/phi window for track matching 
+    momDepMatchingParamEta0: 0.04                # Param 0 in eta for pt-dependent matching
+    momDepMatchingParamEta1: 0.010               # Param 1 in eta for pt-dependent matching
+    momDepMatchingParamEta2: 2.5                 # Param 2 in eta for pt-dependent matching
+    momDepMatchingParamPhi0: 0.063               # Param 0 in phi for pt-dependent matching
+    momDepMatchingParamPhi1: 0.0105              # Param 1 in phi for pt-dependent matching
+    momDepMatchingParamPhi2: 2.                  # Param 2 in phi for pt-dependent matching
+CellEmulateCrosstalk:                              # Component to emulate crosstalk
+    enabled: false                                 # Whether to enable the task
+    createHistos: true                             # Whether the task should create output histograms
+    printConfiguration: true                       # Print the configuration after initialization
