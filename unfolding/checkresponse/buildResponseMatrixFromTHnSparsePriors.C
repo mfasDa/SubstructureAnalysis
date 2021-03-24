@@ -76,18 +76,22 @@ TH2 *makeRebinnedPt(const TH2 *inputspectrum, std::vector<double> partptbinning,
     return makeRebinned2D(inputspectrum, partobsbinning, partptbinning);
 }
 
-TH2 *rebinDist(TH2 *hist, std::vector<double> ptbinning) {
+TH2 *rebinDist(TH2 *hist, std::vector<double> ptbinning, double obsmax = 1000.) {
     std::vector<double> obsbinning;
     obsbinning.push_back(hist->GetXaxis()->GetBinLowEdge(1));
     for(auto ib : ROOT::TSeqI(0, hist->GetXaxis()->GetNbins())){
-        obsbinning.push_back(hist->GetXaxis()->GetBinUpEdge(ib+1));
+        if(hist->GetXaxis()->GetBinCenter(ib+1) < obsmax) {
+            obsbinning.emplace_back(hist->GetXaxis()->GetBinUpEdge(ib+1));
+        } else {
+            break;
+        }
     }
     auto rebinned = makeRebinned2D(hist, obsbinning, ptbinning);
     rebinned->SetDirectory(nullptr);
     return rebinned;
 }
 
-std::map<std::string, TH2 *> readPriorDist(TFile &priorsreader, int R, std::vector<double> ptbinning) {
+std::map<std::string, TH2 *> readPriorDist(TFile &priorsreader, int R, std::vector<double> ptbinning, double maxnsd = 11.) {
     // stand alone simulation are done in the full phi acceptance for efficiency reason,
     // the response matrix is calculated in the EMCAL acceptance. The priors need to be
     // scaled in phi to the EMCAL acceptance. In eta both productions are done within the
@@ -132,7 +136,9 @@ std::map<std::string, TH2 *> readPriorDist(TFile &priorsreader, int R, std::vect
             }
             if(hist) {
                 std::cout << "Found histogram with name " << hist->GetName() << " for observable " << obs << " and " << rstring << std::endl;
-                auto rebinned = rebinDist(hist, ptbinning);
+                auto obsmax = 1000.;
+                if(obs == "Nsd") obsmax = maxnsd;
+                auto rebinned = rebinDist(hist, ptbinning, obsmax);
                 rebinned->Scale(phiAcceptanceFactor);
                 rebinned->SetName(Form("RebinnedPrior%s%s", obs.data(), rstring.Data()));
                 result[obs] = rebinned;
@@ -239,13 +245,14 @@ void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResu
 
     for(auto R : ROOT::TSeqI(2, 7)) {
         std::string rstring = Form("R%02d", R);
-        auto priorhists = readPriorDist(*priorsreader, R, partptbinning);
+        auto priorhists = readPriorDist(*priorsreader, R, partptbinning, maxnsd);
         std::cout << "Doing jet radius R=" << (double(R)/10.) << std::endl;
         reader->cd(Form("SoftDropResponse_FullJets_R%02d_INT7", R));
         auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
         TObjArray outputobjects, cobjects, pobjects;
         for(auto observable : observables) {
             double obsmax = DBL_MAX;
+            if(observable == "Nsd") obsmax = maxnsd;
             std::cout << "Next observable " << observable << std::endl;
             THnSparse* responsedata = dynamic_cast<THnSparse *>(histlist->FindObject(Form("h%sResponseSparse", observable.data())));           
             std::cout << "Extracting response matrix for observable " << observable << std::endl;
