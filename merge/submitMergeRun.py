@@ -35,7 +35,7 @@ class MergeHandler:
     def submit_pthardbins(self, wait_jobid: int = 0) -> int:
         executable = os.path.join(self.__repo, "processMergeRun.sh")
         commmand = "{EXECUTABLE} {INPUTDIR} {OUTPUTDIR} {FILENAME}".format(EXECUTABLE=executable, INPUTDIR=self.__inputdir, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename)
-        logfile = "{OUTPUTDIR}/joboutput_%a.log"
+        logfile = "{OUTPUTDIR}/joboutput_%a.log".format(OUTPUTDIR=self.__outputdir)
         jobname = "mergebins"
         jobid = submit(command=commmand, jobname=jobname, logfile=logfile, partition=self.__partition, jobarray=[1,20], dependency=wait_jobid)
         return jobid
