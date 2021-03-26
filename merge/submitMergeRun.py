@@ -6,12 +6,12 @@ import sys
 import subprocess
 
 def submit(command: str, jobname: str, logfile: str, partition: str = "short", numnodes: int = 1, numtasks: int = 1, jobarray = None, dependency=0) -> int:
-    submitcmd = "sbatch -N {NUMNODES} -n ${NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=partition)
+    submitcmd = "sbatch -N {NUMNODES} -n {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=partition)
     if jobarray:
         submitcmd += " --array={ARRAYMIN}-{ARRAYMAX}".format(ARRAYMIN=jobarray[0], ARRAYMAX=jobarray[1])
     if dependency > 0:
         submitcmd += " -d {DEP}".format(DEP=dependency)
-    submitcmd += " -j {JOBNAME} -o {LOGFILE} {COMMAND}".format(JOBNAME=jobname, LOGFILE=logfile, COMMAND=command)
+    submitcmd += " -J {JOBNAME} -o {LOGFILE} {COMMAND}".format(JOBNAME=jobname, LOGFILE=logfile, COMMAND=command)
     submitResult = subprocess.run(submitcmd, shell=True, stdout=subprocess.PIPE)
     sout = submitResult.stdout.decode("utf-8")
     toks = sout.split(" ")
@@ -62,6 +62,6 @@ if __name__ == "__main__":
         os.makedirs(outputbase, 0o755)
 
     handler = MergeHandler(repo, inputdir, outputbase, args.filename)
-    jobids = handler.submit()
+    jobids = handler.submit(args.wait)
     print("Submitted merge job under JobID %d" %jobids["pthard"])
     print("Submitted final merging job under JobID %d" %jobids["final"])
