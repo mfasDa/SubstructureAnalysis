@@ -40,7 +40,7 @@ void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", bool wit
                      ptcent = correctedhist->GetYaxis()->GetBinCenter(iptb+1);
                 if(ptcent < ptmin || ptcent > ptmax) continue;
                 std::cout << "Doing bin from " << ptlow << " GeV/c to " << pthigh << " GeV/c" << std::endl;
-                auto projected = correctedhist->ProjectionX(Form("%s_%s_%d_%d", obs.data(), rstring.data(), int(ptlow), int(pthigh)), iptb+1, iptb+1);
+                auto projected = correctedhist->ProjectionX(Form("%s_%s_%d_%d", obs.data(), rstring.data(), int(ptlow), int(pthigh)), iptb+1, iptb+1, "e");
                 std::cout << "Got projection with name " << projected->GetName() << std::endl;
                 projected->SetDirectory(nullptr);
                 projected->Scale(1./projected->Integral());

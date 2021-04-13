@@ -23,13 +23,13 @@ std::vector<TriggerEfficiencyContainer> extractTriggerEfficiencies(const char *f
         reader->cd(Form("JetSpectrum_FullJets_R%02d_INT7_tc200", R));
         auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>(); 
         auto specmb2D = static_cast<TH2 *>(histlist->FindObject("hJetSpectrum"));
-        std::unique_ptr<TH1> specMBFine(specmb2D->ProjectionY("INT7Tmp", 1, 1)->Rebin(ptbinningrestricted.size()-1, "INT7", ptbinningrestricted.data())),
+        std::unique_ptr<TH1> specMBFine(specmb2D->ProjectionY("INT7Tmp", 1, 1, "e")->Rebin(ptbinningrestricted.size()-1, "INT7", ptbinningrestricted.data())),
                              specMBRebin(specMBFine->Rebin(ptbinning.size()-1, "INT7rebin", ptbinning.data()));
         for(auto trg : triggers) {
             reader->cd(Form("JetSpectrum_FullJets_R%02d_%s_tc200", R, trg.data()));
             histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>(); 
             auto spec2D = static_cast<TH2 *>(histlist->FindObject("hJetSpectrum"));
-            auto efficiencyFine = spec2D->ProjectionY(Form("TriggerEfficiencyFineTmp_%s_R%02d", trg.data(), R), 1, 1)->Rebin(ptbinningrestricted.size() - 1, Form("TriggerEfficiencyFine_%s_R%02d", trg.data(), R), ptbinningrestricted.data());
+            auto efficiencyFine = spec2D->ProjectionY(Form("TriggerEfficiencyFineTmp_%s_R%02d", trg.data(), R), 1, 1, "e")->Rebin(ptbinningrestricted.size() - 1, Form("TriggerEfficiencyFine_%s_R%02d", trg.data(), R), ptbinningrestricted.data());
             efficiencyFine->SetDirectory(nullptr);
             auto efficiency = efficiencyFine->Rebin(ptbinning.size()-1, Form("TriggerEfficiency_%s_R%02d", trg.data(), R), ptbinning.data());
             efficiency->SetDirectory(nullptr);
@@ -48,7 +48,7 @@ TH2 *makeRawHistFromSparse(THnSparse *hsparse, int triggercluster, double obsmax
     int first = hsparse->GetAxis(2)->GetFirst(),
         last = hsparse->GetAxis(2)->GetLast();
     hsparse->GetAxis(2)->SetRange(triggercluster+1, triggercluster+1);
-    auto rawlevel = hsparse->Projection(1,0);
+    auto rawlevel = hsparse->Projection(1,0, "e");
     std::vector<double> currentbinning = {rawlevel->GetXaxis()->GetBinLowEdge(1)};
     for(auto b : ROOT::TSeqI(0, rawlevel->GetXaxis()->GetNbins())) currentbinning.emplace_back(rawlevel->GetXaxis()->GetBinUpEdge(b+1));
     if(obsmax < currentbinning.back()) {
@@ -147,7 +147,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
                 rawhist->Scale(weight);
 
                 // Extract 1D projections and trigger efficiencies
-                auto spec1Dnorebin = rawhist->ProjectionY(Form("jetSpectrumNoCorrNoRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()));
+                auto spec1Dnorebin = rawhist->ProjectionY(Form("jetSpectrumNoCorrNoRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data(), "e"));
                 spec1Dnorebin->SetDirectory(nullptr);
                 spec1Dnorebin->Write();
                 auto spec1Drebin = spec1Dnorebin->Rebin(ptbinning.size() -1, Form("jetSpectrumNoCorrRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()), ptbinning.data());
@@ -181,7 +181,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
 
                 for(auto ipt : ROOT::TSeqI(0, resulthist->GetYaxis()->GetNbins())) {
                     auto effval = triggereff ? 1./triggereff->GetBinContent(ipt+1) : 1.;
-                    std::unique_ptr<TH1> slice(rawhist->ProjectionX("slice", rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinLowEdge(ipt+1) + kVerySmall), rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinUpEdge(ipt+1) - kVerySmall)));
+                    std::unique_ptr<TH1> slice(rawhist->ProjectionX("slice", rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinLowEdge(ipt+1) + kVerySmall), rawhist->GetYaxis()->FindBin(resulthist->GetYaxis()->GetBinUpEdge(ipt+1) - kVerySmall), "e"));
                     slice->Scale(effval);
                     for(auto iobs : ROOT::TSeqI(0, resulthist->GetXaxis()->GetNbins())) { 
                         resulthist->SetBinContent(iobs+1, ipt+1, slice->GetBinContent(iobs+1));

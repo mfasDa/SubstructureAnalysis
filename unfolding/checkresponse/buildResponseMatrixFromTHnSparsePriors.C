@@ -154,10 +154,10 @@ TH2 *extractKinematicEfficiency(THnSparse *responsedata, std::vector<double> & p
     std::cout << "Extracting kinematic efficiency for det. pt range from " << detptmin << " GeV/c to " << detptmax << " GeV/c" << std::endl;
     std::vector<double> partobsbinning = makeObservableBinning(responsedata->GetAxis(2), obsmax);
     
-    std::unique_ptr<TH2> truefull(responsedata->Projection(3, 2));
+    std::unique_ptr<TH2> truefull(responsedata->Projection(3, 2, "e"));
     truefull->SetName("truefull");
     responsedata->GetAxis(1)->SetRangeUser(detptmin, detptmax);
-    std::unique_ptr<TH2> truncated(responsedata->Projection(3, 2));
+    std::unique_ptr<TH2> truncated(responsedata->Projection(3, 2, "e"));
     truncated->SetName("truncated");
     responsedata->GetAxis(1)->SetRange(0, responsedata->GetAxis(1)->GetNbins()+1);
 
@@ -185,10 +185,10 @@ TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &pt
     // Axis 1 - pt
     // Axis 2 - tag status
     auto obsbinning = makeObservableBinning(inputhist->GetAxis(0), obsmax);
-    auto histall = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
+    auto histall = std::unique_ptr<TH2>(inputhist->Projection(1, 0, "e"));
     histall->SetName("histall");
     inputhist->GetAxis(2)->SetRange(4, 4);
-    auto histtag = std::unique_ptr<TH2>(inputhist->Projection(1, 0));
+    auto histtag = std::unique_ptr<TH2>(inputhist->Projection(1, 0, "e"));
     histtag->SetName("histtag");
     inputhist->GetAxis(2)->SetRange(0, inputhist->GetAxis(2)->GetNbins()+1);
 
@@ -212,7 +212,7 @@ TH2 *extractEfficiencyPurity(THnSparse *inputhist, const std::vector<double> &pt
 TH2 *makeClosureTruthAll(TList *histos, const char *observable, const std::vector<double> &partptbinning, double obsmax) {
     auto closuresparse = static_cast<THnSparse *>(histos->FindObject(Form("h%sJetFindingEfficiencyClosureNoResp", observable)));
     if(!closuresparse) return nullptr;
-    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0));
+    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0, "e"));
     auto projectionresult = makeRebinnedPt(projectionfine.get(), partptbinning, obsmax);
     projectionresult->SetDirectory(nullptr);
     return projectionresult;
@@ -221,7 +221,7 @@ TH2 *makeClosureTruthAll(TList *histos, const char *observable, const std::vecto
 TH2 *makeClosureDetAll(TList *histos, const char *observable, const std::vector<double> &detptbinning, double obsmax) {
     auto closuresparse = static_cast<THnSparse *>(histos->FindObject(Form("h%sJetFindingPurityClosureNoResp", observable)));
     if(!closuresparse) return nullptr;
-    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0));
+    std::unique_ptr<TH2> projectionfine(closuresparse->Projection(1,0, "e"));
     auto projectionresult = makeRebinnedPt(projectionfine.get(), detptbinning, obsmax);
     projectionresult->SetDirectory(nullptr);
     return projectionresult;
@@ -263,7 +263,7 @@ void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResu
 
             // calculate prior weights
             // defined as variation / original
-            std::unique_ptr<TH2> truefull(responsedata->Projection(3, 2));
+            std::unique_ptr<TH2> truefull(responsedata->Projection(3, 2, "e"));
             truefull->SetName("truefull");
             auto rebinnedOrig = rebinDist(truefull.get(), partptbinning);
             rebinnedOrig->SetName(Form("RebinnedOrig%s%s", observable.data(), rstring.data()));
@@ -350,7 +350,7 @@ void buildResponseMatrixFromTHnSparsePriors(const char *filename = "AnalysisResu
             if(noclosureresponsedata){
                 std::cout << "Building non-fully efficient truth (" << detptbinning.front() << " ... " << detptbinning.back() << ")" << std::endl;
                 noclosureresponsedata->GetAxis(1)->SetRangeUser(detptbinning.front() + 1e-5, detptbinning.back() - 1e-5);
-                auto h2truecutfine = noclosureresponsedata->Projection(3,2);
+                auto h2truecutfine = noclosureresponsedata->Projection(3,2,"e");
                 auto h2truecut = makeRebinnedPt(h2truecutfine, partptbinning, obsmax);
                 h2truecut->SetDirectory(nullptr);
                 h2truecut->SetNameTitle(Form("closuretruthcut%s_R%02d", observable.data(), R), Form("Truth spectrum (closure test) for observable %s for R=%.1f, cut det. pt", observable.data(), double(R)/10.));
