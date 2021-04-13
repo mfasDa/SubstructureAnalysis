@@ -59,7 +59,7 @@ std::set<rdist> parseFile(const char *filename) {
         auto zgvspt = directories["Zg"]->Get<TH2>(Form("hZgAbsR%02d", R)),
              rgvspt = directories["Rg"]->Get<TH2 >(Form("hRgAbsR%02d", R)),
              thetagvspt = directories["Thetag"]->Get<TH2>(Form("hThetagAbsR%02d", R)),
-             nsdvspt = directories["Nsd"]->Get<TH2>(Form("hNsdAbsR02"));
+             nsdvspt = directories["Nsd"]->Get<TH2>(Form("hNsdAbsR%02d", R));
         prepareHist(spectrum, weight);
         prepareHist(zgvspt, weight);
         prepareHist(rgvspt, weight);
