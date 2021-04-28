@@ -24,6 +24,56 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
     jobid = int(toks[len(toks)-1])
     return jobid
 
+class AliTrainDB:
+
+    class UninitializedException(Exception):
+
+        def __init__(self):
+            super().__init__()
+    
+        def __str__(self):
+            return "Train database not initialized"
+
+    class TrainNotFoundException(Exception):
+
+        def __init__(self, trainID: int):
+            super().__init__()
+            self.__trainID = trainID
+
+        def __str__(self):
+            return "No train found for ID {}".format(self.__trainID)
+
+        def getTrainID(self) -> int:
+            return self.__trainID
+
+    def __init__(self, pwg: str, train: str):
+        self.__pwg = pwg
+        self.__train = train
+        self.__trains = {}
+        self.__initialized = False
+        self.__build()
+
+    def __build(self):
+        trainsraw = subprocess.getstatusoutput("alien_ls /alice/cern.ch/user/a/alitrain/{}/{}".format(self.__pwg, self.__train))
+        if trainsraw[0] != 0:
+            logging.error("Failed building trains DB for train %s/%s", self.__pwg, self.__train)
+        for trainstring in trainsraw[1].split("\n"):
+            tmpstring = trainstring.replace("/", "").lstrip().rstrip()
+            if "_child" in tmpstring:
+                tmpstring = tmpstring[0:tmpstring.index("_child")]
+            trainID = int(tmpstring.split("_")[0])
+            if not trainID in self.__trains.keys():
+                print("{}: Adding ID {}".format(trainID, tmpstring))
+                self.__trains[trainID] = tmpstring
+        self.__initialized = True
+
+    def getTrainIdentifier(self, trainID: int) -> str:
+        if not self.__initialized:
+            raise AliTrainDB.UninitializedException()
+        if not trainID in self.__trains.keys():
+            raise AliTrainDB.TrainNotFoundException(trainID)
+        return self.__trains[trainID] 
+
 class AlienToken:
 
     def __init__(self, dn: str, issuer: str, begin: time.struct_time, end: time.struct_time):
@@ -118,12 +168,22 @@ def recreate_token():
 
 class LaunchHandler:
 
-    def __init__(self, repo: str, outputbase: str , trainrun: str):
+    def __init__(self, repo: str, outputbase: str , trainrun: int, legotrain: str):
         self.__repo = repo
         self.__outputbase = outputbase
-        self.__trainrun = trainrun
+        self.__trainrun = None
+        self.__legotrain = legotrain
         self.__partitionDownload = "short"
         self.__tokens = {"cert": None, "key": None}
+
+        pwg,trainname = self.__legotrain.split("/")
+        trainDB = AliTrainDB(pwg, trainname)
+        try:
+            self.__trainrun = trainDB.getTrainIdentifier(trainrun)
+        except AliTrainDB.UninitializedException as e:
+            logging.error("%s", e)
+        except AliTrainDB.TrainNotFoundException as e:
+            logging.error("%s", e)
 
     def set_partition_for_download(self, partition: str):
         if not partition in ["long", "short", "vip", "loginOnly"]:
@@ -135,6 +195,9 @@ class LaunchHandler:
         self.__tokens["key"] = key
 
     def submit(self, year: int):
+        if not self.__trainrun:
+            logging.error("Failed initializing train run")
+            return
         cert = self.__tokens["cert"]
         key = self.__tokens["key"]
         if not key or not cert:
@@ -155,6 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outputdir", metavar="VARIATION", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
     parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=str, required=True, help="Train run")
+    parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp", help="Name of the lego train (default: PWGJE/Jets_EMC_pp)")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="short", help="Partition for download")
     args = parser.parse_args()
 
@@ -168,7 +232,7 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(repo=repo, outputbase=args.outputdir, trainrun=args.trainrun)
+    handler = LaunchHandler(repo=repo, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
     handler.set_token(cert, key)
     handler.set_partition_for_download(args.partition)
     handler.submit(args.year)

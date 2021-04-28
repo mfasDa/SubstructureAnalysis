@@ -24,14 +24,75 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
     jobid = int(toks[len(toks)-1])
     return jobid
 
+class AliTrainDB:
+
+    class UninitializedException(Exception):
+
+        def __init__(self):
+            super().__init__()
+    
+        def __str__(self):
+            return "Train database not initialized"
+
+    class TrainNotFoundException(Exception):
+
+        def __init__(self, trainID: int):
+            super().__init__()
+            self.__trainID = trainID
+
+        def __str__(self):
+            return "No train found for ID {}".format(self.__trainID)
+
+        def getTrainID(self) -> int:
+            return self.__trainID
+
+    def __init__(self, pwg: str, train: str):
+        self.__pwg = pwg
+        self.__train = train
+        self.__trains = {}
+        self.__initialized = False
+        self.__build()
+
+    def __build(self):
+        trainsraw = subprocess.getstatusoutput("alien_ls /alice/cern.ch/user/a/alitrain/{}/{}".format(self.__pwg, self.__train))
+        if trainsraw[0] != 0:
+            logging.error("Failed building trains DB for train %s/%s", self.__pwg, self.__train)
+        for trainstring in trainsraw[1].split("\n"):
+            tmpstring = trainstring.replace("/", "").lstrip().rstrip()
+            if "_child" in tmpstring:
+                tmpstring = tmpstring[0:tmpstring.index("_child")]
+            trainID = int(tmpstring.split("_")[0])
+            if not trainID in self.__trains.keys():
+                print("{}: Adding ID {}".format(trainID, tmpstring))
+                self.__trains[trainID] = tmpstring
+        self.__initialized = True
+
+    def getTrainIdentifier(self, trainID: int) -> str:
+        if not self.__initialized:
+            raise AliTrainDB.UninitializedException()
+        if not trainID in self.__trains.keys():
+            raise AliTrainDB.TrainNotFoundException(trainID)
+        return self.__trains[trainID] 
+
+
 class LaunchHandler:
 
-    def __init__(self, repo: str, outputbase: str , trainrun: str):
+    def __init__(self, repo: str, outputbase: str , trainrun: int, legotrain: str):
         self.__repo = repo
         self.__outputbase = outputbase
-        self.__trainrun = trainrun
+        self.__legotrain = legotrain
+        self.__trainrun = None
         self.__partitionDownload = "long"
         self.__tokens = {"cert": None, "key": None}
+
+        pwg,trainname = self.__legotrain.split("/")
+        trainDB = AliTrainDB(pwg, trainname)
+        try:
+            self.__trainrun = trainDB.getTrainIdentifier(trainrun)
+        except AliTrainDB.UninitializedException as e:
+            logging.error("%s", e)
+        except AliTrainDB.TrainNotFoundException as e:
+            logging.error("%s", e)
 
     def set_partition_for_download(self, partition: str):
         if not partition in ["long", "short", "vip", "loginOnly"]:
@@ -42,11 +103,24 @@ class LaunchHandler:
         self.__tokens["cert"] = cert
         self.__tokens["key"] = key
 
-    def submit(self, year: int):
+    def submit(self, year: int, subsample: str = ""):
+        if not self.__trainrun:
+            logging.error("Failed initializing train run")
+            return
         mcsamples = {2017: ["LHC18f5_1", "LHC18f5_2"], 2018: ["LHC19d3_1", "LHC19d3_1_extra", "LHC19d3_2", "LHC19d3_2_extra"]}
         if not year in mcsamples.keys():
             logging.error("No sample or year %d", year)
+        if len(subsample):
+            if not subsample in mcsamples[year]:
+                logging.error("Requested subsample %s not found for year %d ...", subsample, year)
+                return
         for sample in mcsamples[year]:
+            select = False
+            if len(subsample):
+                if sample == subsample:
+                    select = True
+            if not select:
+                continue
             jobid_download = self.submit_download_MC(sample)
             if not jobid_download:
                 return
@@ -65,7 +139,7 @@ class LaunchHandler:
             os.makedirs(outputdir, 0o755)
         logfile = os.path.join(outputdir, "download.log")
         
-        downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {DATASET} PWGJE/Jets_EMC_pp_MC/{TRAIN} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO=self.__repo, OUTPUTDIR=outputdir, DATASET=sample, TRAIN=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
+        downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {DATASET} {LEGOTRAIN}/{TRAINID} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO=self.__repo, OUTPUTDIR=outputdir, DATASET=sample, LEGOTRAIN=self.__legotrain, TRAINID=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
         jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=4)
         return jobid
 
@@ -176,7 +250,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("submitDownloadAndMergeMC.py", description="submitter for download and merge")
     parser.add_argument("-o", "--outputdir", metavar="VARIATION", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
-    parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=str, required=True, help="Train run")
+    parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=int, required=True, help="Train run (only main number)")
+    parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp_MC", help="Name of the lego train (default: PWGJE/Jets_EMC_pp_MC)")
+    parser.add_argument("-s", "--subsample", metavar="SUBSAMPLE", type=str, default="", help="Copy only subsample")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="long", help="Partition for download")
     args = parser.parse_args()
 
@@ -190,7 +266,7 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(repo=repo, outputbase=args.outputdir, trainrun=args.trainrun)
+    handler = LaunchHandler(repo=repo, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
     handler.set_token(cert, key)
     handler.set_partition_for_download(args.partition)
     handler.submit(args.year)
