@@ -1,4 +1,3 @@
-$ cat downloadAndMergeData.sh
 #! /bin/bash
 
 DOWNLOADREPO=$1

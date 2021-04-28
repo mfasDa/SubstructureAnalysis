@@ -203,7 +203,7 @@ class LaunchHandler:
         if not key or not cert:
             logging.error("Alien token not provided - cannot download ...")
             return None
-        executable = os.path.join(self.__repo, "runDownloadAndMergeDataBatch.sh.")
+        executable = os.path.join(self.__repo, "runDownloadAndMergeDataBatch.sh")
         jobname = "down_{YEAR}".format(YEAR=year)
         logfile = os.path.join(self.__outputbase, "download.log")
         downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {YEAR} {TRAINRUN} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO = self.__repo, OUTPUTDIR=self.__outputbase, YEAR=year, TRAINRUN=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
@@ -214,10 +214,10 @@ if __name__ == "__main__":
     currentbase = os.getcwd()
     repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
-    parser = argparse.ArgumentParser("submitDownloadAndMergeMC.py", description="submitter for download and merge")
+    parser = argparse.ArgumentParser("submitDownloadAndMergeData.py", description="submitter for download and merge")
     parser.add_argument("-o", "--outputdir", metavar="VARIATION", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
-    parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=str, required=True, help="Train run")
+    parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=int, required=True, help="Train run")
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp", help="Name of the lego train (default: PWGJE/Jets_EMC_pp)")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="short", help="Partition for download")
     args = parser.parse_args()
