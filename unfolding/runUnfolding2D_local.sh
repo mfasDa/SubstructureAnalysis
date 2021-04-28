@@ -5,8 +5,9 @@ OUTPUTDIR=$2
 DATAFILE=$3
 MCFILE=$4
 OBSERVABLE=$5
-RSTRING=$6
-DOEFFPURE=$7
+BINVAR=$6
+RSTRING=$7
+DOEFFPURE=$8
 
 if [ ! -d $OUTPUTDIR ]; then mkdir -p $OUTPUTDIR; fi
 cd $OUTPUTDIR
@@ -21,6 +22,6 @@ if [ $DOEFFPURE -gt 0 ]; then
 else 
     CORRSTRING=kFALSE
 fi
-CMD=$(printenv "root -l -b -q \'%s(\"%s\", \"%s\", \"%s\", \"%s\", %s)\' &> %s" $UNFOLDINGMACRO $DATAFILE $MCFILE $OBSERVABLE $RSTRING $CORRSTRING $LOGFILE)
+CMD=$(printenv "root -l -b -q \'%s(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s)\' &> %s" $UNFOLDINGMACRO $DATAFILE $MCFILE $OBSERVABLE $BINVAR $RSTRING $CORRSTRING $LOGFILE)
 eval $CMD
 echo "Done ..."

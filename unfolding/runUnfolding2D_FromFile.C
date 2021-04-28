@@ -4,10 +4,11 @@
 #include "../helpers/unfolding.C"
 
 TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, double ptminEJ2, double ptminEJ1, const char *observable) {
+    const double kVerySmall = 1e-5;
     auto result = static_cast<TH2 *>(rawtriggers.find("INT7")->second->Clone(Form("h%sVsPtRawCombined", observable)));
     result->SetDirectory(nullptr);
     auto histEJ2 = rawtriggers.find("EJ2")->second;
-    for(auto yb : ROOT::TSeqI(result->GetYaxis()->FindBin(ptminEJ2), result->GetYaxis()->FindBin(ptminEJ1))) {
+    for(auto yb : ROOT::TSeqI(result->GetYaxis()->FindBin(ptminEJ2 + kVerySmall), result->GetYaxis()->FindBin(ptminEJ1 + kVerySmall))) {
         printf("Replacing pt-bin %d (%.1f GeV/c - %.1f GeV/c) - EJ2 (%s)\n", yb, result->GetYaxis()->GetBinLowEdge(yb), result->GetYaxis()->GetBinUpEdge(yb), histEJ2->GetName());
         for(auto xb : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(xb+1, yb, histEJ2->GetBinContent(xb+1, yb));
@@ -15,7 +16,7 @@ TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, doubl
         }
     }
     auto histEJ1 = rawtriggers.find("EJ1")->second;
-    for(auto yb : ROOT::TSeqI(result->GetYaxis()->FindBin(ptminEJ1), result->GetYaxis()->GetNbins()+1)) {
+    for(auto yb : ROOT::TSeqI(result->GetYaxis()->FindBin(ptminEJ1 + kVerySmall), result->GetYaxis()->GetNbins()+1)) {
         printf("Replacing pt-bin %d (%.1f GeV/c - %.1f GeV/c) - EJ1 (%s)\n", yb, result->GetYaxis()->GetBinLowEdge(yb), result->GetYaxis()->GetBinUpEdge(yb), histEJ1->GetName());
         for(auto xb : ROOT::TSeqI(0, result->GetXaxis()->GetNbins())){
             result->SetBinContent(xb+1, yb, histEJ1->GetBinContent(xb+1, yb));
@@ -25,7 +26,7 @@ TH2 * makeCombinedTriggers(const std::map<std::string, TH2 *> rawtriggers, doubl
     return result;
 }
 
-void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, const char *observablename = "all", const char *jetrstring = "all", bool correctEffPure = true){
+void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, const char *observablename = "all", const char *binvar = "default", const char *jetrstring = "all", bool correctEffPure = true){
     std::stringstream outfilename;
     outfilename << "UnfoldedSD";
     if(std::string_view(observablename) != std::string_view("all")) outfilename << "_" << observablename;
@@ -47,6 +48,37 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
         auto rval = std::stoi(rstr.substr(1));
         rvalues.push_back(rval);
     }
+    std::map<std::string, double> triggerSwapEJ2 = {
+        {"default", 60.},
+        {"truncationLowLoose", 60.},
+        {"truncationLowStrong", 60.},
+        {"truncationHighLoose", 60.},
+        {"truncationHighStrong", 60.},
+        {"binning1", 59.},
+        {"binning2", 61.},
+        {"binning3", 57.},
+        {"binning4", 61.},
+        {"ej2low", 55.},
+        {"ej2high", 65.},
+        {"ej1low", 60.},
+        {"ej1high", 60.}
+    };
+    std::map<std::string, double> triggerSwapEJ1 = {
+        {"default", 100.},
+        {"truncationLowLoose", 100.},
+        {"truncationLowStrong", 100.},
+        {"truncationHighLoose", 100.},
+        {"truncationHighStrong", 100.},
+        {"binning1", 99.},
+        {"binning2", 101.},
+        {"binning3", 110.},
+        {"binning4", 107.},
+        {"ej2low", 95.},
+        {"ej2high", 105.},
+        {"ej1low", 100.},
+        {"ej1high", 100.}
+    };
+
     const double kMinPtEJ2 = 60., kMinPtEJ1 = 100.;
     for(auto observable : observablesSelected) outputwriter->mkdir(observable.data());
 
@@ -72,7 +104,7 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                 hist->SetDirectory(nullptr);
                 rawtriggers[t] = hist;
             }
-            auto rawcombined = makeCombinedTriggers(rawtriggers, kMinPtEJ2, kMinPtEJ1, observable.data()),
+            auto rawcombined = makeCombinedTriggers(rawtriggers, triggerSwapEJ2[binvar], triggerSwapEJ1[binvar], observable.data()),
                  rawcombinedOriginal = static_cast<TH2 *>(rawcombined->Clone());
             rawcombinedOriginal->SetDirectory(nullptr);
 
