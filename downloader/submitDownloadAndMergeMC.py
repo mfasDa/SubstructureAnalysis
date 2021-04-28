@@ -58,7 +58,7 @@ class LaunchHandler:
         if not key or not cert:
             logging.error("Alien token not provided - cannot download ...")
             return None
-        executable = os.path.join(self.__repo, "downloadAndMergeMC.sh")
+        executable = os.path.join(self.__repo, "runDownloadAndMergeMCBatch.sh")
         jobname = "down_{SAMPLE}".format(SAMPLE=sample)
         outputdir = os.path.join(self.__outputbase, sample)
         if not os.path.exists(outputdir):
@@ -141,7 +141,7 @@ def test_alien_token():
     result = {}
     me = getpass.getuser()
     userid = pwd.getpwnam(me).pw_uid
-    cluster_tokenrepo = os.path.join("software", me, "tokens")
+    cluster_tokenrepo = os.path.join("/software", me, "tokens")
     cluster_tokencert = os.path.join(cluster_tokenrepo, "tokencert_%d.pem" %userid)
     cluster_tokenkey = os.path.join(cluster_tokenrepo, "tokenkey_%d.pem" %userid)
     if not os.path.exists(cluster_tokencert) or not os.path.exists(cluster_tokenkey):
@@ -159,11 +159,11 @@ def test_alien_token():
 def recreate_token():
     me = getpass.getuser()
     userid = pwd.getpwnam(me).pw_uid
-    cluster_tokenrepo = os.path.join("software", me, "tokens")
+    cluster_tokenrepo = os.path.join("/software", me, "tokens")
     cluster_tokencert = os.path.join(cluster_tokenrepo, "tokencert_%d.pem" %userid)
     cluster_tokenkey = os.path.join(cluster_tokenrepo, "tokenkey_%d.pem" %userid)
-    tmp_tokencert = os.path.join("tmp", "tokencert_%d.pem" %userid)
-    tmp_tokenkey = os.path.join("tmp", "tokenkey_%d.pem" %userid)
+    tmp_tokencert = os.path.join("/tmp", "tokencert_%d.pem" %userid)
+    tmp_tokenkey = os.path.join("/tmp", "tokenkey_%d.pem" %userid)
     subprocess.call("alien-token-init", shell=True)
     shutil.copyfile(tmp_tokencert, cluster_tokencert)
     shutil.copyfile(tmp_tokenkey, cluster_tokenkey)
