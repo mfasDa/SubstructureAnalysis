@@ -34,7 +34,7 @@ struct rdist {
     }
 };
 
-std::set<rdist> parseFile(const char *filename) {
+std::set<rdist> parseFile(const char *filename, const char *jettype) {
     std::cout << "Reading file " << filename << std::endl;
     auto prepareHist = [](auto hist, double weight) {
         hist->SetDirectory(nullptr);
@@ -55,11 +55,11 @@ std::set<rdist> parseFile(const char *filename) {
     
     
     for(auto R : ROOT::TSeqI(2, 7)){
-        auto spectrum = directories["Spectra"]->Get<TH1>(Form("JetSpectrumAbsR%02d", R));
-        auto zgvspt = directories["Zg"]->Get<TH2>(Form("hZgAbsR%02d", R)),
-             rgvspt = directories["Rg"]->Get<TH2 >(Form("hRgAbsR%02d", R)),
-             thetagvspt = directories["Thetag"]->Get<TH2>(Form("hThetagAbsR%02d", R)),
-             nsdvspt = directories["Nsd"]->Get<TH2>(Form("hNsdAbsR%02d", R));
+        auto spectrum = directories["Spectra"]->Get<TH1>(Form("JetSpectrumAbsR%02d%s", R, jettype));
+        auto zgvspt = directories["Zg"]->Get<TH2>(Form("hZgAbsR%02d%s", R, jettype)),
+             rgvspt = directories["Rg"]->Get<TH2 >(Form("hRgAbsR%02d%s", R, jettype)),
+             thetagvspt = directories["Thetag"]->Get<TH2>(Form("hThetagAbsR%02d%s", R, jettype)),
+             nsdvspt = directories["Nsd"]->Get<TH2>(Form("hNsdAbsR%02d%s", R, jettype));
         prepareHist(spectrum, weight);
         prepareHist(zgvspt, weight);
         prepareHist(rgvspt, weight);
@@ -81,11 +81,11 @@ std::set<int> findPtHardBins(const std::string_view inputdir) {
     return pthardbins;
 }
 
-void makeCombinedSpectrumSD_pthard_standalone(const char *filename = "AnalysisResults.root") {
+void makeCombinedSpectrumSD_pthard_standalone(const char *filename = "AnalysisResults.root", const char *jettype="") {
     std::map<int, std::set<rdist>> histosPtHard;
     for(auto pthardbin : findPtHardBins(gSystem->GetWorkingDirectory())) {
         std::cout << "Processing pt-hard bin " << pthardbin << std::endl; 
-        histosPtHard[pthardbin] = parseFile(Form("bin%d/%s", pthardbin, filename));
+        histosPtHard[pthardbin] = parseFile(Form("bin%d/%s", pthardbin, filename), jettype);
     }
     std::vector<rdist> resulthists;
     for(const auto &[pthardbin, histos] : histosPtHard) {
@@ -98,6 +98,6 @@ void makeCombinedSpectrumSD_pthard_standalone(const char *filename = "AnalysisRe
             }
         }
     }
-    std::unique_ptr<TFile> writer(TFile::Open("CombinedSD.root", "RECREATE"));
+    std::unique_ptr<TFile> writer(TFile::Open(Form("CombinedSD%s.root", jettype), "RECREATE"));
     for(auto bin : resulthists) bin.Write(*writer);
 }
