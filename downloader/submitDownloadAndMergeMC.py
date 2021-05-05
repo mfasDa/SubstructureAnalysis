@@ -107,7 +107,7 @@ class LaunchHandler:
         if not self.__trainrun:
             logging.error("Failed initializing train run")
             return
-        mcsamples = {2017: ["LHC18f5_1", "LHC18f5_2"], 2018: ["LHC19d3_1", "LHC19d3_1_extra", "LHC19d3_2", "LHC19d3_2_extra"]}
+        mcsamples = {2016: ["LHC19a1a_1", "LHC19a1a_2", "LHC19a1b_1", "LHC19a1b_2", "LHC19a1c_1", "LHC19a1c_2"], 2017: ["LHC18f5_1", "LHC18f5_2"], 2018: ["LHC19d3_1", "LHC19d3_1_extra", "LHC19d3_2", "LHC19d3_2_extra"]}
         if not year in mcsamples.keys():
             logging.error("No sample or year %d", year)
         if len(subsample):
