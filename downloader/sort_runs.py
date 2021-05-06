@@ -47,9 +47,11 @@ class SampleSorter:
         self.__outputdir = outputdir
         self.__rootfile = rootfile
         self.__tag = self.__read_tag(os.path.basename(self.__inputdir))
+        print("determined tag {}".format(self.__tag))
         self.__sampleDB = sampledb
 
     def __read_tag(self, production: str) -> str:
+        print("Creating tag from {}".format(production))
         tokens = production.rstrip().lstrip().split("_")
         tag = tokens[len(tokens)-1]
         if tag == "extra":
@@ -57,8 +59,9 @@ class SampleSorter:
         return tag
 
     def has_period(self, period: str) -> str:
+        teststring = "{}_{}".format(period, self.__tag)
         for testperiod in os.listdir(self.__outputdir):
-            if period in testperiod and self.__tag in testperiod:
+            if testperiod ==  teststring:
                 return testperiod
         return ""
 
