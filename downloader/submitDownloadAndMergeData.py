@@ -220,7 +220,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=int, required=True, help="Train run")
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp", help="Name of the lego train (default: PWGJE/Jets_EMC_pp)")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="short", help="Partition for download")
-    parser.add_argument("-d", "--debug", metavar="DEBUG", action="store_true", help="Debug mode")
+    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
 
     loglevel = logging.INFO

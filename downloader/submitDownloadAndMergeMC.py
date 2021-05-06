@@ -119,6 +119,8 @@ class LaunchHandler:
             if len(subsample):
                 if sample == subsample:
                     select = True
+            else:
+                select = True
             if not select:
                 continue
             jobid_download = self.submit_download_MC(sample)
@@ -254,7 +256,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp_MC", help="Name of the lego train (default: PWGJE/Jets_EMC_pp_MC)")
     parser.add_argument("-s", "--subsample", metavar="SUBSAMPLE", type=str, default="", help="Copy only subsample")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="long", help="Partition for download")
-    parser.add_argument("-d", "--debug", metavar="DEBUG", action="store_true", help="Debug mode")
+    parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
 
     loglevel = logging.INFO
