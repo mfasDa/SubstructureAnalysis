@@ -267,7 +267,7 @@ class AlienTool:
     
     def checktoken(self):
         if isjalien:
-            return true
+            return True
         token = self.fetchtokeninfo()
         if not token:
             return False
