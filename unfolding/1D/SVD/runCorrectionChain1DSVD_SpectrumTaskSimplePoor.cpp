@@ -132,7 +132,7 @@ std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, int R, const std::str
     reader.cd(dirnamebuilder.str().data());
     auto histos = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
     auto hspecandclass = static_cast<TH2 *>(histos->FindObject("hJetSpectrum"));
-    auto rawspectrum = hspecandclass->ProjectionY(histnamebuilder.str().data(), clusterbin, clusterbin);
+    auto rawspectrum = hspecandclass->ProjectionY(histnamebuilder.str().data(), clusterbin, clusterbin, "e");
     rawspectrum->SetDirectory(nullptr);
 
     // calculate norm
