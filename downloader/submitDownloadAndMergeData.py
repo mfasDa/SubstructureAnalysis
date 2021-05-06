@@ -17,7 +17,7 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
     if dependency > 0:
         submitcmd += " -d {DEP}".format(DEP=dependency)
     submitcmd += " -J {JOBNAME} -o {LOGFILE} {COMMAND}".format(JOBNAME=jobname, LOGFILE=logfile, COMMAND=command)
-    print("Submitcmd: {}".format(submitcmd))
+    logging.debug("Submitcmd: {}".format(submitcmd))
     submitResult = subprocess.run(submitcmd, shell=True, stdout=subprocess.PIPE)
     sout = submitResult.stdout.decode("utf-8")
     toks = sout.split(" ")
@@ -63,7 +63,7 @@ class AliTrainDB:
                 tmpstring = tmpstring[0:tmpstring.index("_child")]
             trainID = int(tmpstring.split("_")[0])
             if not trainID in self.__trains.keys():
-                print("{}: Adding ID {}".format(trainID, tmpstring))
+                logging.debug("{}: Adding ID {}".format(trainID, tmpstring))
                 self.__trains[trainID] = tmpstring
         self.__initialized = True
 
@@ -208,19 +208,25 @@ class LaunchHandler:
         logfile = os.path.join(self.__outputbase, "download.log")
         downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {YEAR} {TRAINRUN} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO = self.__repo, OUTPUTDIR=self.__outputbase, YEAR=year, TRAINRUN=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
         jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=1)
+        logging.info("Submitting download job: {}".format(jobid))
         return jobid
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
     repo = os.path.dirname(os.path.abspath(sys.argv[0]))
-    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=logging.INFO)
     parser = argparse.ArgumentParser("submitDownloadAndMergeData.py", description="submitter for download and merge")
     parser.add_argument("-o", "--outputdir", metavar="VARIATION", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
     parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=int, required=True, help="Train run")
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp", help="Name of the lego train (default: PWGJE/Jets_EMC_pp)")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="short", help="Partition for download")
+    parser.add_argument("-d", "--debug", metavar="DEBUG", action="store_true", help="Debug mode")
     args = parser.parse_args()
+
+    loglevel = logging.INFO
+    if args.debug:
+        loglevel = logging.DEBUG
+    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=loglevel)
 
     tokens = test_alien_token()
     if not len(tokens):
