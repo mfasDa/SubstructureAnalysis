@@ -17,8 +17,19 @@ files=()
 dirs=($(ls -1 $INPUTBASE))
 for indir in ${dirs[@]}; do
     echo Doing $indir
-    if [ "x$(echo $indir | grep LHC)" == "x" ]; then continue; fi
-    fname=$INPUTBASE/$indir/merged/$CHUNK/$FILENAME
+    if [ ! -d $INPUTBASE/$indir ]; then continue; fi
+    # do not explicitly require a period tag (won't work for runwise output),
+    # but rather only veto the merged outputs
+    if [ "x$(echo $indir | grep merged)" != "x" ]; then continue; fi
+    fname=
+    if [ -d $INPUTBASE/$indir/merged ]; then
+        # sample-wise output usually contains a merged directory - use that
+        fname=$INPUTBASE/$indir/merged/$CHUNK/$FILENAME
+    else
+        # runwise output doesn't have a merged directory (because there is no 2-step merging per sample)
+        # instead it has to use the input directory of the sample (run) directly
+        fname=$INPUTBASE/$indir/$CHUNK/$FILENAME
+    fi
     echo Doing Filename $fname
     if [ -f $fname ]; then
         echo Adding input file $fname
