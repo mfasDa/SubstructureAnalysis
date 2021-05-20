@@ -1,17 +1,18 @@
 #! /bin/bash
 
-DOWNLOADREPO=$1
+SUBSTRUCTUREREPO=$1
 OUTPUTDIR=$2
 YEAR=$3
 TRAINRUN=$4
 ALIEN_CERT=$5
 ALIEN_KEY=$6
 
-DOWNLOAD_EXECUTABLE=$DOWNLOADREPO/download$YEAR.py
-
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh load AliPhysics/latest`
 $ALIENV list
+
+source $SUBSTRUCTUREREPO/env.sh
+DOWNLOAD_EXECUTABLE=$SUBSTRUCTURE_ROOT/downloader/download$YEAR.py
 
 export ALIENPY_DEBUG_FILE=$OUTPUTDIR/alien_py.log
 export JALIEN_TOKEN_CERT=$ALIEN_CERT

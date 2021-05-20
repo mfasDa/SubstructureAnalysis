@@ -1,17 +1,18 @@
 #! /bin/bash
 
-DOWNLOADREPO=$1
+SUBSTRUCTUREREPO=$1
 OUTPUTDIR=$2
 DATASET=$3
 TRAINRUN=$4
 ALIEN_CERT=$5
 ALIEN_KEY=$6
 
-DOWNLOAD_EXECUTABLE=$DOWNLOADREPO/copyFromGrid.py
-
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh load  xjalienfs/latest`
 echo `alienv list`
+
+source $SUBSTRUCTUREREPO/env.sh
+DOWNLOAD_EXECUTABLE=$SUBSTRUCTURE_ROOT/downloader/copyFromGrid.py
 
 export ALIENPY_DEBUG_FILE=$OUTPUTDIR/alien_py.log
 export JALIEN_TOKEN_CERT=$ALIEN_CERT

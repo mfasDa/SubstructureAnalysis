@@ -1,6 +1,6 @@
 #! /bin/bash
 
-DOWNLOADREPO=$1
+SUBSTRUCTUREREPO=$1
 ALIEN_CERT=$2
 ALIEN_KEY=$3
 OUTPUTDIR=$4
@@ -18,11 +18,12 @@ echo "Pass:               $PASS"
 echo "AOD production:     $AODPROD"
 echo "Filename:           $FILENAME"
 
-DOWNLOAD_EXECUTABLE=$DOWNLOADREPO/copyTrainRunwise.py
-
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh load AliPhysics/latest`
 $ALIENV list
+
+source $SUBSTRUCTUREREPO/env.sh
+DOWNLOAD_EXECUTABLE=$SUBSTRUCTURE_ROOT/downloader/copyTrainRunwise.py
 
 export ALIENPY_DEBUG_FILE=$OUTPUTDIR/alien_py.log
 export JALIEN_TOKEN_CERT=$ALIEN_CERT

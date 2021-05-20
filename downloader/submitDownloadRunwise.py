@@ -45,8 +45,8 @@ class LaunchHandler:
         def __str__(self):
             return "Failed retrieving sample for {YEAR}".format(YEAR=self.__year)
 
-    def __init__(self, repo: str, outputbase: str, isData: bool, year: int, trainrun: int, legotrain: str):
-        self.__repo = repo
+    def __init__(self, outputbase: str, isData: bool, year: int, trainrun: int, legotrain: str):
+        self.__repo = os.getenv("SUBSTRUCTURE_ROOT")
         self.__outputbase = outputbase
         self.__year = year
         self.__trainrun = trainrun
@@ -81,7 +81,7 @@ class LaunchHandler:
         if not key or not cert:
             logging.error("Alien token not provided - cannot download ...")
             return None
-        executable = os.path.join(self.__repo, "runDownloadRunwise.sh")
+        executable = os.path.join(self.__repo, "downloader", "runDownloadRunwise.sh")
         samples = {}
         try:
             samples = self.__sampleDB.getDataSamples(self.__year)
@@ -107,7 +107,6 @@ class LaunchHandler:
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
-    repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     parser = argparse.ArgumentParser("submitDownloadAndMergeData.py", description="submitter for download and merge")
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
@@ -134,7 +133,7 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(repo=repo, outputbase=args.outputdir, year=args.year, isData=True, trainrun=args.trainrun, legotrain=args.legotrain)
+    handler = LaunchHandler(outputbase=args.outputdir, year=args.year, isData=True, trainrun=args.trainrun, legotrain=args.legotrain)
     handler.set_token(cert, key)
     handler.set_partition_for_download(args.partition)
     if len(args.filename):

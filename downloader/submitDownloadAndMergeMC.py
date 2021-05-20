@@ -12,8 +12,8 @@ from SubstructureHelpers.train import AliTrainDB
 
 class LaunchHandler:
 
-    def __init__(self, repo: str, outputbase: str , trainrun: int, legotrain: str):
-        self.__repo = repo
+    def __init__(self, outputbase: str , trainrun: int, legotrain: str):
+        self.__repo = os.getenv("SUBSTRUCTURE_ROOT")
         self.__outputbase = outputbase
         self.__legotrain = legotrain
         self.__trainrun = None
@@ -70,7 +70,7 @@ class LaunchHandler:
         if not key or not cert:
             logging.error("Alien token not provided - cannot download ...")
             return None
-        executable = os.path.join(self.__repo, "runDownloadAndMergeMCBatch.sh")
+        executable = os.path.join(self.__repo, "downloader", "runDownloadAndMergeMCBatch.sh")
         jobname = "down_{SAMPLE}".format(SAMPLE=sample)
         outputdir = os.path.join(self.__outputbase, sample)
         if not os.path.exists(outputdir):
@@ -82,15 +82,13 @@ class LaunchHandler:
         return jobid
 
     def submit_merge(self, sample: str, wait_jobid: int) -> int:
-        substructure_repo = "/software/markus/alice/SubstructureAnalysis"
-        executable = os.path.join(substructure_repo, "merge", "submitMergeRun.py")
+        executable = os.path.join(self.__repo, "merge", "submitMergeRun.py")
         workdir = os.path.join(self.__outputbase, sample)
         mergecommand = "{EXE} {WORKDIR} -w {DEP}".format(EXE=executable, WORKDIR=workdir, DEP=wait_jobid)
         subprocess.call(mergecommand, shell=True)
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
-    repo = os.path.dirname(os.path.abspath(sys.argv[0]))
     parser = argparse.ArgumentParser("submitDownloadAndMergeMC.py", description="submitter for download and merge")
     parser.add_argument("-o", "--outputdir", metavar="VARIATION", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
@@ -116,7 +114,7 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(repo=repo, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
+    handler = LaunchHandler(outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
     handler.set_token(cert, key)
     handler.set_partition_for_download(args.partition)
     handler.submit(args.year)
