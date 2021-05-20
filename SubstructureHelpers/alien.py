@@ -66,34 +66,6 @@ def get_token_info(tokencert: str, tokenkey: str):
             end = parse_time(value)
     return AlienToken(dn, issuer, start, end)
 
-def parse_time(token_timestring: str):
-    return time.strptime(token_timestring, "%Y-%m-%d %H:%M:%S")
-
-def get_token_info(tokencert: str, tokenkey: str):
-    testcmd="export JALIEN_TOKEN_CERT={ALIEN_CERT}; export JALIEN_TOKEN_KEY={ALIEN_KEY}; alien-token-info".format(ALIEN_CERT=tokencert, ALIEN_KEY=tokenkey)
-    testres = subprocess.getstatusoutput(testcmd)
-    if testres[0] != 0:
-        logging.error("Tokenfiles %s and %s invalid ...", tokencert, tokenkey)
-        return None
-    infos = testres[1].split("\n")
-    dn = ""
-    issuer = ""
-    start = None
-    end = None
-    for en in infos:
-        keyval = en.split(">>>")
-        key = keyval[0].lstrip().rstrip()
-        value = keyval[1].lstrip().rstrip()
-        if key == "DN":
-            dn = value
-        elif key == "ISSUER":
-            issuer = value
-        elif key == "BEGIN":
-            start = parse_time(value)
-        elif key == "EXPIRE":
-            end = parse_time(value)
-    return AlienToken(dn, issuer, start, end)
-
 def test_alien_token():
     result = {}
     me = getpass.getuser()
