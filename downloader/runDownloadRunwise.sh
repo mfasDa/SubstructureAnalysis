@@ -22,8 +22,8 @@ ALIENV=`which alienv`
 eval `$ALIENV --no-refresh load AliPhysics/latest`
 $ALIENV list
 
-source $SUBSTRUCTUREREPO/env.sh
-DOWNLOAD_EXECUTABLE=$SUBSTRUCTURE_ROOT/downloader/copyTrainRunwise.py
+export PYTHONPATH=$PYTHONPATH:$SUBSTRUCTUREREPO
+DOWNLOAD_EXECUTABLE=$SUBSTRUCTUREREPO/downloader/copyTrainRunwise.py
 
 export ALIENPY_DEBUG_FILE=$OUTPUTDIR/alien_py.log
 export JALIEN_TOKEN_CERT=$ALIEN_CERT

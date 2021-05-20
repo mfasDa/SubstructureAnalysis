@@ -8,11 +8,12 @@ ALIEN_CERT=$5
 ALIEN_KEY=$6
 
 ALIENV=`which alienv`
+echo "Using alienv $ALIENV"
 eval `$ALIENV --no-refresh load AliPhysics/latest`
 $ALIENV list
 
-source $SUBSTRUCTUREREPO/env.sh
-DOWNLOAD_EXECUTABLE=$SUBSTRUCTURE_ROOT/downloader/download$YEAR.py
+export PYTHONPATH=$PYTHONPATH:$SUBSTRUCTUREREPO
+DOWNLOAD_EXECUTABLE=$SUBSTRUCTUREREPO/downloader/download$YEAR.py
 
 export ALIENPY_DEBUG_FILE=$OUTPUTDIR/alien_py.log
 export JALIEN_TOKEN_CERT=$ALIEN_CERT

@@ -11,8 +11,8 @@ ALIENV=`which alienv`
 eval `$ALIENV --no-refresh load  xjalienfs/latest`
 echo `alienv list`
 
-source $SUBSTRUCTUREREPO/env.sh
-DOWNLOAD_EXECUTABLE=$SUBSTRUCTURE_ROOT/downloader/copyFromGrid.py
+export PYTHONPATH=$PYTHONPATH:$SUBSTRUCTUREREPO
+DOWNLOAD_EXECUTABLE=$SUBSTRUCTUREREPO/downloader/copyFromGrid.py
 
 export ALIENPY_DEBUG_FILE=$OUTPUTDIR/alien_py.log
 export JALIEN_TOKEN_CERT=$ALIEN_CERT
