@@ -24,7 +24,7 @@ fi
 echo "Using unfolding method $UNFOLDINGMETHOD"
 SCRIPT=$SOURCEDIR/$UNFOLDINGMETHOD/$UNFOLDINGMACRO
 if [ ! -f $SCRIPT ]; then
-    echo Unfolding macro does not exist, skipping ...
+    echo Unfolding macro $SCRIPT does not exist, skipping ...
     exit 1
 fi
 echo "Using unfolding macro $SCRIPT"
