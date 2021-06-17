@@ -5,6 +5,8 @@ import os
 import sys
 import subprocess
 
+from SubstructureHelpers import slurm
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("submitUnfolding1D_local", "Submitter for 1D unfolding")
     parser.add_argument("datafile", metavar="DATFILE", type=str, help="Data input")
@@ -15,11 +17,15 @@ if __name__ == "__main__":
     parser.add_argument("-j", "--jobtag", metavar="JOBTAG", type=str, default="corr1D", help="Job tag in jobname")
     args = parser.parse_args()
 
-    executable = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "runUnfolding1D_local.sh")
+    repo = os.path.abspath(os.path.dirname(sys.argv[0]))
+    unfoldingexecutable = os.path.join(repo, "runUnfolding1D_local.sh")
+    unfoldingcmd="{EXE} {WDIR} {DATAFILE} {MCFILE} {SYSVAR} {MACRO}".format(EXE=unfoldingexecutable, WDIR=args.workdir, DATAFILE=args.datafile, MCFILE=args.mcfile, SYSVAR=args.sysvar, MACRO=args.macro)
+    logfile="joboutput_R0%a.log"
     os.chdir(args.workdir)
-    for radius in range(2, 7):
-        logfile="joboutput_R%02d.log" %radius
-        jobname="%s_R%02d" %(args.jobtag, radius)
-        cmd = "sbatch -N 1 -n 1 --partition short -J {JNAME} -o {OUTFILE} {EXE} {WDIR} {DATAFILE} {MCFILE} {SYSVAR} {RADIUS} {MACRO}".format(JNAME=jobname, OUTFILE=logfile, EXE=executable, WDIR=args.workdir, DATAFILE=args.datafile, MCFILE=args.mcfile, SYSVAR=args.sysvar, RADIUS=radius, MACRO=args.macro)
-        print("Running: %s" %cmd)
-        subprocess.call(cmd, shell=True)
+    unfoldingjob = slurm.submit(unfoldingcmd, args.jobtag, logfile, "short", 1, 1, [2, 6])
+    print("Submitting processing job under %d" %unfoldingjob)
+    mergeexecutable = os.path.join(repo, "postprocess1D.sh")
+    mergecmd = "{EXE} {WORKDIR}".format(EXE=mergeexecutable, WORKDIR=os.getcwd())
+    logfile = "merge"
+    mergejob = slurm.submit(mergecmd, "merge_{TAG}".format(TAG=args.jobtag), logfile, "short", 1, 1, None, unfoldingjob)
+    print("Submitting merging job under %d" %mergejob)

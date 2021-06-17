@@ -4,8 +4,9 @@ WORKDIR=$1
 DATAFILE=$2
 MCFILE=$3
 SYSVAR=$4
-RADIUS=$5
-UNFOLDINGMACRO=$6
+UNFOLDINGMACRO=$5
+
+RADIUS=$SLURM_ARRAY_TASK_ID
 
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh printenv AliPhysics/latest`
