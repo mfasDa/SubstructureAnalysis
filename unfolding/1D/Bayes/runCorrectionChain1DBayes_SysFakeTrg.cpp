@@ -277,7 +277,7 @@ void runCorrectionChain1DBayes_SysFakeTrg(double radius, double zcut, const std:
     std::cout << "Running unfolding" << std::endl;
     std::map<std::string, std::vector<TObject *>> iterresults;
     RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovariance;
-    const double kSizeEmcalPhi = 1.88,
+    const double kSizeEmcalPhi = 1.8873487,
                  kSizeEmcalEta = 1.4;
     double acceptance = (kSizeEmcalPhi - 2 * radius) * (kSizeEmcalEta - 2 * radius) / (TMath::TwoPi());
     double crosssection = 57.8;

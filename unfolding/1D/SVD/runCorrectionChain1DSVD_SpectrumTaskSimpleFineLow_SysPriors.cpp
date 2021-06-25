@@ -70,7 +70,7 @@ class UnfoldingRunner {
     private:
         unfoldingResults runUnfolding(const UnfoldingConfiguration &config){
             RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
-            const double kSizeEmcalPhi = 1.88,
+            const double kSizeEmcalPhi = 1.8873487,
                          kSizeEmcalEta = 1.4;
             auto acceptance = (kSizeEmcalPhi - 2 * config.fRadius) * (kSizeEmcalEta - 2 * config.fRadius) / (TMath::TwoPi());
             std::cout << "[SVD unfolding] Regularization " << config.fReg << "\n================================================================\n";

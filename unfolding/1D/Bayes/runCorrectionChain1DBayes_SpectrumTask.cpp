@@ -90,7 +90,7 @@ void runCorrectionChain1DBayes_SpectrumTask(const std::string_view datafile, con
          binningdet = getJetPtBinningNonLinSmearLow();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader);
     RooUnfold::ErrorTreatment errorTreatment = RooUnfold::kCovToy;
-    const double kSizeEmcalPhi = 1.88,
+    const double kSizeEmcalPhi = 1.8873487,
                  kSizeEmcalEta = 1.4;
     double crosssection = 57.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
