@@ -83,7 +83,6 @@
 #include <RooArgProxy.h>
 #include <RooArgSet.h>
 #include <RooArgusBG.h>
-#include <RooBanner.h>
 #include <RooBCPEffDecay.h>
 #include <RooBCPGenDecay.h>
 #include <RooBDecay.h>
@@ -103,7 +102,6 @@
 #include <RooCacheManager.h>
 #include <RooCategory.h>
 #include <RooCategoryProxy.h>
-#include <RooCategorySharedProperties.h>
 #include <RooCatType.h>
 #include <RooCBShape.h>
 #include <RooCFunction1Binding.h>
@@ -197,7 +195,6 @@
 #include <RooList.h>
 #include <RooListProxy.h>
 #include <RooLognormal.h>
-#include <RooMapCatEntry.h>
 #include <RooMappedCategory.h>
 #include <RooMathCoreReg.h>
 #include <RooMath.h>
@@ -216,7 +213,6 @@
 #include <RooMsgService.h>
 #include <RooMultiBinomial.h>
 #include <RooMultiCategory.h>
-#include <RooMultiCatIter.h>
 #include <RooMultiGenFunction.h>
 #include <RooMultiVarGaussian.h>
 #include <RooNameReg.h>
@@ -279,7 +275,6 @@
 #include <RooSetPair.h>
 #include <RooSetProxy.h>
 #include <RooSharedProperties.h>
-#include <RooSharedPropertiesList.h>
 #include <RooSimGenContext.h>
 #include <RooSimPdfBuilder.h>
 #include <RooSimSplitGenContext.h>
@@ -301,7 +296,6 @@
 #include <RootMetaSelection.h>
 #include <RooTObjWrap.h>
 #include <RooTrace.h>
-#include <RooTreeData.h>
 #include <RooTreeDataStore.h>
 #include <RooTruthModel.h>
 #include <root_std_complex.h>
@@ -427,7 +421,6 @@
 #include <TClassStreamer.h>
 #include <TClassTable.h>
 #include <TClassTree.h>
-#include <TClingRuntime.h>
 #include <TClonesArray.h>
 #include <TCollection.h>
 #include <TCollectionProxyFactory.h>
@@ -1017,7 +1010,6 @@
 #include <TLeafS.h>
 #include <TLegendEntry.h>
 #include <TLegend.h>
-#include <TLego.h>
 #include <TLimitDataSource.h>
 #include <TLimit.h>
 #include <TLinearFitter.h>
@@ -1138,7 +1130,6 @@
 #include <TPadEditor.h>
 #include <TPad.h>
 #include <TPadPainter.h>
-#include <TPainter3dAlgorithms.h>
 #include <TPaletteAxis.h>
 #include <TPARA.h>
 #include <TParallelCoordEditor.h>
@@ -1493,7 +1484,6 @@
 #include <TVirtualX.h>
 #include <TWbox.h>
 #include <TWebFile.h>
-#include <TXHandler.h>
 #include <TXMLAttr.h>
 #include <TXMLDocument.h>
 #include <TXMLEngine.h>
@@ -1505,9 +1495,6 @@
 #include <TXNetFile.h>
 #include <TXNetFileStager.h>
 #include <TXNetSystem.h>
-#include <TXProofMgr.h>
-#include <TXProofServ.h>
-#include <TXSlave.h>
 #include <TXTRU.h>
 #include <TZIPFile.h>
 #include <Varargs.h>
@@ -1527,7 +1514,6 @@
 #include <ROOT/RDF/HistoModels.hxx>
 #include <ROOT/RDF/RInterface.hxx>
 #include <ROOT/RDF/InterfaceUtils.hxx>
-#include <ROOT/RDF/NodesUtils.hxx>
 #include <ROOT/RDF/Utils.hxx>
 #include <ROOT/RIntegerSequence.hxx>
 #include <ROOT/RLazyDS.hxx>
@@ -1548,9 +1534,7 @@
 #include <ROOT/TExecutor.hxx>
 #include <ROOT/TFuture.hxx>
 #include <ROOT/TIOFeatures.hxx>
-#include <ROOT/TPoolManager.hxx>
 #include <ROOT/TProcessExecutor.hxx>
-#include <ROOT/TReentrantRWLock.hxx>
 #include <ROOT/TResultProxy.hxx>
 #include <ROOT/TRWSpinLock.hxx>
 #include <ROOT/TSeq.hxx>
