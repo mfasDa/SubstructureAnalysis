@@ -5,35 +5,38 @@
 #include "AliEmcalTriggerMaskHandlerOCDB.h"
 #endif
 
+#include "../../helpers/cdb.C"
 #include "../../helpers/triggerRawDB.C"
 
-int getYear(int runnumber) {
-	struct rangeentry {
-		int year;
-		int runmin;
-		int runmax;
-	};
-	std::vector<rangeentry> ranges = {{2016, 247656, 267252}, 
-				          {2017, 267402, 282843}, 
-					  {2018, 282908, 297635}};
-	int year = -1;
-	auto result = std::find_if(ranges.begin(), ranges.end(), [runnumber](const rangeentry &en) { return runnumber >= en.runmin && runnumber <= en.runmax; });
-	if(result != ranges.end()) {
-		year = result->year;
-	}
-	return year;
-}
-
-struct treedata {
+struct triggermask {
 	int runnumber;
+	int year;
 	int eventsL0;
 	int eventsG1;
-	int nmaskL0;
-	int nmaskL1;
+	int nmaskL0ALL;
+	int nmaskL0EMCAL;
+	int nmaskL0DCAL;	
+	int nmaskL1ALL;
+	int nmaskL1EMCAL;
+	int nmaskL1DCAL;
+	char period[512];
 };
 
-void extractMask(int run) {
-	int year = getYear(run);
+std::map<std::string, int> filterDetector(std::vector<int> fastorIDs){
+	int nEMCAL = 0, nDCAL = 0;
+	auto geo = AliEMCALGeometry::GetInstance();
+	for(int fastOR: fastorIDs) {
+		int cellIDs[4];
+		geo->GetCellIndexFromFastORIndex(fastOR, cellIDs);
+		auto sm = geo->GetSuperModuleNumber(cellIDs[0]);
+		if(sm < 12) nEMCAL++;
+		else nDCAL++;
+	}
+	return {{"EMCAL", nEMCAL}, {"DCAL", nDCAL}};
+}
+
+void extractMaskForRun(int run) {
+	int year = getYearForRunNumber(run);
 	if(year == -1) {
 		printf("Run %d not from 2016 - 2018\n", year);
 		return;
@@ -47,30 +50,44 @@ void extractMask(int run) {
 	}
 
 	AliCDBManager *mgr = AliCDBManager::Instance();
-	mgr->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%s/OCDB", year));
+	mgr->SetDefaultStorage(Form("local:///cvmfs/alice-ocdb.cern.ch/calibration/data/%d/OCDB", year));
 	mgr->SetRun(run);
 
 	AliEMCALGeometry::GetInstanceFromRunNumber(run);
 
 	auto maskhandler = PWG::EMCAL::AliEmcalTriggerMaskHandlerOCDB::Instance();
-	auto maskedL0 = maskhandler->GetMaskedFastorIndicesL0(),
-	     maskedL1 = maskhandler->GetMaskedFastorIndicesL1();
+	auto maskedL0 = maskhandler->GetMaskedFastorIndicesL0(run),
+	     maskedL1 = maskhandler->GetMaskedFastorIndicesL1(run);
 
-	treedata result;
+	auto filteredL0 = filterDetector(maskedL0),
+	     filteredL1 = filterDetector(maskedL1);
+
+	triggermask result;
 	result.runnumber = run;
-	result.nmaskL0 = maskedL0.size();
-	result.nmaskL1 = maskedL1.size();
+	result.year = year;
+	result.nmaskL0ALL = maskedL0.size();
+	result.nmaskL0EMCAL = filteredL0["EMCAL"];
+	result.nmaskL0DCAL = filteredL0["DCAL"];
+	result.nmaskL1ALL = maskedL1.size();
+	result.nmaskL1EMCAL = filteredL1["EMCAL"];
+	result.nmaskL1DCAL = filteredL1["DCAL"];
 	if(hasrun) {
+		std::string period = triggerdb.getPeriod(run);
+		std::cout << "Found run " << run << " ("<< period <<") in trigger DB" << std::endl;
+		strcpy(result.period, period.data());
 		result.eventsL0 = triggerdb.getTriggersForRun(run, "CEMC7");
 		result.eventsG1 = triggerdb.getTriggersForRun(run, "EG1");
 	} else {
+		std::cout << "No run " << run << " in trigger DB - storing zeros" << std::endl;
 		result.eventsL0 = 0;
 		result.eventsG1 = 0;
 	}
 
 	std::unique_ptr<TFile> outputfile(TFile::Open("triggermask.root", "RECREATE"));
 	TTree *outputtree = new TTree("triggermask", "Tree with trigger mask");
-	outputtree->Branch("triggermask", &result, "runnumber:eventsL0:eventsG1:nmaskL0:nmaskL1/I");
+	outputtree->Branch("triggermask", &result, "runnumber/I:year:eventsL0:eventsG1:nmaskL0ALL:nmaskL0EMCAL:nmaskL0DCAL:nmaskL1ALL:nmaskL1EMCAL:nmaskL1DCAL:period/C");
 	outputtree->Fill();
+	outputtree->Print();
+	outputtree->Write();
 
 }
