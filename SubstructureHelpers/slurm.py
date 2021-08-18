@@ -4,6 +4,11 @@ import subprocess
 
 class ScriptWriter:
 
+    DEBUG=0
+    INFO=1
+    WARNING=2
+    ERROR=3
+
     class WorkdirNotSetException(Exception):
 
         def __init__(self):
@@ -17,6 +22,8 @@ class ScriptWriter:
         self.__fileio = open(filename, "w")
         self.__writeline("#! /bin/bash")
         self.__workdirSet = False
+        self.__logevel = ScriptWriter.INFO
+        self.__logtag = ""
 
     def __del__(self):
         if not self.__fileio.closed:
@@ -24,6 +31,19 @@ class ScriptWriter:
 
     def __writeline(self, line: str):
         self.__fileio.write("{}\n".format(line))
+
+    def __getLevelName(self, loglevel: int):
+        if loglevel == ScriptWriter.DEBUG:
+            return "DEBUG"
+        elif loglevel == ScriptWriter.INFO:
+            return "INFO"
+        elif loglevel == ScriptWriter.WARNING:
+            return "WARNING"
+        elif loglevel == ScriptWriter.ERROR:
+            return "ERROR"
+
+    def logging_config(self, tag):
+        self.__logtag = tag
 
     def sbatch(self, setting: str):
         self.__writeline("#SBATCH {}".format(setting))
@@ -33,7 +53,27 @@ class ScriptWriter:
 
     def printout(self, printout: str):
         self.__writeline("echo {}".format(printout))
+
+    def log(self, level: int, message: str):
+        if level >= self.__logevel:
+            fullmsg = "[{}]".format(self.__getLevelName(level))
+            if len(self.__logtag):
+                fullmsg += "[{}]: ".format(self.__logtag)
+            fullmsg += message
+            self.printout(fullmsg)
+
+    def debug(self, message: str):
+        self.log(ScriptWriter.DEBUG, message)
+    
+    def info(self, message: str):
+        self.log(ScriptWriter.INFO, message)
 	
+    def warning(self, message: str):
+        self.log(ScriptWriter.WARNING, message)
+
+    def error(self, message: str):
+        self.log(ScriptWriter.ERROR, message)
+
     def instruction(self, instruction: str):
         self.__writeline(instruction)
     
@@ -86,7 +126,7 @@ class ScriptWriter:
         first = True
         for value in values:
             if not first:
-                cmd += "+"
+                cmd += " + "
             else:
                 first = False
             cmd += "{}".format(value)
@@ -104,7 +144,7 @@ class ScriptWriter:
             instruction += " {}".format(package)
         instruction += "`"
         self.instruction(instruction)
-        self.instruction("eval `$ALIENV list`")
+        self.instruction("eval $ALIENV list")
 
     def process(self, executable: str, args: list = [], logfile: str = ""):
         cmd = executable
