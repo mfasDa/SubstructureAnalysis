@@ -1492,9 +1492,6 @@
 #include <TXMLParser.h>
 #include <TXMLPlayer.h>
 #include <TXMLSetup.h>
-#include <TXNetFile.h>
-#include <TXNetFileStager.h>
-#include <TXNetSystem.h>
 #include <TXTRU.h>
 #include <TZIPFile.h>
 #include <Varargs.h>
