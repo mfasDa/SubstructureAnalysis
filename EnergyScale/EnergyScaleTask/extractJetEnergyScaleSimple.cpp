@@ -69,7 +69,7 @@ std::array<TGraphErrors *, 3> getEnergyScaleForRadius(TFile &reader, const std::
   return result;
 }
 
-void extractJetEnergyScaleSimple(const std::string_view filename = "AnalysisResults.root", const std::string_view jettype = "FullJet", const std::string_view sysvar = ""){
+void extractJetEnergyScaleSimple(const std::string_view filename = "AnalysisResults.root", const std::string_view jettype = "FullJet", const std::string_view sysvar = "tc200"){
   std::stringstream plotname, outfilename;
   plotname << "energyscaleplot";
   outfilename << "EnergyScaleResults";
@@ -129,7 +129,7 @@ void extractJetEnergyScaleSimple(const std::string_view filename = "AnalysisResu
       auto bkpdir = gDirectory;
       writer->cd();
       enscale[i]->Write(keyname.str().data()); 
-      gDirectory = bkpdir;
+      bkpdir->cd();
     }
   }
   plot->cd();

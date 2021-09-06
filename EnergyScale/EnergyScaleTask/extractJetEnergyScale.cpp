@@ -121,7 +121,7 @@ void extractJetEnergyScale(const std::string_view filename = "AnalysisResults.ro
       auto bkpdir = gDirectory;
       writer->cd();
       enscale[i]->Write(keyname.str().data()); 
-      gDirectory = bkpdir;
+      bkpdir->cd();
     }
   }
   plot->cd();
