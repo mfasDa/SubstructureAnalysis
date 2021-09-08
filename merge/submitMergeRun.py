@@ -20,12 +20,13 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
 
 class MergeHandler:
 
-    def __init__(self, repo: str, inputdir: str, outputdir: str, filename: str, partition: str = "short"):
+    def __init__(self, repo: str, inputdir: str, outputdir: str, filename: str, partition: str = "short", check: bool = False):
         self.__repo = repo
         self.__inputdir = inputdir
         self.__outputdir = outputdir
         self.__filename = filename
         self.__partition = partition
+        self.__check = check
 
     def submit(self, wait_jobid: int = 0) -> int:
         jobid_pthard = self.submit_pthardbins(wait_jobid)
@@ -42,7 +43,7 @@ class MergeHandler:
 
     def submit_final(self, wait_jobid: int = 0) -> int:
         executable = os.path.join(repo, "processMergeFinal.sh")
-        command = "{EXECUTABLE} {OUTPUTDIR} {FILENAME}".format(EXECUTABLE=executable, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename)
+        command = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=executable, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename, REPO=self.__repo, CHECK=1 if self.__check else 0)
         logfile = "{OUTPUTDIR}/mergefinal.log".format(OUTPUTDIR=self.__outputdir)
         jobname = "mergefinal"
         jobid = submit(command=command, jobname=jobname, logfile=logfile, partition=self.__partition, dependency=wait_jobid)
@@ -54,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--filename", metavar="FILENAME", default="AnalysisResults.root", type=str, help="File to be merged")
     parser.add_argument("-p", "--partition", metavar="PARTITION", default="short", type=str, help="SLURM partition")
     parser.add_argument("-w", "--wait", metavar="WAIT", type=int, default=0, help="Wait for batch job to finish")
+    parser.add_argument("-c", "--check", action="store_true", help="Check pt-hard distribution")
     args = parser.parse_args()
     inputdir = os.path.abspath(args.inputdir)
     repo = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -61,7 +63,7 @@ if __name__ == "__main__":
     if not os.path.exists(outputbase):
         os.makedirs(outputbase, 0o755)
 
-    handler = MergeHandler(repo, inputdir, outputbase, args.filename)
+    handler = MergeHandler(repo, inputdir, outputbase, args.filename, args.partition, args.check)
     jobids = handler.submit(args.wait)
     print("Submitted merge job under JobID %d" %jobids["pthard"])
     print("Submitted final merging job under JobID %d" %jobids["final"])
