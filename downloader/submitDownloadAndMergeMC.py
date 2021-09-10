@@ -9,15 +9,19 @@ import sys
 from SubstructureHelpers.alien import test_alien_token, recreate_token
 from SubstructureHelpers.slurm import submit
 from SubstructureHelpers.train import AliTrainDB
+from merge.submitMergeRun import merge_submitter_runs
+from merge.submitMergeMCDatasets import merge_submitter_datasets, parse_jobs
 
 class LaunchHandler:
 
-    def __init__(self, outputbase: str , trainrun: int, legotrain: str):
+    def __init__(self, outputbase: str , trainrun: int, legotrain: str, mergefile: str = "AnalysisResults.root", check: bool = False):
         self.__repo = os.getenv("SUBSTRUCTURE_ROOT")
         self.__outputbase = outputbase
         self.__legotrain = legotrain
         self.__trainrun = None
         self.__partitionDownload = "long"
+        self.__mergefile = mergefile
+        self.__check = check
         self.__tokens = {"cert": None, "key": None}
 
         pwg,trainname = self.__legotrain.split("/")
@@ -49,6 +53,7 @@ class LaunchHandler:
             if not subsample in mcsamples[year]:
                 logging.error("Requested subsample %s not found for year %d ...", subsample, year)
                 return
+        jobids_merge = []
         for sample in mcsamples[year]:
             select = False
             if len(subsample):
@@ -62,7 +67,10 @@ class LaunchHandler:
             if not jobid_download:
                 return
             logging.info("Submitting download job with ID: {}".format(jobid_download))
-            self.submit_merge(sample, jobid_download)
+            jobids_merge.append(self.submit_merge(sample, jobid_download))
+        if len(jobids_merge) > 1:
+            # if we have at least 2 subsamples submit also period merging
+            self.submit_merge_samples(jobids_merge)
 
     def submit_download_MC(self, sample: str) -> int:
         cert = self.__tokens["cert"]
@@ -82,10 +90,12 @@ class LaunchHandler:
         return jobid
 
     def submit_merge(self, sample: str, wait_jobid: int) -> int:
-        executable = os.path.join(self.__repo, "merge", "submitMergeRun.py")
         workdir = os.path.join(self.__outputbase, sample)
-        mergecommand = "{EXE} {WORKDIR} -w {DEP}".format(EXE=executable, WORKDIR=workdir, DEP=wait_jobid)
-        subprocess.call(mergecommand, shell=True)
+        jobids = merge_submitter_runs(os.path.join(self.__repo, "merge"), workdir, self.__mergefile, "short", wait_jobid, self.__check)
+        return jobids["final"]
+
+    def submit_merge_samples(self, wait_jobids: list) -> int:
+        merge_submitter_datasets(os.path.join(self.__repo, "merge"), self.__outputbase, self.__mergefile, "short", wait_jobids, self.__check)
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
@@ -93,9 +103,11 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--outputdir", metavar="VARIATION", type=str, default=currentbase, help="Output directory (default: current directory)")
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
     parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=int, required=True, help="Train run (only main number)")
+    parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="File to be merged (default: AnalysisResults.root")
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp_MC", help="Name of the lego train (default: PWGJE/Jets_EMC_pp_MC)")
     parser.add_argument("-s", "--subsample", metavar="SUBSAMPLE", type=str, default="", help="Copy only subsample")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="long", help="Partition for download")
+    parser.add_argument("-c", "--check", action="store_true", help="Run check of pt-hard distribution")
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
 
@@ -114,7 +126,7 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
+    handler = LaunchHandler(outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain, check=args.check)
     handler.set_token(cert, key)
     handler.set_partition_for_download(args.partition)
     handler.submit(args.year)

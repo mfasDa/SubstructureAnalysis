@@ -42,12 +42,24 @@ class MergeHandler:
         return jobid
 
     def submit_final(self, wait_jobid: int = 0) -> int:
-        executable = os.path.join(repo, "processMergeFinal.sh")
+        executable = os.path.join(self.__repo, "processMergeFinal.sh")
         command = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=executable, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename, REPO=self.__repo, CHECK=1 if self.__check else 0)
         logfile = "{OUTPUTDIR}/mergefinal.log".format(OUTPUTDIR=self.__outputdir)
         jobname = "mergefinal"
         jobid = submit(command=command, jobname=jobname, logfile=logfile, partition=self.__partition, dependency=wait_jobid)
         return jobid
+
+
+def merge_submitter_runs(repo: str, inputdir: str, filename: str, partition: str, wait: int, check: bool) -> dict:
+    outputbase = os.path.join(inputdir, "merged")
+    if not os.path.exists(outputbase):
+        os.makedirs(outputbase, 0o755)
+
+    handler = MergeHandler(repo, inputdir, outputbase, filename, partition, check)
+    jobids = handler.submit(wait)
+    print("Submitted merge job under JobID %d" %jobids["pthard"])
+    print("Submitted final merging job under JobID %d" %jobids["final"])
+    return jobids
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("submitMergeRun.py", "Submitter for runwise merging on the 587 cluster")
@@ -57,13 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("-w", "--wait", metavar="WAIT", type=int, default=0, help="Wait for batch job to finish")
     parser.add_argument("-c", "--check", action="store_true", help="Check pt-hard distribution")
     args = parser.parse_args()
-    inputdir = os.path.abspath(args.inputdir)
-    repo = os.path.abspath(os.path.dirname(sys.argv[0]))
-    outputbase = os.path.join(inputdir, "merged")
-    if not os.path.exists(outputbase):
-        os.makedirs(outputbase, 0o755)
 
-    handler = MergeHandler(repo, inputdir, outputbase, args.filename, args.partition, args.check)
-    jobids = handler.submit(args.wait)
-    print("Submitted merge job under JobID %d" %jobids["pthard"])
-    print("Submitted final merging job under JobID %d" %jobids["final"])
+    repo = os.path.abspath(os.path.dirname(sys.argv[0]))
+    inputdir = os.path.abspath(args.inputdir)
+    merge_submitter_runs(repo, inputdir, args.filename, args.partition, args.wait, args.check)
