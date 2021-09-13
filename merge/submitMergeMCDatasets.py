@@ -43,7 +43,7 @@ def merge_submitter_datasets(repo: str, inputdir: str, filename: str, partition:
     toks = soutSlots.split(" ")
     jobid = int(toks[len(toks)-1])
     print("Submitted merge job under JobID %d" %jobid)
-    finalcmd = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=exefinal, OUTPUTDIR=outputbase, FILENAME=filename, REPO=repo, CHECK=1 if check else 0)
+    finalcmd = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=exefinal, OUTPUTDIR=outputbase, FILENAME=filename, REPO=os.path.dirname(repo), CHECK=1 if check else 0)
     resultFinal = subprocess.run("sbatch -N 1 -n1 --partition={PARTITION} -d {DEP} -J mergefinal -o {OUTPUTDIR}/mergefinal.log {MERGECMD}".format(PARTITION=partition, DEP=jobid, OUTPUTDIR=outputbase, MERGECMD=finalcmd), shell=True, stdout=subprocess.PIPE)
     soutFinal = resultFinal.stdout.decode("utf-8")
     toks = soutFinal.split(" ")

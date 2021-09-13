@@ -43,7 +43,7 @@ class MergeHandler:
 
     def submit_final(self, wait_jobid: int = 0) -> int:
         executable = os.path.join(self.__repo, "processMergeFinal.sh")
-        command = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=executable, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename, REPO=self.__repo, CHECK=1 if self.__check else 0)
+        command = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=executable, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename, REPO=os.path.dirname(self.__repo), CHECK=1 if self.__check else 0)
         logfile = "{OUTPUTDIR}/mergefinal.log".format(OUTPUTDIR=self.__outputdir)
         jobname = "mergefinal"
         jobid = submit(command=command, jobname=jobname, logfile=logfile, partition=self.__partition, dependency=wait_jobid)
