@@ -22,7 +22,7 @@ TList *buildReducedList(TList &input) {
 		if(istokeep) {
 			result->Add(hist);
 		} else {
-			std::string_view histname;
+			std::string_view histname(hist->GetName());
 			for(auto tag : tags) {
 				if(histname.find(tag) != std::string::npos) {
 					result->Add(hist);
