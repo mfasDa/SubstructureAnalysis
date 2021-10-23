@@ -1,9 +1,9 @@
 /**
  * @brief MSL
- * The Markus Standard Library (helper library for jet substructure analysis)
+ * The mfasel Standard Library (helper library for jet substructure analysis)
  * 
  * @file msl.C
- * @author Markus Fasel
+ * @author mfasel Fasel
  * @date 2018-08-27
  */
 #ifndef __MSL_C__

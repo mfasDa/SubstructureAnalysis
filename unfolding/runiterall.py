@@ -8,7 +8,7 @@ import sys
 
 if __name__ == "__main__":
     OBSERVABLE = sys.argv[1]
-    SCRIPTDIR = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/unfolding/convergence"
+    SCRIPTDIR = "/data1/mfasel/Fulljets/pp_13TeV/Substructuretree/code/unfolding/convergence"
     JETTYPE = "FullJets"
     BINSCRIPT = "Convergence_%s.cpp" %OBSERVABLE
     SUMSCRIPT = "ConvergenceSumPt_%s.cpp" %OBSERVABLE

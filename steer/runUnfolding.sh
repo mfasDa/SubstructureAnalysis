@@ -5,12 +5,12 @@ OUTPUTDIR=$2
 DATAFILE=$3
 MCFILE=$4
 
-alias myalienv="alienv -w /home/markus/alice/sw"
+alias myalienv="alienv -w /home/mfasel/alice/sw"
 
 function myalibash
     {
 	local version=$1
-	cmd=$(printf "/usr/local/bin/alienv -w /home/markus/alice/sw/ --no-refresh printenv %s" $version)
+	cmd=$(printf "/usr/local/bin/alienv -w /software/mfasel/alice/sw/ --no-refresh printenv %s" $version)
 	eval `$cmd`
     }
 

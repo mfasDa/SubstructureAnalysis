@@ -12,7 +12,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     OBSERVABLE = args.observable
     JETTYPE = "FullJets"
-    SCRIPTDIR         = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/unfolding"
+    SCRIPTDIR         = "/data1/mfasel/Fulljets/pp_13TeV/Substructuretree/code/unfolding"
     COMPUNFOLD        = "comparisons/makeComparisonUnfoldedRaw.cpp" 
     COMPFOLD          = "comparisons/makeComparisonFoldingRaw.cpp" 
     CLOSURETEST       = "comparisons/makeClosureTest.cpp"

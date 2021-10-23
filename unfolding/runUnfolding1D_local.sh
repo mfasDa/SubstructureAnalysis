@@ -12,7 +12,7 @@ ALIENV=`which alienv`
 eval `$ALIENV --no-refresh printenv AliPhysics/latest`
 eval `$ALIENV list`
 
-SOURCEDIR=/software/markus/alice/SubstructureAnalysis/unfolding/1D
+SOURCEDIR=/software/mfasel/alice/SubstructureAnalysis/unfolding/1D
 UNFOLDINGMETHOD=""
 if [ "x$(echo $UNFOLDINGMACRO | grep SVD)" != "x" ]; then
     UNFOLDINGMETHOD="SVD"

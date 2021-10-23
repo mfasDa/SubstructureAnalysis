@@ -24,7 +24,7 @@ def create_jobscript(workdir, observable, radius, datafile, mcfile, effcorr, bin
         jobscriptwriter.write("#SBATCH -J {}\n".format(jobname))
         jobscriptwriter.write("#SBATCH -o {}\n".format(logfile))
         jobscriptwriter.write("\n")
-        jobscriptwriter.write("export ALIBUILD_WORK_DIR=/software/markus/alice/sw\n")
+        jobscriptwriter.write("export ALIBUILD_WORK_DIR=/software/mfasel/alice/sw\n")
         jobscriptwriter.write("eval `alienv --no-refresh printenv AliPhysics/latest-aliceo2-o2`\n")
         jobscriptwriter.write("cd {}\n".format(workdir))
         jobscriptwriter.write("root -l -b -q \'{}(\"{}\", \"{}\", \"{}\", \"{}\", \"{}\", {})\'\n".format(unfoldingmacro, datafile, mcfile, observable, binvar, rstring, effcorrstring))

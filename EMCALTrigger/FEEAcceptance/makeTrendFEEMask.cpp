@@ -62,7 +62,7 @@ std::vector<trendvalue> extractMasksPeriod(int firstrun, int lastrun) {
 
 std::set<int> getListOfRuns(const std::string_view period){
   std::set<int> result;
-  std::string repo = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL";
+  std::string repo = "/alf/data/mfasel/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL";
   std::stringstream pathname;
   pathname << repo << "/" << period;
   if(gSystem->AccessPathName(pathname.str().data())) return result;

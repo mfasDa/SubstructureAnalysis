@@ -12,7 +12,7 @@ DOEFFPURE=$8
 if [ ! -d $OUTPUTDIR ]; then mkdir -p $OUTPUTDIR; fi
 cd $OUTPUTDIR
 
-export ALIBUILD_WORK_DIR=/clusterfs1/markus/alice/sw
+export ALIBUILD_WORK_DIR=/software/mfasel/alice/sw
 eval `alienv --no-refresh printenv AliPhysics/latest-ali-master-root6`
 UNFOLDINGMACRO=$REPOSITORY/unfolding/runUnfolding2D_FromFile.C
 LOGFILE=unfolding_$OBSERVABLE\_$RSTRING\.log

@@ -11,7 +11,7 @@ void extractPtSimFineChain(const std::string filelist){
     while(std::getline(listreader, tmpfile)) files.push_back(tmpfile);
     for(auto &f : files) std::cout << f << std::endl;
     std::string teststring = files[0];
-    teststring.erase(teststring.find("converted_markus"), strlen("converted_markus"));
+    teststring.erase(teststring.find("converted_mfasel"), strlen("converted_mfasel"));
     auto rstring = teststring.substr(teststring.find_first_of("r")+1, 1);
     int rval = std::stoi(static_cast<std::string>(rstring));
     double radius = double(rval) / 10.;

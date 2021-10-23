@@ -225,7 +225,7 @@ std::set<runinfo> getRunInfoParallel(std::vector<int> runlist) {
 
 void makeTrendMaskedFastorsAnalysis(const std::string_view inputdir = "", bool usegood = false){  
   Runlists goodruns;
-  if(usegood) goodruns.Initialize("/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL");
+  if(usegood) goodruns.Initialize("/alf/data/mfasel/Fulljets/pp_13TeV/Substructuretree/code/runlists_EMCAL");
   std::cout << "Using the following good runs: " << std::endl;
   goodruns.Print();
   AliCDBManager *cdb = AliCDBManager::Instance();

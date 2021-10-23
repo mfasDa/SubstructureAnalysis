@@ -7,7 +7,7 @@
 
 TH2 *getPtHardWeightedZg( int pthardbin, double r){
     std::stringstream filename;
-    filename << "markusr" << int(r*10.) << "pt" << pthardbin << ".root";
+    filename << "mfaselr" << int(r*10.) << "pt" << pthardbin << ".root";
     double weightPythia;
     {
         std::cout << "reading spectrum from " << filename.str() << std::endl;

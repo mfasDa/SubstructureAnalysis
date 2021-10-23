@@ -29,9 +29,9 @@ TH1 *ReadPtShift(std::string_view filename, std::string_view title, style mystyl
 void makeComparisonPtShift(){
     std::vector<TH1 *>ptdiffs = {
         ReadPtShift("charged7TeV_Leticia/EnergyScale.root", "Leticia, R=0.2", {kBlack, 24}),
-        ReadPtShift("1377-charge7TeV-fixeff/EnergyScale_R02.root", "Markus, R=0.2, #epsilon_{trk} = 1", {kRed, 25}),
-        ReadPtShift("1377-charge7TeV-fixeff/EnergyScale_R04.root", "Markus, R=0.4, #epsilon_{trk} = 1", {kBlue, 26}),
-        ReadPtShift("1375-charged7TeV/EnergyScale_R02.root", "Markus, R=0.2, #epsilon_{trk} = 0.96", {kGreen, 27})
+        ReadPtShift("1377-charge7TeV-fixeff/EnergyScale_R02.root", "mfasel, R=0.2, #epsilon_{trk} = 1", {kRed, 25}),
+        ReadPtShift("1377-charge7TeV-fixeff/EnergyScale_R04.root", "mfasel, R=0.4, #epsilon_{trk} = 1", {kBlue, 26}),
+        ReadPtShift("1375-charged7TeV/EnergyScale_R02.root", "mfasel, R=0.2, #epsilon_{trk} = 0.96", {kGreen, 27})
     };
 
     auto plot = new TCanvas("ptshift comparison", "Comparison pt-shifts", 800, 600);

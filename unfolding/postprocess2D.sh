@@ -13,7 +13,7 @@ fi
 if [ ${#packages[@]} -gt 0 ]; then
     echo "Missing packages, load"
     if [ "x$ALIBUILD_WORK_DIR" == "x" ]; then
-        ALIBUILD_WORK_DIR_DEFAULT=/software/markus/alice/sw
+        ALIBUILD_WORK_DIR_DEFAULT=/software/mfasel/alice/sw
         echo "Setting ALIBUILD_WORK_DIR to $ALIBUILD_WORK_DIR_DEFAULT"
         export ALIBUILD_WORK_DIR=$ALIBUILD_WORK_DIR_DEFAULT
     fi

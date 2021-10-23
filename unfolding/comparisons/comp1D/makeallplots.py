@@ -3,10 +3,9 @@
 from __future__ import print_function
 import os
 import subprocess
-import sys
 
 if __name__ == "__main__":
-    SCRIPTDIR         = "/data1/markus/Fulljets/pp_13TeV/Substructuretree/code/unfolding/comparisons/comp1D"
+    SCRIPTDIR         = "/alf/data/mfasel/Fulljets/pp_13TeV/Substructuretree/code/unfolding/comparisons/comp1D"
     COMPUNFOLD        = "ComparisonUnfoldedRaw.cpp" 
     COMPFOLD          = "ComparisonFoldRaw.cpp" 
     CLOSURETEST       = "MCClosureTest1D.cpp"
