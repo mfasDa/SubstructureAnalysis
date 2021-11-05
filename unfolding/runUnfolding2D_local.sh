@@ -13,7 +13,7 @@ if [ ! -d $OUTPUTDIR ]; then mkdir -p $OUTPUTDIR; fi
 cd $OUTPUTDIR
 
 export ALIBUILD_WORK_DIR=/software/mfasel/alice/sw
-eval `alienv --no-refresh printenv AliPhysics/latest-ali-master-root6`
+eval `alienv --no-refresh printenv AliPhysics/latest`
 UNFOLDINGMACRO=$REPOSITORY/unfolding/runUnfolding2D_FromFile.C
 LOGFILE=unfolding_$OBSERVABLE\_$RSTRING\.log
 CORRSTRING=
