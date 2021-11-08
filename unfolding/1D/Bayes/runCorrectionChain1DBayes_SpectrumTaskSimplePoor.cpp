@@ -301,7 +301,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
         // Write everything to file
         writer->mkdir(Form("R%02d", R));
         writer->cd(Form("R%02d", R));
-        auto basedir = gDirectory;
+        auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
         mbspectrum.second->Write();

@@ -308,7 +308,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleUltra_SysTruncation(const std::st
         // Write everything to file
         writer->mkdir(Form("R%02d", int(radius*10)));
         writer->cd(Form("R%02d", int(radius*10)));
-        auto basedir = gDirectory;
+        auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
         mbspectrum.second->Write();

@@ -274,7 +274,7 @@ void runCorrectionChain1DSVD_SpectrumTaskLow(const std::string_view datafile, co
         std::cout << "[SVD unfolding] Writing to file ..." << std::endl;
         writer->mkdir(Form("R%02d", int(radius*10)));
         writer->cd(Form("R%02d", int(radius*10)));
-        auto basedir = gDirectory;
+        auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
         mbspectrum.second->Write();

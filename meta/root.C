@@ -1222,12 +1222,7 @@
 #include <TPServerSocket.h>
 #include <TPSocket.h>
 #include <TPyArg.h>
-#include <TPyDispatcher.h>
-#include <TPyException.h>
-#include <TPyFitFunction.h>
 #include <TPyReturn.h>
-#include <TPyROOTApplication.h>
-#include <TPySelector.h>
 #include <TPythia6Calls.h>
 #include <TPythia6Decayer.h>
 #include <TPythia6.h>
