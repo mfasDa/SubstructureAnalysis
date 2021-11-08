@@ -6,6 +6,43 @@
 #include "../../binnings/binningPt1D.C"
 #include "../../binnings/binningPt1D_truncation.C"
 
+class Trials {
+public:
+    Trials(TH1 *hist) { fHistogram = hist; };
+    ~Trials() { delete fHistogram; }
+
+    double getMaxTrials() const {
+        auto bins = getBins();
+        return *std::max_element(bins.begin(), bins.end());
+    }
+
+    double getAverageTrials() const {
+        auto bins = getBins();
+        return TMath::Mean(bins.begin(), bins.end());
+    }
+
+    double getTrialsFit() const {
+        TF1 model("meanntrials", "pol0", 0., 100.);
+        fHistogram->Fit(&model, "N", "", fHistogram->GetXaxis()->GetBinLowEdge(2), fHistogram->GetXaxis()->GetBinUpEdge(fHistogram->GetXaxis()->GetNbins()+1));
+        return model.GetParameter(0);
+    }
+
+private:
+    std::vector<double> getBins() const {
+        std::vector<double> result;
+        for(int ib = 0; ib < fHistogram->GetXaxis()->GetNbins(); ib++) {
+            auto entries  = fHistogram->GetBinContent(ib+1);
+            if(TMath::Abs(entries) > DBL_EPSILON) {
+                // filter 0
+                result.emplace_back(entries);
+            }
+        }
+        return result;
+    }
+
+    TH1 *fHistogram;
+};
+
 struct unfoldingResults {
     int fReg;
     TH1 *fUnfolded;
@@ -169,6 +206,17 @@ TH2 *getResponseMatrix(TFile &reader, double R, const std::string_view sysvar, i
     return rawresponse;
 }
 
+Trials getTrials(TFile &reader, int R, const std::string_view sysvar) {
+    std::stringstream dirnamebuilder;
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
+    reader.cd(dirnamebuilder.str().data());
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    auto histtrials = static_cast<TH2 *>(histlist->FindObject("fHistTrials")); 
+    histtrials->SetDirectory(nullptr);
+    return Trials(histtrials);
+}
+
 double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     std::stringstream dirnamebuilder;
     dirnamebuilder << "JetSpectrum_FullJets_R02_EJ1";
@@ -247,8 +295,10 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleSmall_SysTruncation(const std::st
 
         // Get the response matrix
         auto rawresponse = getResponseMatrix(*mcreader, radius, sysvar);
+        auto trials = getTrials(*mcreader, int(radius*10.), sysvar);
+        auto mcscale = trials.getMaxTrials();
         rawresponse->SetName(Form("%s_fine", rawresponse->GetName()));
-        rawresponse->Scale(40e6);   // undo scaling with the number of trials
+        rawresponse->Scale(mcscale);   // undo scaling with the number of trials
         auto rebinnedresponse  = makeRebinned2D(rawresponse, binningdet, binningpart);
         rebinnedresponse->SetName(Form("%s_standard", rebinnedresponse->GetName()));
         std::unique_ptr<TH1> truefulltmp(rawresponse->ProjectionY()),
@@ -264,7 +314,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleSmall_SysTruncation(const std::st
         responseclosure->SetName(Form("%s_fine", responseclosure->GetName()));
         std::unique_ptr<TH2> truthclosure(getResponseMatrix(*mcreader, radius, sysvar, 2));
         truthclosure->SetName("truthclosure");
-        responseclosure->Scale(40e6);
+        responseclosure->Scale(mcscale);
         TH1 *priorsclosuretmp(responseclosure->ProjectionY()),
             *detclosuretmp(truthclosure->ProjectionX()),
             *partclosuretmp(truthclosure->ProjectionY());
@@ -320,6 +370,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimpleSmall_SysTruncation(const std::st
         hcntcorr->Write();
         basedir->mkdir("response");
         basedir->cd("response");
+        auto hmcscale = new TH1F("hMCscale", "MC scale", 1, 0.5, 1.5);
+        hmcscale->SetBinContent(1, mcscale);
+        hmcscale->Write();
         rawresponse->Write();
         rebinnedresponse->Write();
         truefull->Write();
