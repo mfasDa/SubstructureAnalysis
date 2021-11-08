@@ -43,7 +43,7 @@ void makeCombinedRawDist(const char *inputfile = "rawsoftdrop.root"){
                     rtitle = Form("R = %.1f", double(R)/10.);
         std::cout << "Processing " << rtitle << std::endl;
         datareader->cd(rstring.data());
-        auto datadirectory = gDirectory;
+        auto datadirectory = static_cast<TDirectory *>(gDirectory);
         outputwriter->mkdir(rstring.data());
         for(auto observable : observables){
             std::cout << "Combining observable " << observable << " ... " << std::endl;

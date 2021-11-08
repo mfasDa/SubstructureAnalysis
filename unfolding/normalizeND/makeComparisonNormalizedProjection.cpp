@@ -5,7 +5,7 @@
 void makeComparisonNormalizedProjection(const char *inputfile = "UnfoldedSD.root", const char *observable = "Zg"){
     std::unique_ptr<TFile> reader(TFile::Open(inputfile, "READ"));
     reader->cd(observable);
-    auto basedir = gDirectory;
+    auto basedir = static_cast<TDirectory *>(gDirectory);
     std::vector<std::string> triggers = {"INT7", "EJ1", "EJ2", "combined"};
 
     auto style = [](Color_t col, Style_t mrk) {

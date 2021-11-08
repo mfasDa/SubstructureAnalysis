@@ -43,7 +43,7 @@ void makePlotCorrected(const char *filename = "UnfoldedSD.root", const char *pro
 
     int ipad = 1;
     reader->ls();
-    auto basedir = gDirectory;
+    auto basedir = static_cast<TDirectory *>(gDirectory);
     auto leg = new ROOT6tools::TDefaultLegend(0.15, 0.15, 0.89, 0.89);
     for(auto R : ROOT::TSeqI(2, 7)){
         std::string rstring = Form("R%02d", R),

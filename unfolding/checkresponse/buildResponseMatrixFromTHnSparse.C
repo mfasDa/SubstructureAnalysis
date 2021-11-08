@@ -272,7 +272,7 @@ void buildResponseMatrixFromTHnSparse(const char *filename = "AnalysisResults.ro
         std::string outputdir = Form("Response_R%02d", R);
         writer->mkdir(outputdir.data());
         writer->cd(outputdir.data());
-        auto workdir =  gDirectory;
+        auto workdir =  static_cast<TDirectory *>(gDirectory);
         workdir->mkdir("response");
         workdir->cd("response");
         auto histos = objects[R];

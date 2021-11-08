@@ -23,7 +23,7 @@ void makePlotPerJetNormalizedSD(const char *filename = "UnfoldedSD.root", const 
     const double ptmin = 15., ptmax = 200.;
     const int defaultiteration = 6;
     reader->cd(probe);
-    auto basedir = gDirectory;
+    auto basedir = static_cast<TDirectory *>(gDirectory);
     auto leg = new ROOT6tools::TDefaultLegend(0.15, 0.15, 0.89, 0.89);
     for(auto R : ROOT::TSeqI(2, 7)){
         std::string rstring = Form("R%02d", R),

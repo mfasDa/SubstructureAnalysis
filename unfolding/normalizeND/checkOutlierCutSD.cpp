@@ -18,9 +18,9 @@ void checkOutlierCutSD(const char *nameWithCut, const char *nameWithoutCut, cons
     const double ptmin = 30., ptmax = 200.;
     const int defaultiteration = 6;
     readerWithCut->cd(probe);
-    auto basedirWithCut = gDirectory;
+    auto basedirWithCut = static_cast<TDirectory *>(gDirectory);
     readerWithoutCut->cd(probe);
-    auto basedirWithoutCut = gDirectory;
+    auto basedirWithoutCut = static_cast<TDirectory *>(gDirectory);
     auto leg = new ROOT6tools::TDefaultLegend(0.15, 0.15, 0.89, 0.89);
     for(auto R : ROOT::TSeqI(2, 7)){
         std::string rstring = Form("R%02d", R),

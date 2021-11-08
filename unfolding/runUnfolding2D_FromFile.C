@@ -93,9 +93,9 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
                     rtitle = Form("R = %.1f", double(R)/10.);
         std::cout << "Processing " << rtitle << std::endl;
         datareader->cd(rstring.data());
-        auto datadirectory = gDirectory;
+        auto datadirectory = static_cast<TDirectory *>(gDirectory);
         responsereader->cd(Form("Response_%s", rstring.data()));
-        auto responsedirectory = gDirectory;
+        auto responsedirectory = static_cast<TDirectory *>(gDirectory);
         for(auto observable : observablesSelected){
             std::cout << "Unfolding observable " << observable << " ... " << std::endl;
             std::map<std::string, TH2 *> rawtriggers;
@@ -283,10 +283,10 @@ void runUnfolding2D_FromFile(const char *filedata, const char *fileresponse, con
 
             // Write to file
             outputwriter->cd(observable.data());
-            auto obsdir = gDirectory;
+            auto obsdir = static_cast<TDirectory *>(gDirectory);
             obsdir->mkdir(rstring.data());
             obsdir->cd(rstring.data());
-            auto routbase = gDirectory;
+            auto routbase = static_cast<TDirectory *>(gDirectory);
 
             routbase->mkdir("rawlevel");
             routbase->cd("rawlevel");

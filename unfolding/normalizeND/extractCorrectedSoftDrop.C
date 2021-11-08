@@ -18,9 +18,9 @@ void extractCorrectedSoftDrop(const char *filename = "UnfoldedSD.root", bool wit
     for(auto obs : observables) {
         writer->mkdir(obs.data());
         writer->cd(obs.data());
-        auto writebasedir = gDirectory;
+        auto writebasedir = static_cast<TDirectory *>(gDirectory);
         reader->cd(obs.data());
-        auto basedir = gDirectory;
+        auto basedir = static_cast<TDirectory *>(gDirectory);
         for(auto R : ROOT::TSeqI(2, 7)) {
             std::vector<TH1 *> dists;
             std::string rstring = Form("R%02d", R),
