@@ -228,6 +228,12 @@ TH1 *makeTriggerEfficiency(TFile &mcreader, double R, const std::string_view tri
     eff->SetNameTitle(Form("TriggerEfficiency_%s_R%02d", trigger.data(), int(R * 10.)), Form("Trigger efficiency for %s for R=%.1f", trigger.data(), R));
     eff->SetDirectory(nullptr);
     eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
+    eff->Fit("pol0","EQ","Same",250,350);
+    auto fitResult = eff->GetFunction("pol0");
+    auto fit = fitResult->GetParameter(0);
+    auto fitError = fitResult->GetParError(0);
+    fitResult->SetLineColor(kBlue+2);
+    eff->Scale(1./fit);
     return eff;
 }
 
