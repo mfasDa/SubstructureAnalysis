@@ -94,3 +94,14 @@ std::vector<double> getJetPtBinningNonLinTrueUltra240(){
   binninghelper binning(5., {{10., 5.}, {60., 5.}, {140., 10.}, {200., 20.}, {320., 40.}, {500., 180.}});
   return binning.CreateCombinedBinning();
 }
+
+// Binnings below added by Austin Schmier
+std::vector<double> getJetPtBinningRejectionFactorsFine(){
+  binninghelper binning(0., {{10., 1.},{30., 2.}, {50., 5.}, {80., 10.}, {120., 20.}, {240., 40.}});
+  return binning.CreateCombinedBinning();
+}
+
+std::vector<double> getJetPtBinningRejectionFactorsCourse(){
+  binninghelper binning(0., {{5., 1.},{20.,2.},{30., 5.}, {40., 10.}, {80., 20.}});
+  return binning.CreateCombinedBinning();
+}
