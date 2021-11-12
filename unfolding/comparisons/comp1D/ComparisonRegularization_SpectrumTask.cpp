@@ -23,9 +23,7 @@ std::string getSysvar(const std::string_view inputfile) {
 void ComparisonRegularization_SpectrumTask(const std::string_view inputfile){
     std::vector<std::string> spectra;
     for(auto ireg : ROOT::TSeqI(1, 10)) spectra.push_back(Form("normalized_reg%d", ireg));
-    cout << "test1" << endl;
     auto svddata = JetSpectrumReader(inputfile, spectra);
-    cout << "test2" << endl;
     auto jetradii = svddata.GetJetSpectra().GetJetRadii();
     int nrad = jetradii.size();
 
