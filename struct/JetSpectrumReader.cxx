@@ -8,7 +8,7 @@
 class JetSpectrumReader {
 public:
     JetSpectrumReader() = default;
-    JetSpectrumReader(const std::string_view filename, std::vector<std::string> types) : mData(), mTypes(types) { ReadFile(filename); } 
+    JetSpectrumReader(const std::string_view filename, std::vector<std::string> types) : mData(), mTypes(types) { ReadFile(filename); }
     ~JetSpectrumReader() = default;
 
     JetSpectrumContainer GetJetSpectra() const { return mData; }
@@ -53,7 +53,8 @@ protected:
             std::string rstring(en->GetName());
             double radius = double(std::stoi(rstring.substr(1))/10.);
             reader->cd(rstring.data());
-            auto basedir = gDirectory;
+            //auto basedir = gDirectory;
+            auto basedir = static_cast<TDirectory *>(gDirectory);
             for(const auto &type : mTypes) {
                 basedir->cd();
                 if(contains(type, "reg")) {

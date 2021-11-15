@@ -1,13 +1,13 @@
-#include "../../../meta/stl.C"
-#include "../../../meta/root.C"
-#include "../../../meta/root6tools.C"
+#include "../../../../meta/stl.C"
+#include "../../../../meta/root.C"
+#include "../../../../meta/root6tools.C"
 
-#include "../../../helpers/filesystem.C"
-#include "../../../helpers/graphics.C"
+#include "../../../../helpers/filesystem.C"
+#include "../../../../helpers/graphics.C"
 
-#include "../../../struct/JetSpectrumReader.cxx"
-#include "../../../struct/GraphicsPad.cxx"
-#include "../../../struct/Ratio.cxx"
+#include "../../../../struct/JetSpectrumReader.cxx"
+#include "../../../../struct/GraphicsPad.cxx"
+#include "../../../../struct/Ratio.cxx"
 
 std::string getSysvar(const std::string_view inputfile) {
     auto filebase = basename(inputfile);
@@ -20,7 +20,7 @@ std::string getSysvar(const std::string_view inputfile) {
     return sysvar;
 }
 
-void ComparisonRegularization_SpectrumTask(const std::string_view inputfile){
+void ComparisonRegularization_8TeV(const std::string_view inputfile, string outputdir, string filetype = "png"){
     std::vector<std::string> spectra;
     for(auto ireg : ROOT::TSeqI(1, 10)) spectra.push_back(Form("normalized_reg%d", ireg));
     auto svddata = JetSpectrumReader(inputfile, spectra);
@@ -33,7 +33,7 @@ void ComparisonRegularization_SpectrumTask(const std::string_view inputfile){
     auto sysvar = getSysvar(inputfile);
     plotname << "comparisonRegularization" << (isSVD ? "Svd" : "Bayes");
     plotname << "_" << sysvar;
-    auto plot = new ROOT6tools::TSavableCanvas(plotname.str().data(), "Comparison regularization", 300 * nrad, 700);
+    auto plot = new TCanvas(plotname.str().data(), "Comparison regularization", 300 * nrad, 700);
     plot->Divide(nrad, 2);
 
     std::array<Color_t, 10> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kMagenta, kGray, kAzure, kCyan};
@@ -81,5 +81,6 @@ void ComparisonRegularization_SpectrumTask(const std::string_view inputfile){
 
     plot->cd();
     plot->Update();
-    plot->SaveCanvas(plot->GetName());
+    plot->SaveAs(Form("%s/%s.%s", outputdir.c_str(), plot->GetName(), filetype.c_str()));
+
 }

@@ -392,7 +392,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         // Write everything to file
         writer->mkdir(Form("R%02d", int(radius*10)));
         writer->cd(Form("R%02d", int(radius*10)));
-        auto basedir = gDirectory;
+        auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
         mbspectrum.second->Write();
@@ -423,12 +423,14 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         //hcntcorr->SetBinContent(1, centnotrdcorrection);
         //hcntcorr->Write();
 
+        basedir->cd();
         basedir->mkdir("response");
         basedir->cd("response");
         rawresponse->Write();
         rebinnedresponse->Write();
         truefull->Write();
         effkine->Write();
+        basedir->cd();
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
         priorsclosure->Write("priorsclosure");
@@ -437,6 +439,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         responseclosure->Write("responseClosureFine");
         rebinnedresponseclosure->Write("responseClosureRebinned");
         for(auto reg : unfolding_results){
+            basedir->cd(); 
             basedir->mkdir(Form("reg%d", reg.fReg));
             basedir->cd(Form("reg%d", reg.fReg));
             if(reg.fUnfolded) reg.fUnfolded->Write();

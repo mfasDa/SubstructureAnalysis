@@ -50,7 +50,7 @@ public:
 
 private:
     std::mutex                              fAccessLock;
-    std::queue<UnfoldingConfiguration>      fData;              
+    std::queue<UnfoldingConfiguration>      fData;
 };
 
 class UnfoldingRunner {
@@ -95,12 +95,12 @@ class UnfoldingRunner {
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
             specunfoldedClosure->Scale(1., "width");
 
-            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, nullptr, nullptr, 
+            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, nullptr, nullptr,
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
                     CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
         }
 
-        std::vector<unfoldingResults>   fOutputData;       
+        std::vector<unfoldingResults>   fOutputData;
         UnfoldingPool                   *fInputData;
 };
 
@@ -138,7 +138,7 @@ TH2 *getResponseMatrix(TFile &reader, int R, const std::string_view sysvar, int 
     switch(closurestatus) {
     case 0: break;
     case 1: closuretag = "Closure"; break;
-    case 2: closuretag = "NoClosure"; break;   
+    case 2: closuretag = "NoClosure"; break;
     };
     std::string responsematrixbase = "hJetResponseFine";
     std::stringstream responsematrixname;
@@ -158,7 +158,7 @@ TH2 *getResponseMatrix(TFile &reader, int R, const std::string_view sysvar, int 
 double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     std::stringstream dirnamebuilder;
     dirnamebuilder << "JetSpectrum_FullJets_R02_EJ1";
-    if(sysvar.length()) dirnamebuilder << "_" << sysvar; 
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
     reader.cd(dirnamebuilder.str().data());
     auto histos = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
     auto hnorm = static_cast<TH1 *>(histos->FindObject("hClusterCounter"));
