@@ -24,5 +24,5 @@ copycmd=$(printf "%s %s" $DOWNLOAD_EXECUTABLE $TRAINRUN)
 echo Running $copycmd
 eval $copycmd
 
-mkdir merge
-hadd -f merge/AnalysisResults.root LHC*/AnalysisResults.root
+mkdir merged
+hadd -f merged/AnalysisResults.root LHC*/AnalysisResults.root

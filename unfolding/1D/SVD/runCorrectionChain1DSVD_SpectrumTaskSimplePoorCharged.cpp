@@ -216,12 +216,15 @@ Trials getTrials(TFile &reader, int R, const std::string_view sysvar) {
     return Trials(histtrials);
 }
 
-void runCorrectionChain1DSVD_SpectrumTaskSimplePoorCharged(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = ""){
+void runCorrectionChain1DSVD_SpectrumTaskSimplePoorCharged(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
     outputfile << "correctedSVD_poor";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
+    }
+    if(radiusSel > 0) {
+        outputfile << "_R" << std::setfill('0') << std::setw(2) << radiusSel;
     }
     outputfile << ".root";
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
@@ -230,7 +233,11 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoorCharged(const std::string_vie
     auto binningpart = getJetPtBinningNonLinTruePoor(),
          binningdet = getJetPtBinningNonLinSmearCharged();
     double crosssection = 57.8;
-    for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
+    for(auto R : ROOT::TSeqI(2, 7)) {
+        double radius = double(R) / 10.;
+        if(radiusSel > 0 && R != radiusSel) {
+            continue;
+        }
         std::cout << "Doing jet radius " << radius << std::endl;
         auto mbspectrum = getSpectrumAndNorm(*datareader, radius, "INT7", "ANY", sysvar);
 
@@ -283,18 +290,24 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoorCharged(const std::string_vie
             work.InsertWork({ireg, radius, hraw, &responsematrix, detclosure, &responsematrixClosure});
         }
 
-        std::vector<std::thread> workthreads;
         std::set<unfoldingResults> unfolding_results;
-        std::mutex combinemutex;
-        for(auto i : ROOT::TSeqI(0, 8)){
-            workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results](){
-                UnfoldingRunner worker(&work);
-                worker.DoWork();
-                std::unique_lock<std::mutex> combinelock(combinemutex);
-                for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
-            }));
+        if(doMT){
+            std::vector<std::thread> workthreads;
+            std::mutex combinemutex;
+            for(auto i : ROOT::TSeqI(0, 8)){
+                workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results](){
+                    UnfoldingRunner worker(&work);
+                    worker.DoWork();
+                    std::unique_lock<std::mutex> combinelock(combinemutex);
+                    for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
+                }));
+            }
+            for(auto &th : workthreads) th.join();
+        } else {
+            UnfoldingRunner worker(&work);
+            worker.DoWork();
+            for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
         }
-        for(auto &th : workthreads) th.join();
 
         // Write everything to file
         writer->mkdir(Form("R%02d", int(radius*10)));

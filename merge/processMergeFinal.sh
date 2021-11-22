@@ -8,7 +8,11 @@ RUNCHECK=$4
 cd $INPUTDIR
 
 ALIENV=`which alienv`
-eval `$ALIENV --no-refresh printenv AliPhysics/latest`
+PACKAGESTRING="AliPhysics/latest"
+if [ $RUNCHECK -gt 0 ]; then
+	PACKAGESTRING="AliPhysics/latest root6tools/latest"
+fi
+eval `$ALIENV --no-refresh printenv $PACKAGESTRING`
 eval `$ALIENV list`
 hadd -f $INPUTDIR/$FILENAME $INPUTDIR/*/$FILENAME
 if [ $RUNCHECK -gt 0 ]; then
