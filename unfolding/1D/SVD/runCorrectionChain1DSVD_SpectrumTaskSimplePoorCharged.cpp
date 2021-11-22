@@ -223,6 +223,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoorCharged(const std::string_vie
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
+    if(radiusSel > 0) {
+        outputfile << "_R" << std::setfill('0') << std::setw(2) << radiusSel;
+    }
     outputfile << ".root";
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
