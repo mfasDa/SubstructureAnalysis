@@ -5,11 +5,50 @@
 #include "../../../helpers/unfolding.C"
 #include "../../binnings/binningPt1D.C"
 
+class Trials {
+public:
+    Trials(TH1 *hist) { fHistogram = hist; };
+    ~Trials() { delete fHistogram; }
+
+    double getMaxTrials() const {
+        auto bins = getBins();
+        return *std::max_element(bins.begin(), bins.end());
+    }
+
+    double getAverageTrials() const {
+        auto bins = getBins();
+        return TMath::Mean(bins.begin(), bins.end());
+    }
+
+    double getTrialsFit() const {
+        TF1 model("meanntrials", "pol0", 0., 100.);
+        fHistogram->Fit(&model, "N", "", fHistogram->GetXaxis()->GetBinLowEdge(2), fHistogram->GetXaxis()->GetBinUpEdge(fHistogram->GetXaxis()->GetNbins()+1));
+        return model.GetParameter(0);
+    }
+
+private:
+    std::vector<double> getBins() const {
+        std::vector<double> result;
+        for(int ib = 0; ib < fHistogram->GetXaxis()->GetNbins(); ib++) {
+            auto entries  = fHistogram->GetBinContent(ib+1);
+            if(TMath::Abs(entries) > DBL_EPSILON) {
+                // filter 0
+                result.emplace_back(entries);
+            }
+        }
+        return result;
+    }
+
+    TH1 *fHistogram;
+};
+
 struct unfoldingResults {
     int fReg;
     TH1 *fUnfolded;
+    TH1 *fNormalizedNoEff;
     TH1 *fNormalized;
     TH1 *fBackfolded;
+    TH1 *fUnfoldedClosureNoEff;
     TH1 *fUnfoldedClosure;
     TH1 *fDvector;
     TH1 *fDvectorClosure;
@@ -24,6 +63,7 @@ struct UnfoldingConfiguration {
     int fReg;
     double fRadius;
     TH1 *fRaw;
+    TH1 *fJetFindingEff;
     RooUnfoldResponse *fResponseMatrix;
     TH1 *fDetLevelClosure;
     RooUnfoldResponse *fResponseMatrixClosure;
@@ -82,19 +122,27 @@ class UnfoldingRunner {
             backfolded->SetNameTitle(Form("backfolded_reg%d", config.fReg), Form("back-folded jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             backfolded->SetDirectory(nullptr);
             specunfolded->Scale(1., "width");
-            auto specnormalized = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedReg%d", config.fReg)));
+            auto specnormalizedNoEff = static_cast<TH1 *>(specunfolded->Clone(Form("normalizedNoEffReg%d", config.fReg)));
+            specnormalizedNoEff->SetNameTitle(Form("normalizedNoEff_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d, no correction for jet finding efficiency", config.fRadius, config.fReg));
+            specnormalizedNoEff->SetDirectory(nullptr);
+            specnormalizedNoEff->Scale(1. / (acceptance));
+            auto specnormalized = static_cast<TH1 *>(specnormalizedNoEff->Clone(Form("normalizedReg%d", config.fReg)));
             specnormalized->SetNameTitle(Form("normalized_reg%d", config.fReg), Form("Normalized jet spectrum R=%.1f reg %d", config.fRadius, config.fReg));
             specnormalized->SetDirectory(nullptr);
-            specnormalized->Scale(1. / (acceptance));
+            specnormalized->Divide(config.fJetFindingEff);
 
             // run closure test
             std::cout << "[Bayes unfolding] Running closure test" << std::endl;
             RooUnfoldBayes unfolderClosure(config.fResponseMatrixClosure, config.fDetLevelClosure, config.fReg);
-            auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
+            auto specunfoldedClosureNoEff = unfolderClosure.Hreco(errorTreatment);
+            specunfoldedClosureNoEff->SetDirectory(nullptr);
+            specunfoldedClosureNoEff->SetNameTitle(Form("unfoldedClosureNoEff_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d, no correction for jet finding efficiency", config.fRadius, config.fReg));
+            specunfoldedClosureNoEff->Scale(1., "width");
+            auto specunfoldedClosure = static_cast<TH1 *>(specunfoldedClosureNoEff->Clone());
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
-            specunfoldedClosure->Scale(1., "width");
-
+            specunfoldedClosure->Divide(config.fJetFindingEff);
+          
             return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, nullptr, nullptr,
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
                     CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
@@ -184,6 +232,17 @@ TH2 *getResponseMatrix(TFile &reader, double R, const std::string_view sysvar, i
     return rawresponse;
 }
 
+Trials getTrials(TFile &reader, int R, const std::string_view sysvar) {
+    std::stringstream dirnamebuilder;
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
+    reader.cd(dirnamebuilder.str().data());
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    auto histtrials = static_cast<TH2 *>(histlist->FindObject("fHistTrials"));
+    histtrials->SetDirectory(nullptr);
+    return Trials(histtrials);
+}
+
 double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     std::stringstream dirnamebuilder;
     dirnamebuilder << "JetSpectrum_FullJets_R02_EJ1";
@@ -240,11 +299,37 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &emc7, double emc7swap, co
     return combined;
 }
 
-void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_view mbfile, const std::string_view emc7file, const std::string_view ejefile, const std::string_view mcfile, const std::string_view sysvar = ""){
+std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, std::string_view sysvar, std::vector<double> binningpart, std::vector<double> binningdet) {
+    std::stringstream dirnamebuilder;
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
+    reader.cd(dirnamebuilder.str().data());
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    auto raweff = static_cast<TH2 *>(histlist->FindObject("hJetfindingEfficiencyCore")),
+         rawpure = static_cast<TH2 *>(histlist->FindObject("hPurityDet"));
+
+    std::unique_ptr<TH1> effall(raweff->ProjectionX("effall")),
+                         efftag(raweff->ProjectionX("efftag", 3 ,3)),
+                         pureall(rawpure->ProjectionX("pureall")),
+                         puretag(rawpure->ProjectionX("puretag", 3, 3)),
+                         effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data())),
+                         pureAllRebinned(pureall->Rebin(binningdet.size()-1, "pureAllRebin", binningdet.data()));
+    auto jetfindingeff = efftag->Rebin(binningpart.size()-1, Form("hJetfindingEfficiency_R%02d", R), binningpart.data()),
+         jetfindingpure = puretag->Rebin(binningdet.size()-1, Form("hJetfindingPurity_R%02d", R), binningdet.data());
+    jetfindingeff->SetDirectory(nullptr);
+    jetfindingeff->Divide(jetfindingeff, effAllRebinned.get(), 1., 1., "b");
+    jetfindingeff->SetTitle(Form("Jet finding efficiency for R = %.1f", double(R)/10.));
+    jetfindingpure->SetDirectory(nullptr);
+    jetfindingpure->Divide(jetfindingpure, pureAllRebinned.get(), 1., 1., "b");
+    jetfindingpure->SetTitle(Form("Jet finding purity for R = %.1f", double(R)/10.));
+    return {{"efficiency", jetfindingeff}, {"purity", jetfindingpure}};
+}
+
+void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const std::string_view mbfile, const std::string_view emc7file, const std::string_view ejefile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
     std::stringstream outputfile;
-    outputfile << "correctedBayes_poor";
+    outputfile << "correctedBayes_poor_effpure";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
@@ -264,6 +349,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
 
     double crosssection = 55.8;
     for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
+        int R = int(radius*10.);
         std::cout << "Doing jet radius " << radius << std::endl;
         auto mbspectrum   = getSpectrumAndNorm(*mbreader, radius, "INT7", "ANY", sysvar),
              emc7spectrum = getSpectrumAndNorm(*emc7reader, radius, "EMC7", "ANY", sysvar),
@@ -322,24 +408,35 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         ejerebinned->Scale(1/rfactoreje.first);
 
         // Make combined histograms
-        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *emc7rebinned, 50., *ejerebinned, 80.);
-        hraw->SetNameTitle(Form("hraw_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f", radius));
-        hraw->Scale(crosssection);
-        auto hraw_fine = makeCombinedRawSpectrum(*mbspectrum.second, *emc7spectrum.second, 50., *ejespectrum.second, 80.);
-        hraw_fine->SetNameTitle(Form("hraw_fine_R%02d", int(radius * 10.)), Form("Raw Level spectrum R=%.1f, fine binning", radius));
-        hraw_fine->Scale(crosssection);
+        auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *emc7rebinned, 50., *ejerebinned, 80.);
+        hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
+        hrawOrig->Scale(crosssection);
+        auto hrawOrig_fine = makeCombinedRawSpectrum(*mbspectrum.second, *emc7spectrum.second, 50., *ejespectrum.second, 80.);
+        hrawOrig_fine->SetNameTitle(Form("hrawOrig_fine_R%02d", R), Form("Raw Level spectrum R=%.1f, fine binning, before purity correction", radius));
+        hrawOrig_fine->Scale(crosssection);
+
+        auto effpure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet);
+
+        auto hraw = static_cast<TH1 *>(hrawOrig->Clone());
+        hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
+        hraw->Multiply(effpure["purity"]);
+        auto hraw_fine = static_cast<TH1 *>(hrawOrig_fine->Clone());
+        hraw_fine->SetNameTitle(Form("hraw_fine_R%02d", R), Form("Raw Level spectrum (fine) R=%.1f, no purity correction", radius));
+        //hraw_fine->Multiply(effpure["purity"]);
 
         // Get the response matrix
         auto rawresponse = getResponseMatrix(*mcreader, radius, sysvar);
+        auto trials = getTrials(*mcreader, R, sysvar);
+        auto mcscale = trials.getMaxTrials();
         rawresponse->SetName(Form("%s_fine", rawresponse->GetName()));
-        rawresponse->Scale(15e6);   // undo scaling with the number of trials
+        rawresponse->Scale(mcscale);   // undo scaling with the number of trials (used to be 15e6)
         auto rebinnedresponse  = makeRebinned2D(rawresponse, binningdet, binningpart);
         rebinnedresponse->SetName(Form("%s_standard", rebinnedresponse->GetName()));
         std::unique_ptr<TH1> truefulltmp(rawresponse->ProjectionY()),
                              truetmp(rebinnedresponse->ProjectionY());
-        auto truefull = truefulltmp->Rebin(binningpart.size() - 1, Form("truefull_R%02d", int(radius*10.)), binningpart.data());
+        auto truefull = truefulltmp->Rebin(binningpart.size() - 1, Form("truefull_R%02d", R), binningpart.data());
         truefull->SetDirectory(nullptr);
-        auto effkine = truetmp->Rebin(binningpart.size()-1, Form("effKine_R%02d", int(radius*10.)), binningpart.data());
+        auto effkine = truetmp->Rebin(binningpart.size()-1, Form("effKine_R%02d", R), binningpart.data());
         effkine->SetDirectory(nullptr);
         effkine->Divide(effkine, truefull, 1., 1., "b");
 
@@ -348,15 +445,17 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         responseclosure->SetName(Form("%s_fine", responseclosure->GetName()));
         std::unique_ptr<TH2> truthclosure(getResponseMatrix(*mcreader, radius, sysvar, 2));
         truthclosure->SetName("truthclosure");
-        responseclosure->Scale(15e6);
+        responseclosure->Scale(mcscale); // Used to be 15e6
         TH1 *priorsclosuretmp(responseclosure->ProjectionY()),
             *detclosuretmp(truthclosure->ProjectionX()),
             *partclosuretmp(truthclosure->ProjectionY());
-        auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", int(radius*10.)), binningpart.data()),
-             detclosure = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosure_R%02d", int(radius*10.)), binningdet.data()),
-             partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", int(radius*10.)), binningpart.data());
+        auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", R), binningpart.data()),
+             detclosureOrig = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosureOrig_R%02d", R), binningdet.data()),
+             partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", R), binningpart.data());
+        auto detclosure = static_cast<TH1 *>(detclosureOrig->Clone(Form("detclosure_R%02d", R)));
         priorsclosure->SetDirectory(nullptr);
-        detclosure->SetDirectory(nullptr);
+        detclosureOrig->SetDirectory(nullptr);
+        detclosure->Multiply(effpure["purity"]);
         partclosure->SetDirectory(nullptr);
         auto rebinnedresponseclosure = makeRebinned2D(responseclosure, binningdet, binningpart);
         rebinnedresponseclosure->SetName(Form("%s_closure", rebinnedresponseclosure->GetName()));
@@ -368,25 +467,31 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
 
         UnfoldingPool work;
         for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
-            work.InsertWork({ireg, radius, hraw, &responsematrix, detclosure, &responsematrixClosure});
+            work.InsertWork({ireg, radius, hraw, effpure["efficiency"], &responsematrix, detclosure, &responsematrixClosure});
         }
 
-        std::vector<std::thread> workthreads;
         std::set<unfoldingResults> unfolding_results;
-        std::mutex combinemutex;
-        for(auto i : ROOT::TSeqI(0, NTHREAD)){
-            workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results](){
-                UnfoldingRunner worker(&work);
-                worker.DoWork();
-                std::unique_lock<std::mutex> combinelock(combinemutex);
-                for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
-            }));
-        }
-        for(auto &th : workthreads) th.join();
+        if(doMT) {
+            std::vector<std::thread> workthreads;
+            std::mutex combinemutex;
+            for(auto i : ROOT::TSeqI(0, NTHREAD)){
+                workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results](){
+                    UnfoldingRunner worker(&work);
+                    worker.DoWork();
+                    std::unique_lock<std::mutex> combinelock(combinemutex);
+                    for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
+                }));
+            }
+            for(auto &th : workthreads) th.join();
+        } else {
+            UnfoldingRunner worker(&work);
+            worker.DoWork();
+            for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
+        };
 
         // Write everything to file
-        writer->mkdir(Form("R%02d", int(radius*10)));
-        writer->cd(Form("R%02d", int(radius*10)));
+        writer->mkdir(Form("R%02d", R));
+        writer->cd(Form("R%02d", R));
         auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
@@ -401,7 +506,10 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         trgeffeje->Write();
         rfactoremc7.second->Write();
         rfactoreje.second->Write();
+        effpure["purity"]->Write();
+        hrawOrig->Write();
         hraw->Write();
+        hrawOrig_fine->Write();
         hraw_fine->Write();
         auto hnormINT7 = new TH1F("hNorm_INT7", "Norm - INT7", 1, 0.5, 1.5);
         auto hnormEMC7 = new TH1F("hNorm_EMC7", "Norm - EMC7", 1, 0.5, 1.5);
@@ -421,10 +529,14 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
         basedir->cd();
         basedir->mkdir("response");
         basedir->cd("response");
+        auto hmcscale = new TH1F("hMCscale", "MC scale", 1, 0.5, 1.5);
+        hmcscale->SetBinContent(1, mcscale);
+        hmcscale->Write();
         rawresponse->Write();
         rebinnedresponse->Write();
         truefull->Write();
         effkine->Write();
+        effpure["efficiency"]->Write();
         basedir->cd();
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
@@ -438,10 +550,12 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_8TeV(const std::string_vie
             basedir->mkdir(Form("reg%d", reg.fReg));
             basedir->cd(Form("reg%d", reg.fReg));
             if(reg.fUnfolded) reg.fUnfolded->Write();
+            if(reg.fNormalizedNoEff) reg.fNormalizedNoEff->Write();
             if(reg.fNormalized) reg.fNormalized->Write();
             if(reg.fBackfolded) reg.fBackfolded->Write();
             if(reg.fDvector) reg.fDvector->Write();
             if(reg.fPearson) reg.fPearson->Write();
+            if(reg.fUnfoldedClosureNoEff) reg.fUnfoldedClosureNoEff->Write();
             if(reg.fUnfoldedClosure) reg.fUnfoldedClosure->Write();
             if(reg.fDvectorClosure) reg.fDvectorClosure->Write();
             if(reg.fPearsonClosure) reg.fPearsonClosure->Write();

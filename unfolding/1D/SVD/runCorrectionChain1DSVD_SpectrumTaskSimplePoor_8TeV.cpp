@@ -257,7 +257,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &emc7, double emc7swap, co
 void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_8TeV(const std::string_view mbfile, const std::string_view emc7file, const std::string_view ejefile, const std::string_view mcfile, const std::string_view sysvar = ""){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
-    outputfile << "correctedSVD_poor_austin";
+    outputfile << "correctedSVD_poor";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }

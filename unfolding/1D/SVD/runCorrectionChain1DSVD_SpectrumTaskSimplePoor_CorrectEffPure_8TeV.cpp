@@ -5,7 +5,6 @@
 #include "../../../helpers/unfolding.C"
 #include "../../binnings/binningPt1D.C"
 
-
 class Trials {
 public:
     Trials(TH1 *hist) { fHistogram = hist; };
@@ -343,7 +342,7 @@ std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, std::st
 void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const std::string_view mbfile, const std::string_view emc7file, const std::string_view ejefile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
-    outputfile << "correctedSVD_poor_austin_effpure";
+    outputfile << "correctedSVD_poor_effpure";
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
@@ -429,6 +428,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const st
         ejerebinned->Scale(1/rfactoremc7.first);
         ejerebinned->Scale(1/rfactoreje.first);
 
+        // Make combined histograms
         auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *emc7rebinned, 50., *ejerebinned, 80.);
         hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
         hrawOrig->Scale(crosssection);
@@ -436,15 +436,14 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const st
         hrawOrig_fine->SetNameTitle(Form("hrawOrig_fine_R%02d", R), Form("Raw Level spectrum R=%.1f, fine binning, before purity correction", radius));
         hrawOrig_fine->Scale(crosssection);
 
-
         auto effpure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet);
 
         auto hraw = static_cast<TH1 *>(hrawOrig->Clone());
         hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
         hraw->Multiply(effpure["purity"]);
         auto hraw_fine = static_cast<TH1 *>(hrawOrig_fine->Clone());
-        hraw_fine->SetNameTitle(Form("hraw_fine_R%02d", R), Form("Raw Level spectrum R=%.1f, fine binning", radius));
-        hraw_fine->Multiply(effpure["purity"]);
+        hraw_fine->SetNameTitle(Form("hraw_fine_R%02d", R), Form("Raw Level spectrum (fine) R=%.1f, no purity correction", radius));
+        //hraw_fine->Multiply(effpure["purity"]);
 
         // Get the response matrix
         auto rawresponse = getResponseMatrix(*mcreader, R, sysvar);
