@@ -305,7 +305,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
-    auto binningpart = getJetPtBinningNonLinTruePoor(),
+    auto binningpart = getJetPtBinningNonLinTrueCharged(),
          binningdet = getJetPtBinningNonLinSmearPoor();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;

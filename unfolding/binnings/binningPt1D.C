@@ -70,6 +70,11 @@ std::vector<double> getJetPtBinningNonLinTruePoor(){
   return binning.CreateCombinedBinning();
 }
 
+std::vector<double> getJetPtBinningNonLinTrueCharged(){
+  binninghelper binning(0., {{5., 5.}, {20., 2.5}, {40., 5.}, {80., 10.}, {140., 20.}, {600., 460.}});
+  return binning.CreateCombinedBinning();
+}
+
 std::vector<double> getJetPtBinningNonLinTrue(){
   binninghelper binning(5., {{10., 5.}, {80., 10.}, {180, 20.}, {300., 120.}});
   return binning.CreateCombinedBinning();
