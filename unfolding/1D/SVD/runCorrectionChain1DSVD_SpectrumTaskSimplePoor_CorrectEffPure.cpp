@@ -43,6 +43,15 @@ private:
     TH1 *fHistogram;
 };
 
+struct SpectrumAndNorm {
+    TH1 *fSpectrum;
+    double fEventCount;
+    double fEventCountAbsolute;
+    double fVertexFindingEfficiency;
+
+    double getNorm() const { return fEventCount / fVertexFindingEfficiency; }
+};
+
 struct unfoldingResults {
     int fReg;
     TH1 *fUnfolded;
@@ -172,7 +181,7 @@ TH1 *makeRebinnedSafe(const TH1 *input, const char *newname, const std::vector<d
     return rebinned;
 }
 
-std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, int R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
+SpectrumAndNorm getSpectrumAndNorm(TFile &reader, int R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
     int clusterbin = 0;
     if(triggercluster == "ANY") clusterbin = 1;
     else if(triggercluster == "CENT") clusterbin = 2;
@@ -193,12 +202,14 @@ std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, int R, const std::str
     // calculate norm
     auto hnorm = static_cast<TH1 *>(histos->FindObject("hClusterCounter"));
     auto norm = hnorm->GetBinContent(clusterbin);
-    // calculate bin0 correction
+    // Get absolute eventCounts
+    auto heventcounts = static_cast<TH1 *>(histos->FindObject("hClusterCounterAbs"));
+    auto eventcounts = heventcounts->GetBinContent(clusterbin);
+    // calculate vertex finding efficiency
     auto evhist = static_cast<TH1 *>(histos->FindObject("fNormalisationHist")); // take the one from the AliAnalysisTaskEmcal directly
-    auto bin0correction = evhist->GetBinContent(evhist->GetXaxis()->FindBin("Event selection")) / evhist->GetBinContent(evhist->GetXaxis()->FindBin("Vertex reconstruction and quality"));
-    norm *= bin0correction;
-
-    return {norm, rawspectrum};
+    auto vertexfindingeff = evhist->GetBinContent(evhist->GetXaxis()->FindBin("Vertex reconstruction and quality")) / evhist->GetBinContent(evhist->GetXaxis()->FindBin("Event selection"));
+    SpectrumAndNorm result{rawspectrum, norm, eventcounts, vertexfindingeff};
+    return result;
 }
 
 TH2 *getResponseMatrix(TFile &reader, int R, const std::string_view sysvar, int closurestatus = 0) {
@@ -244,9 +255,20 @@ double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     return hnorm->GetBinContent(3)/hnorm->GetBinContent(2);
 }
 
+TH1 *makeEventCounterHistogram(const char *name, const char *title, double countEJ1, double countEJ2, double countINT7) { 
+    auto eventCount = new TH1F(name, title, 3, 0., 3);
+    eventCount->GetXaxis()->SetBinLabel(1, "INT7");
+    eventCount->GetXaxis()->SetBinLabel(2, "EJ2");
+    eventCount->GetXaxis()->SetBinLabel(3, "EJ1");
+    eventCount->SetBinContent(1, countINT7);
+    eventCount->SetBinContent(2, countEJ2);
+    eventCount->SetBinContent(3, countEJ1);
+    return eventCount;
+}
+
 TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar, const std::vector<double> *binning = nullptr){
-    std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).second),
-                         trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).second);
+    std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).fSpectrum),
+                         trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).fSpectrum);
     TH1 *eff = nullptr,
         *numerator = trgspec.get(),
         *denominator = mbref.get();
@@ -258,9 +280,13 @@ TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigge
         std::unique_ptr<TH1> minbiasRebinned(makeRebinnedSafe(mbref.get(), Form("%s_rebinned", mbref->GetName()), *binning));
         eff = histcopy(triggeredRebinned.get());
         eff->Divide(triggeredRebinned.get(), minbiasRebinned.get(), 1., 1., "b");
+        histname += "_rebinned";
+        histtitle += " (rebinned)";
     } else {
         eff = histcopy(trgspec.get());
         eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
+        histname += "_orig";
+        histtitle += " (original)";
     }
     eff->SetNameTitle(histname.data(), histtitle.data());
     eff->SetDirectory(nullptr);
@@ -324,7 +350,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
     std::unique_ptr<TFile> datareader(TFile::Open(datafile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
-    auto binningpart = getJetPtBinningNonLinTrueCharged(),
+    auto binningpart = getJetPtBinningNonLinTruePoor(),
          binningdet = getJetPtBinningNonLinSmearPoor();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
@@ -340,26 +366,26 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
         auto trgeffej1 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar),
              trgeffej2 = makeTriggerEfficiency(*mcreader, R, "EJ2", sysvar),
              rebinnedTriggerEffEJ1 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar, &binningdet),
-             rebinnedTriggerEffEJ2 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar, &binningdet);
+             rebinnedTriggerEffEJ2 = makeTriggerEfficiency(*mcreader, R, "EJ2", sysvar, &binningdet);
 
         // apply CENTNOTRD correction
-        ej1spectrum.second->Scale(1./centnotrdcorrection);
+        ej1spectrum.fSpectrum->Scale(1./centnotrdcorrection);
 
         // Uncorrected rebinned Spectra (for monitoring)
-        TH1 *ej1rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.second, "ej1rebinnedUncorrected", binningdet),
-            *ej2rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.second, "ej2rebinnedUncorrected", binningdet);
+        TH1 *ej1rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.fSpectrum, "ej1rebinnedUncorrected", binningdet),
+            *ej2rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.fSpectrum, "ej2rebinnedUncorrected", binningdet);
 
         // Correct for the trigger efficiency
-        ej1spectrum.second->Divide(trgeffej1);
-        ej2spectrum.second->Divide(trgeffej2);
+        ej1spectrum.fSpectrum->Divide(trgeffej1);
+        ej2spectrum.fSpectrum->Divide(trgeffej2);
 
         // Rebin all raw level histograms
-        TH1  *mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
-             *ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
-             *ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
+        TH1  *mbrebinned(mbspectrum.fSpectrum->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
+             *ej1rebinned(ej1spectrum.fSpectrum->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
+             *ej2rebinned(ej2spectrum.fSpectrum->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
         auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
         hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
-        hrawOrig->Scale(crosssection/mbspectrum.first);
+        hrawOrig->Scale(crosssection/mbspectrum.getNorm());
 
         auto effpure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet);
 
@@ -438,9 +464,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
         auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
-        mbspectrum.second->Write();
-        ej1spectrum.second->Write();
-        ej2spectrum.second->Write();
+        mbspectrum.fSpectrum->Write();
+        ej1spectrum.fSpectrum->Write();
+        ej2spectrum.fSpectrum->Write();
         mbrebinned->Write();
         ej1rebinnedUncorrected->Write();
         ej2rebinnedUncorrected->Write();
@@ -454,8 +480,13 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
         hrawOrig->Write();
         hraw->Write();
         auto hnorm = new TH1F("hNorm", "Norm", 1, 0.5, 1.5);
-        hnorm->SetBinContent(1, mbspectrum.first);
+        hnorm->SetBinContent(1, mbspectrum.getNorm());
         hnorm->Write();
+        makeEventCounterHistogram("hEventCounterWeighted", "Weighted event counts", ej1spectrum.fEventCount, ej2spectrum.fEventCount, mbspectrum.fEventCount)->Write();
+        makeEventCounterHistogram("hEventCounterAbs", "Absolute event counts", ej1spectrum.fEventCountAbsolute, ej2spectrum.fEventCountAbsolute, mbspectrum.fEventCountAbsolute)->Write();
+        auto heffVtx = new TH1F("hVertexFindingEfficiency", "Vertex finding efficiency", 1, 0.5, 1.5);
+        heffVtx->SetBinContent(1, mbspectrum.fVertexFindingEfficiency);
+        heffVtx->Write();
         auto hcntcorr = new TH1F("hCENTNOTRDcorrection", "CENTNOTRD correction", 1, 0.5, 1.5);
         hcntcorr->SetBinContent(1, centnotrdcorrection);
         hcntcorr->Write();
