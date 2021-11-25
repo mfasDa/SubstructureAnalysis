@@ -3,14 +3,13 @@
 import argparse
 import logging
 import os
-import subprocess
 import sys
 
 from SubstructureHelpers.alien import test_alien_token, recreate_token
 from SubstructureHelpers.slurm import submit
 from SubstructureHelpers.train import AliTrainDB
 from merge.submitMergeRun import merge_submitter_runs
-from merge.submitMergeMCDatasets import merge_submitter_datasets, parse_jobs
+from merge.submitMergeMCDatasets import merge_submitter_datasets
 
 class LaunchHandler:
 
