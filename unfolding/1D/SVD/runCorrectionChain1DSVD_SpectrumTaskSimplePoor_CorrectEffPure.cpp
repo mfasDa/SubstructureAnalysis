@@ -166,6 +166,12 @@ class UnfoldingRunner {
         UnfoldingPool                   *fInputData;
 };
 
+TH1 *makeRebinnedSafe(const TH1 *input, const char *newname, const std::vector<double> binning) {
+    std::unique_ptr<TH1> rebinhelper(histcopy(input));
+    auto rebinned = rebinhelper->Rebin(binning.size()-1, newname, binning.data());
+    return rebinned;
+}
+
 std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, int R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
     int clusterbin = 0;
     if(triggercluster == "ANY") clusterbin = 1;
@@ -238,13 +244,26 @@ double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     return hnorm->GetBinContent(3)/hnorm->GetBinContent(2);
 }
 
-TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar){
+TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar, const std::vector<double> *binning = nullptr){
     std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).second),
                          trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).second);
-    auto eff = histcopy(trgspec.get());
-    eff->SetNameTitle(Form("TriggerEfficiency_%s_R%02d", trigger.data(), R), Form("Trigger efficiency for %s for R=%.1f", trigger.data(), double(R)/10.));
+    TH1 *eff = nullptr,
+        *numerator = trgspec.get(),
+        *denominator = mbref.get();
+    std::string histname = Form("TriggerEfficiency_%s_R%02d", trigger.data(), R),
+                histtitle = Form("Trigger efficiency for %s for R=%.1f", trigger.data(), double(R)/10.);
+    if(binning) {
+        // Make rebin on clone, to be on the safe side as the rebin function is not marked const
+        std::unique_ptr<TH1> triggeredRebinned(makeRebinnedSafe(trgspec.get(),Form("%s_rebinned", trgspec->GetName()), *binning)); 
+        std::unique_ptr<TH1> minbiasRebinned(makeRebinnedSafe(mbref.get(), Form("%s_rebinned", mbref->GetName()), *binning));
+        eff = histcopy(triggeredRebinned.get());
+        eff->Divide(triggeredRebinned.get(), minbiasRebinned.get(), 1., 1., "b");
+    } else {
+        eff = histcopy(trgspec.get());
+        eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
+    }
+    eff->SetNameTitle(histname.data(), histtitle.data());
     eff->SetDirectory(nullptr);
-    eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
     return eff;
 }
 
@@ -319,19 +338,25 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
              ej1spectrum = getSpectrumAndNorm(*datareader, R, "EJ1", "CENTNOTRD", sysvar),
              ej2spectrum = getSpectrumAndNorm(*datareader, R, "EJ2", "CENT", sysvar);
         auto trgeffej1 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar),
-             trgeffej2 = makeTriggerEfficiency(*mcreader, R, "EJ2", sysvar);
+             trgeffej2 = makeTriggerEfficiency(*mcreader, R, "EJ2", sysvar),
+             rebinnedTriggerEffEJ1 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar, &binningdet),
+             rebinnedTriggerEffEJ2 = makeTriggerEfficiency(*mcreader, R, "EJ1", sysvar, &binningdet);
 
         // apply CENTNOTRD correction
         ej1spectrum.second->Scale(1./centnotrdcorrection);
+
+        // Uncorrected rebinned Spectra (for monitoring)
+        TH1 *ej1rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.second, "ej1rebinnedUncorrected", binningdet),
+            *ej2rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.second, "ej2rebinnedUncorrected", binningdet);
 
         // Correct for the trigger efficiency
         ej1spectrum.second->Divide(trgeffej1);
         ej2spectrum.second->Divide(trgeffej2);
 
         // Rebin all raw level histograms
-        std::unique_ptr<TH1> mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
-                             ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
-                             ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
+        TH1  *mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
+             *ej1rebinned(ej1spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
+             *ej2rebinned(ej2spectrum.second->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
         auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
         hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
         hrawOrig->Scale(crosssection/mbspectrum.first);
@@ -416,8 +441,15 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
         mbspectrum.second->Write();
         ej1spectrum.second->Write();
         ej2spectrum.second->Write();
+        mbrebinned->Write();
+        ej1rebinnedUncorrected->Write();
+        ej2rebinnedUncorrected->Write();
+        ej1rebinned->Write();
+        ej2rebinned->Write();
         trgeffej1->Write();
         trgeffej2->Write();
+        rebinnedTriggerEffEJ1->Write();
+        rebinnedTriggerEffEJ2->Write();
         effpure["purity"]->Write();
         hrawOrig->Write();
         hraw->Write();
