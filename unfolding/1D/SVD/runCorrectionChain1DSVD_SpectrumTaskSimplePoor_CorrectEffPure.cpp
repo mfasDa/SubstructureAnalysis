@@ -373,7 +373,7 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::st
 
         // Uncorrected rebinned Spectra (for monitoring)
         TH1 *ej1rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.fSpectrum, "ej1rebinnedUncorrected", binningdet),
-            *ej2rebinnedUncorrected = makeRebinnedSafe(ej1spectrum.fSpectrum, "ej2rebinnedUncorrected", binningdet);
+            *ej2rebinnedUncorrected = makeRebinnedSafe(ej2spectrum.fSpectrum, "ej2rebinnedUncorrected", binningdet);
 
         // Correct for the trigger efficiency
         ej1spectrum.fSpectrum->Divide(trgeffej1);
