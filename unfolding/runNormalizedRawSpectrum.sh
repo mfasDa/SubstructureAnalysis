@@ -2,10 +2,14 @@
 
 SUBSTRUCTURE_ROOT=$1
 WORKDIR=$2
-SYSVAR=$3
-MCFILE=$4
+JETTYE=$3
+SYSVAR=$4
+MCFILE=$5
 
 MACRO=$SUBSTRUCTURE_ROOT/unfolding/normalize1D/makeNormalizedRaw.cpp
+if [ "$JETTYE" == "charged" ]; then
+    MACRO=$SUBSTRUCTURE_ROOT/unfolding/normalize1D/makeNormalizedRawCharged.cpp
+fi
 
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh printenv AliPhysics/latest root6tools/latest`

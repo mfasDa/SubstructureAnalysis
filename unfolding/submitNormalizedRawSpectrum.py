@@ -19,6 +19,7 @@ def selectWorkdir(dirname: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("submitNormalizedRaw", "Submitter for raw spectra extraction")
     parser.add_argument("-w", "--workdir", metavar="WORKDIR", type=str, default=os.getcwd(), help="Working directory")
+    parser.add_argument("-t", "--type", metavar="JETTYPE", type=str, default="full", help="jettype")
     parser.add_argument("-s", "--sysvar", metavar="SYSVAR", type=str, default="tc200", help="Systematics variation")
     parser.add_argument("-m", "--mcfile", metavar="MCFILE", type=str, default="NONE", help="MC file for trigger efficiency correction")
     parser.add_argument("-q", "--queue", metavar="QUEUE", type=str, default="short", help="Slurm queue")
@@ -35,5 +36,5 @@ if __name__ == "__main__":
         jobdir = os.path.join(workdir, jdir)
         jobtag = "nr_{}".format(jdir)
         logfile = os.path.join(jobdir, "normraw.log")
-        runcmd = "{EXE} {REPO} {WORKDIR} {SYSVAR} {MCFILE}".format(EXE=executable, REPO=repo, WORKDIR=jobdir, SYSVAR=args.sysvar, MCFILE=args.mcfile)
+        runcmd = "{EXE} {REPO} {WORKDIR} {JETTYPE} {SYSVAR} {MCFILE}".format(EXE=executable, REPO=repo, WORKDIR=jobdir, JETTYPE=args.type, SYSVAR=args.sysvar, MCFILE=args.mcfile)
         slurm.submit(runcmd, jobtag, logfile, args.queue)
