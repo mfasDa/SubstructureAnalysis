@@ -20,7 +20,11 @@ def getNumberOfRuns(filename):
 def find_lists(repo: str):
     return sorted([os.path.join(repo, "RawEventCounts", x) for x in os.listdir(os.path.join(repo, "RawEventCounts")) if "LHC" in x and not "bad" in x])
 
-def create_job(repo: str, outputbase: str, runsfile: str, partition: str):
+def create_job(repo: str, outputbase: str, runsfile: str, partition: str) -> tuple:
+    nruns = getNumberOfRuns(runsfile)
+    if not nruns:
+        logging.error("Runlist %s does not contain any run", runsfile)
+        return (0, None)
     runsfilebase = os.path.basename(runsfile)
     period = runsfilebase[:runsfilebase.find(".csv")]
     year = 2000 + int(period[3:5])
@@ -45,7 +49,7 @@ def create_job(repo: str, outputbase: str, runsfile: str, partition: str):
     job.info("Processing run $RUNNUMBER")
     job.process(runscript, [repo, outputdir, "$RUNNUMBER"])
     job.info("Done")
-    return job
+    return (nruns, job)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("submitfilter.py", "Submitting OCDB Query for trigger mask")
@@ -68,7 +72,9 @@ if __name__ == "__main__":
         periodfile = os.path.basename(period)
         periodname = periodfile[:periodfile.find(".csv")]
         logging.info("Submitting for period: ")
-        periodjob = create_job(repo, args.outputdir, period, args.partition)
+        runs, periodjob = create_job(repo, args.outputdir, period, args.partition)
+        if not periodjob:
+            continue
         if not debugmode:
             jobid = periodjob.submit()
-            logging.info("Submitted under job ID %d", jobid)
+            logging.info("Submitted %s (%d runs) under job ID %d", periodname, runs, jobid)

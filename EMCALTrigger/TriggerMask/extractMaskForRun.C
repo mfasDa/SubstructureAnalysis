@@ -11,8 +11,10 @@
 struct triggermask {
 	int runnumber;
 	int year;
-	int eventsL0;
-	int eventsG1;
+	int eventsEL0;
+	int eventsEG1;
+	int eventsDL0;
+	int eventsDG1;
 	int nmaskL0ALL;
 	int nmaskL0EMCAL;
 	int nmaskL0DCAL;	
@@ -75,17 +77,21 @@ void extractMaskForRun(int run) {
 		std::string period = triggerdb.getPeriod(run);
 		std::cout << "Found run " << run << " ("<< period <<") in trigger DB" << std::endl;
 		strcpy(result.period, period.data());
-		result.eventsL0 = triggerdb.getTriggersForRun(run, "CEMC7");
-		result.eventsG1 = triggerdb.getTriggersForRun(run, "EG1");
+		result.eventsEL0 = triggerdb.getTriggersForRun(run, "CEMC7");
+		result.eventsEG1 = triggerdb.getTriggersForRun(run, "EG1");
+		result.eventsDL0 = triggerdb.getTriggersForRun(run, "CDMC7");
+		result.eventsDG1 = triggerdb.getTriggersForRun(run, "DG1");
 	} else {
 		std::cout << "No run " << run << " in trigger DB - storing zeros" << std::endl;
-		result.eventsL0 = 0;
-		result.eventsG1 = 0;
+		result.eventsEL0 = 0;
+		result.eventsEG1 = 0;
+		result.eventsDL0 = 0;
+		result.eventsDG1 = 0;
 	}
 
 	std::unique_ptr<TFile> outputfile(TFile::Open("triggermask.root", "RECREATE"));
 	TTree *outputtree = new TTree("triggermask", "Tree with trigger mask");
-	outputtree->Branch("triggermask", &result, "runnumber/I:year:eventsL0:eventsG1:nmaskL0ALL:nmaskL0EMCAL:nmaskL0DCAL:nmaskL1ALL:nmaskL1EMCAL:nmaskL1DCAL:period/C");
+	outputtree->Branch("triggermask", &result, "runnumber/I:year:eventsEL0:eventsEG1:eventsDL0:eventsDG1:nmaskL0ALL:nmaskL0EMCAL:nmaskL0DCAL:nmaskL1ALL:nmaskL1EMCAL:nmaskL1DCAL:period/C");
 	outputtree->Fill();
 	outputtree->Print();
 	outputtree->Write();
