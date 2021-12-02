@@ -34,9 +34,8 @@ public:
 		else mData=tmp;
 	}
 
-	void buildForYear(int year) {
+    void readLists(std::string csvdir, int year) {
 		int yeartag = year % 100;
-		std::string csvdir = Form("%s/RawEventCounts", gSystem->Getenv("SUBSTRUCTURE_ROOT"));
 		std::vector<std::string> filenames;
 		auto filestring = gSystem->GetFromPipe(Form("ls -1 %s | grep LHC%d | grep -v bad", csvdir.data(), yeartag));
 		std::unique_ptr<TObjArray> tokened(filestring.Tokenize("\n"));
@@ -50,6 +49,15 @@ public:
 			std::cout << "Reading " << path << std::endl;
 			addFile(path, period);
 		}
+
+    }
+
+	void buildForYear(int year) {
+        readLists(Form("%s/RawEventCounts", gSystem->Getenv("SUBSTRUCTURE_ROOT")), year);
+        if(year == 2016) {
+            // reading also pPb runs for 2016
+            readLists(Form("%s/RawEventCountspPb", gSystem->Getenv("SUBSTRUCTURE_ROOT")), year);
+        }
 	}
 
 private:

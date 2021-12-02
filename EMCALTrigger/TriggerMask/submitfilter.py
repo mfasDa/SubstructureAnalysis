@@ -17,8 +17,10 @@ def getNumberOfRuns(filename):
         reader.close()
     return nruns
 
-def find_lists(repo: str):
-    return sorted([os.path.join(repo, "RawEventCounts", x) for x in os.listdir(os.path.join(repo, "RawEventCounts")) if "LHC" in x and not "bad" in x])
+def find_lists(repo: str, dopPb: bool) -> list:
+    runlists = "RawEventCountspPb" if dopPb else "RawEventCounts"
+    runlistdir = os.path.join(repo, runlists)
+    return sorted([os.path.join(runlistdir, x) for x in os.listdir(runlistdir) if "LHC" in x and not "bad" in x])
 
 def create_job(repo: str, outputbase: str, runsfile: str, partition: str) -> tuple:
     nruns = getNumberOfRuns(runsfile)
@@ -56,6 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("outputdir", metavar="OUTPUTDIR", type=str, help="Output directory")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="short", help="Partition (default: short)")
     parser.add_argument("-d", "--debug", action="store_true", help="Run in debug mode")
+    parser.add_argument("--pPb", action="store_true", help="Running over p-Pb 8 TeV runs")
     args = parser.parse_args()
     debugmode = args.debug
     loglevel = logging.INFO
@@ -68,7 +71,7 @@ if __name__ == "__main__":
         logging.error("Substructure repository not initialized")
         sys.exit(1)
 
-    for period in find_lists(repo):
+    for period in find_lists(repo, args.pPb):
         periodfile = os.path.basename(period)
         periodname = periodfile[:periodfile.find(".csv")]
         logging.info("Submitting for period: ")
