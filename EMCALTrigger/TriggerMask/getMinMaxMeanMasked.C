@@ -149,15 +149,15 @@ void getMinMaxMeanMasked(const char *filename) {
          trendMaskL0AllAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL0ALL()),
          trendMaskL0EMCALAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL0EMCAL()),
          trendMaskL0DCALAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL0DCAL()),
-         trendMaskL1AllAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL0ALL()),
-         trendMaskL1EMCALAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL0EMCAL()),
-         trendMaskL1DCALAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL0DCAL()),
+         trendMaskL1AllAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL1ALL()),
+         trendMaskL1EMCALAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL1EMCAL()),
+         trendMaskL1DCALAbsAll = extframe.Graph(branchhandler.runnumber(), branchhandler.nmaskL1DCAL()),
          trendMaskL0AllRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0ALL()),
          trendMaskL0EMCALRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0EMCAL()),
          trendMaskL0DCALRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0DCAL()),
-         trendMaskL1AllRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0ALL()),
-         trendMaskL1EMCALRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0EMCAL()),
-         trendMaskL1DCALRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0DCAL());
+         trendMaskL1AllRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL1ALL()),
+         trendMaskL1EMCALRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL1EMCAL()),
+         trendMaskL1DCALRelAll = extframe.Graph(branchhandler.runnumber(), branchhandler.fracmaskL1DCAL());
 
 	auto runsfulldcalmasked = extframe.Filter(larger(branchhandler.nmaskL0ALL(), 0)).Filter(smaller(branchhandler.nmaskL1DCAL(), NFASTORDCAL));
 
@@ -183,15 +183,15 @@ void getMinMaxMeanMasked(const char *filename) {
          trendMaskL0AllAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL0ALL()),
          trendMaskL0EMCALAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL0EMCAL()),
          trendMaskL0DCALAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL0DCAL()),
-         trendMaskL1AllAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL0ALL()),
-         trendMaskL1EMCALAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL0EMCAL()),
-         trendMaskL1DCALAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL0DCAL()),
+         trendMaskL1AllAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL1ALL()),
+         trendMaskL1EMCALAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL1EMCAL()),
+         trendMaskL1DCALAbsFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.nmaskL1DCAL()),
          trendMaskL0AllRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0ALL()),
          trendMaskL0EMCALRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0EMCAL()),
          trendMaskL0DCALRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0DCAL()),
-         trendMaskL1AllRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0ALL()),
-         trendMaskL1EMCALRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0EMCAL()),
-         trendMaskL1DCALRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL0DCAL());
+         trendMaskL1AllRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL1ALL()),
+         trendMaskL1EMCALRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL1EMCAL()),
+         trendMaskL1DCALRelFilter = extrunsfulldcalmasked.Graph(branchhandler.runnumber(), branchhandler.fracmaskL1DCAL());
 
 	double minAL0 = double(*extrunsfulldcalmasked.Min(branchhandler.fracmaskL0ALL())) * 100.,
 		   minEL0 = double(*extrunsfulldcalmasked.Min(branchhandler.fracmaskL0EMCAL())) * 100.,
@@ -211,14 +211,14 @@ void getMinMaxMeanMasked(const char *filename) {
     // fractions of masked channels and events
     auto colEvEL0 = extrunsfulldcalmasked.Take<double>(branchhandler.fracEventsEL0Filter()),
          colEvDL0 = extrunsfulldcalmasked.Take<double>(branchhandler.fracEventsDL0Filter()),
-         colEvEG1 = extrunsfulldcalmasked.Take<double>(branchhandler.fracEventsEL0Filter()),
-         colEvDG1 = extrunsfulldcalmasked.Take<double>(branchhandler.fracEventsDL0Filter());
+         colEvEG1 = extrunsfulldcalmasked.Take<double>(branchhandler.fracEventsEG1Filter()),
+         colEvDG1 = extrunsfulldcalmasked.Take<double>(branchhandler.fracEventsDG1Filter());
     auto fracMaskedL0All = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL0ALL()),
          fracMaskedL0EMCAL = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL0EMCAL()),
          fracMaskedL0DCAL = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL0DCAL()),
-         fracMaskedL1All = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL0ALL()),
-         fracMaskedL1EMCAL = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL0EMCAL()),
-         fracMaskedL1DCAL = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL0DCAL());
+         fracMaskedL1All = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL1ALL()),
+         fracMaskedL1EMCAL = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL1EMCAL()),
+         fracMaskedL1DCAL = extrunsfulldcalmasked.Take<double>(branchhandler.fracmaskL1DCAL());
 
     double meanAL0 = TMath::Mean(fracMaskedL0All.begin(), fracMaskedL0All.end(), colEvEL0.begin()) * 100.,
            meanEL0 = TMath::Mean(fracMaskedL0EMCAL.begin(), fracMaskedL0EMCAL.end(), colEvEL0.begin()) * 100.,
