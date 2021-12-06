@@ -11,8 +11,22 @@
 #include "../../../struct/GraphicsPad.cxx"
 #include "../../../struct/Ratio.cxx"
 
-void MCClosureTest1D_SpectrumTask(const std::string_view inputfile) {
-    std::vector<std::string> spectra = {"partclosure"};
+void MCClosureTest1D_SpectrumTask(const std::string_view inputfile, bool correctEffPure = false) {
+    std::string refspectrum;
+    if(correctEffPure) {
+        // Correction for efficiency and purity: Must compare
+        // to fully efficient truth (including part. jets not matched
+        // to det. jets)
+        refspectrum = "partallclosure";
+    }
+    else {
+        // No correction for efficiency and purity: must
+        // compare to particle level spectrum only including
+        // part. jets matched with det. jets (from projecting
+        // the response matrix)
+        refspectrum = "partclosure";
+    } 
+    std::vector<std::string> spectra = {refspectrum};
     for(auto i : ROOT::TSeqI(1,11)) spectra.push_back(Form("unfoldedClosure_reg%d", i));
     auto data = JetSpectrumReader(inputfile, spectra);
     auto jetradii = data.GetJetSpectra().GetJetRadii();
@@ -29,7 +43,7 @@ void MCClosureTest1D_SpectrumTask(const std::string_view inputfile) {
     for(auto rvalue : jetradii){
         std::string rstring(Form("R%02d", int(rvalue*10.)));
         
-        auto *htruth = data.GetJetSpectrum(rvalue, "partclosure");
+        auto *htruth = data.GetJetSpectrum(rvalue, refspectrum);
         htruth->Scale(1., "width");
 
         plot->cd(1+currentcol);
