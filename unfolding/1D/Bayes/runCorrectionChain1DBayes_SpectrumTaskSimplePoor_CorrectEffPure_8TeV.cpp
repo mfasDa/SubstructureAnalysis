@@ -42,6 +42,15 @@ private:
     TH1 *fHistogram;
 };
 
+struct SpectrumAndNorm {
+    TH1 *fSpectrum;
+    double fEventCount;
+    double fEventCountAbsolute;
+    double fVertexFindingEfficiency;
+
+    double getNorm() const { return fEventCount / fVertexFindingEfficiency; }
+};
+
 struct unfoldingResults {
     int fReg;
     TH1 *fUnfolded;
@@ -67,6 +76,7 @@ struct UnfoldingConfiguration {
     RooUnfoldResponse *fResponseMatrix;
     TH1 *fDetLevelClosure;
     RooUnfoldResponse *fResponseMatrixClosure;
+    TH1 *fJetFindingEffClosure;
 };
 
 class UnfoldingPool {
@@ -141,9 +151,12 @@ class UnfoldingRunner {
             auto specunfoldedClosure = static_cast<TH1 *>(specunfoldedClosureNoEff->Clone());
             specunfoldedClosure->SetDirectory(nullptr);
             specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
-            specunfoldedClosure->Divide(config.fJetFindingEff);
-          
-            return {config.fReg, specunfolded, specnormalized, backfolded, specunfoldedClosure, nullptr, nullptr,
+            if(config.fJetFindingEffClosure)
+                specunfoldedClosure->Divide(config.fJetFindingEffClosure);
+            else
+                specunfoldedClosure->Divide(config.fJetFindingEff);
+
+            return {config.fReg, specunfolded, specnormalizedNoEff, specnormalized, backfolded, specunfoldedClosureNoEff, specunfoldedClosure, nullptr, nullptr,
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
                     CorrelationHist1D(unfolderClosure.Ereco(), Form("PearsonClosureReg%d", config.fReg), Form("Pearson coefficients of the closure test regularization %d", config.fReg))};
         }
@@ -152,14 +165,20 @@ class UnfoldingRunner {
         UnfoldingPool                   *fInputData;
 };
 
-std::pair<double, TH1 *> getClustersAndNorm(TFile &reader, double R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
+TH1 *makeRebinnedSafe(const TH1 *input, const char *newname, const std::vector<double> binning) {
+    std::unique_ptr<TH1> rebinhelper(histcopy(input));
+    auto rebinned = rebinhelper->Rebin(binning.size()-1, newname, binning.data());
+    return rebinned;
+}
+
+SpectrumAndNorm getClustersAndNorm(TFile &reader, int R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
     int clusterbin = 0;
     if(triggercluster == "ANY") clusterbin = 1;
     else if(triggercluster == "CENT") clusterbin = 2;
     else if(triggercluster == "CENTNOTRD") clusterbin = 3;
     std::stringstream dirnamebuilder, histnamebuilder;
-    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger;
-    histnamebuilder << "Clusters_FullJets_R" <<  std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger;
+    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << R << "_" << trigger;
+    histnamebuilder << "Clusters_FullJets_R" <<  std::setw(2) << std::setfill('0') << R << "_" << trigger;
     if(sysvar.length()) {
         dirnamebuilder << "_" << sysvar;
         histnamebuilder << "_" << sysvar;
@@ -173,22 +192,24 @@ std::pair<double, TH1 *> getClustersAndNorm(TFile &reader, double R, const std::
     // calculate norm
     auto hnorm = static_cast<TH1 *>(histos->FindObject("hClusterCounterAbs"));
     auto norm = hnorm->GetBinContent(clusterbin);
-    // calculate bin0 correction
+    // Get absolute eventCounts
+    auto heventcounts = static_cast<TH1 *>(histos->FindObject("hClusterCounterAbs"));
+    auto eventcounts = heventcounts->GetBinContent(clusterbin);
+    // calculate vertex finding efficiency
     auto evhist = static_cast<TH1 *>(histos->FindObject("fNormalisationHist")); // take the one from the AliAnalysisTaskEmcal directly
-    auto bin0correction = evhist->GetBinContent(evhist->GetXaxis()->FindBin("Event selection")) / evhist->GetBinContent(evhist->GetXaxis()->FindBin("Vertex reconstruction and quality"));
-    norm *= bin0correction;
-
-    return {norm, rawclusters};
+    auto vertexfindingeff = evhist->GetBinContent(evhist->GetXaxis()->FindBin("Vertex reconstruction and quality")) / evhist->GetBinContent(evhist->GetXaxis()->FindBin("Event selection"));
+    SpectrumAndNorm result{rawclusters, norm, eventcounts, vertexfindingeff};
+    return result;
 }
 
-std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, double R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
+SpectrumAndNorm getSpectrumAndNorm(TFile &reader, int R, const std::string_view trigger, const std::string_view triggercluster, const std::string_view sysvar) {
     int clusterbin = 0;
     if(triggercluster == "ANY") clusterbin = 1;
     else if(triggercluster == "CENT") clusterbin = 2;
     else if(triggercluster == "CENTNOTRD") clusterbin = 3;
     std::stringstream dirnamebuilder, histnamebuilder;
-    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger;
-    histnamebuilder << "RawJetSpectrum_FullJets_R" <<  std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger << "_" << triggercluster;
+    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << R << "_" << trigger;
+    histnamebuilder << "RawJetSpectrum_FullJets_R" <<  std::setw(2) << std::setfill('0') << R << "_" << trigger << "_" << triggercluster;
     if(sysvar.length()) {
         dirnamebuilder << "_" << sysvar;
         histnamebuilder << "_" << sysvar;
@@ -202,15 +223,17 @@ std::pair<double, TH1 *> getSpectrumAndNorm(TFile &reader, double R, const std::
     // calculate norm
     auto hnorm = static_cast<TH1 *>(histos->FindObject("hClusterCounterAbs"));
     auto norm = hnorm->GetBinContent(clusterbin);
-    // calculate bin0 correction
+    // Get absolute eventCounts
+    auto heventcounts = static_cast<TH1 *>(histos->FindObject("hClusterCounterAbs"));
+    auto eventcounts = heventcounts->GetBinContent(clusterbin);
+    // calculate vertex finding efficiency
     auto evhist = static_cast<TH1 *>(histos->FindObject("fNormalisationHist")); // take the one from the AliAnalysisTaskEmcal directly
-    auto bin0correction = evhist->GetBinContent(evhist->GetXaxis()->FindBin("Event selection")) / evhist->GetBinContent(evhist->GetXaxis()->FindBin("Vertex reconstruction and quality"));
-    norm *= bin0correction;
-
-    return {norm, rawspectrum};
+    auto vertexfindingeff = evhist->GetBinContent(evhist->GetXaxis()->FindBin("Vertex reconstruction and quality")) / evhist->GetBinContent(evhist->GetXaxis()->FindBin("Event selection"));
+    SpectrumAndNorm result{rawspectrum, norm, eventcounts, vertexfindingeff};
+    return result;
 }
 
-TH2 *getResponseMatrix(TFile &reader, double R, const std::string_view sysvar, int closurestatus = 0) {
+TH2 *getResponseMatrix(TFile &reader, int R, const std::string_view sysvar, int closurestatus = 0) {
     std::string closuretag;
     switch(closurestatus) {
     case 0: break;
@@ -222,13 +245,13 @@ TH2 *getResponseMatrix(TFile &reader, double R, const std::string_view sysvar, i
     responsematrixname << responsematrixbase;
     if(closuretag.length()) responsematrixname <<  closuretag;
     std::stringstream dirnamebuilder;
-    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_INT7";
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
     if(sysvar.length()) dirnamebuilder << "_" << sysvar;
     reader.cd(dirnamebuilder.str().data());
     auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
     auto rawresponse = static_cast<TH2 *>(histlist->FindObject(responsematrixname.str().data()));
     rawresponse->SetDirectory(nullptr);
-    rawresponse->SetNameTitle(Form("Rawresponse_R%02d", int(R*10.)), Form("Raw response R=%.1f", R));
+    rawresponse->SetNameTitle(Form("Rawresponse_R%02d", R), Form("Raw response R=%.1f", double(R)/10.));
     return rawresponse;
 }
 
@@ -253,9 +276,20 @@ double getCENTNOTRDCorrection(TFile &reader, const std::string_view sysvar){
     return hnorm->GetBinContent(3)/hnorm->GetBinContent(2);
 }
 
-std::pair<double, TH1 *> makeRejectionFactor(TH1 *histhigh, TH1 *histlow, double R, const std::string_view triggerlow, const std::string_view triggerhigh, const std::string_view sysvar, double triggerswap){
+TH1 *makeEventCounterHistogram(const char *name, const char *title, double countEJE, double countEMC7, double countINT7) {
+    auto eventCount = new TH1F(name, title, 3, 0., 3);
+    eventCount->GetXaxis()->SetBinLabel(1, "INT7");
+    eventCount->GetXaxis()->SetBinLabel(2, "EMC7");
+    eventCount->GetXaxis()->SetBinLabel(3, "EJE");
+    eventCount->SetBinContent(1, countINT7);
+    eventCount->SetBinContent(2, countEMC7);
+    eventCount->SetBinContent(3, countEJE);
+    return eventCount;
+}
+
+std::pair<double, TH1 *> makeRejectionFactor(TH1 *histhigh, TH1 *histlow, int R, const std::string_view triggerlow, const std::string_view triggerhigh, const std::string_view sysvar, double triggerswap){
     auto rfac = histcopy(histhigh);
-    rfac->SetNameTitle(Form("RejecionFactor_%s/%s_R%02d", triggerhigh.data(), triggerlow.data(), int(R * 10.)), Form("Rejection Factor for %s/%s for R=%.1f", triggerhigh.data(), triggerlow.data(), R));
+    rfac->SetNameTitle(Form("RejectionFactor_%s_%s_R%02d", triggerhigh.data(), triggerlow.data(), R), Form("Rejection Factor for %s/%s for R=%.1f", triggerhigh.data(), triggerlow.data(), double(R)/10.));
     rfac->SetDirectory(nullptr);
     rfac->Divide(histhigh, histlow, 1., 1.);
 
@@ -267,19 +301,30 @@ std::pair<double, TH1 *> makeRejectionFactor(TH1 *histhigh, TH1 *histlow, double
     return {fit, rfac};
 }
 
-TH1 *makeTriggerEfficiency(TFile &mcreader, double R, const std::string_view trigger, const std::string_view sysvar){
-    std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).second),
-                         trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).second);
-    auto eff = histcopy(trgspec.get());
-    eff->SetNameTitle(Form("TriggerEfficiency_%s_R%02d", trigger.data(), int(R * 10.)), Form("Trigger efficiency for %s for R=%.1f", trigger.data(), R));
+TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar, const std::vector<double> *binning = nullptr){
+    std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).fSpectrum),
+                         trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).fSpectrum);
+    TH1 *eff = nullptr,
+        *numerator = trgspec.get(),
+        *denominator = mbref.get();
+    std::string histname = Form("TriggerEfficiency_%s_R%02d", trigger.data(), R),
+                histtitle = Form("Trigger efficiency for %s for R=%.1f", trigger.data(), double(R)/10.);
+    if(binning) {
+        // Make rebin on clone, to be on the safe side as the rebin function is not marked const
+        std::unique_ptr<TH1> triggeredRebinned(makeRebinnedSafe(trgspec.get(),Form("%s_rebinned", trgspec->GetName()), *binning));
+        std::unique_ptr<TH1> minbiasRebinned(makeRebinnedSafe(mbref.get(), Form("%s_rebinned", mbref->GetName()), *binning));
+        eff = histcopy(triggeredRebinned.get());
+        eff->Divide(triggeredRebinned.get(), minbiasRebinned.get(), 1., 1., "b");
+        histname += "_rebinned";
+        histtitle += " (rebinned)";
+    } else {
+        eff = histcopy(trgspec.get());
+        eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
+        histname += "_orig";
+        histtitle += " (original)";
+    }
+    eff->SetNameTitle(histname.data(), histtitle.data());
     eff->SetDirectory(nullptr);
-    eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
-    eff->Fit("pol0","EQ","Same",250,350);
-    auto fitResult = eff->GetFunction("pol0");
-    auto fit = fitResult->GetParameter(0);
-    auto fitError = fitResult->GetParError(0);
-    fitResult->SetLineColor(kBlue+2);
-    eff->Scale(1./fit);
     return eff;
 }
 
@@ -299,30 +344,75 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &emc7, double emc7swap, co
     return combined;
 }
 
-std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, std::string_view sysvar, std::vector<double> binningpart, std::vector<double> binningdet) {
+TH1* getFullyEfficientTruth(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, bool noclosure) {
     std::stringstream dirnamebuilder;
     dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
     if(sysvar.length()) dirnamebuilder << "_" << sysvar;
     reader.cd(dirnamebuilder.str().data());
     auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
-    auto raweff = static_cast<TH2 *>(histlist->FindObject("hJetfindingEfficiencyCore")),
-         rawpure = static_cast<TH2 *>(histlist->FindObject("hPurityDet"));
+    std::stringstream inputname;
+    inputname << "hJetSpectrumPartAll";
+    if(noclosure)
+        inputname << "NoClosure";
+    auto spectrum = static_cast<TH1 *>(histlist->FindObject(inputname.str().data()));
+    if(spectrum) {
+        std::stringstream outname, outtitle;
+        outname << "hTruthFullyEfficient_R" << std::setw(2) << std::setfill('0') << R;
+        outtitle << "Fully efficient true spectrum for R=" << std::setprecision(2) << double(R)/10.;
+        if(noclosure) {
+            outname << "_Closure";
+            outtitle << " (for closure test)";
+        }
+        auto rebinned = spectrum->Rebin(binningpart.size()-1, outname.str().data(), binningpart.data());
+        rebinned->SetDirectory(nullptr);
+        rebinned->SetTitle(outtitle.str().data());
+        return rebinned;
+    }
+    return nullptr;
+}
 
-    std::unique_ptr<TH1> effall(raweff->ProjectionX("effall")),
-                         efftag(raweff->ProjectionX("efftag", 3 ,3)),
-                         pureall(rawpure->ProjectionX("pureall")),
-                         puretag(rawpure->ProjectionX("puretag", 3, 3)),
-                         effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data())),
-                         pureAllRebinned(pureall->Rebin(binningdet.size()-1, "pureAllRebin", binningdet.data()));
-    auto jetfindingeff = efftag->Rebin(binningpart.size()-1, Form("hJetfindingEfficiency_R%02d", R), binningpart.data()),
-         jetfindingpure = puretag->Rebin(binningdet.size()-1, Form("hJetfindingPurity_R%02d", R), binningdet.data());
-    jetfindingeff->SetDirectory(nullptr);
-    jetfindingeff->Divide(jetfindingeff, effAllRebinned.get(), 1., 1., "b");
-    jetfindingeff->SetTitle(Form("Jet finding efficiency for R = %.1f", double(R)/10.));
-    jetfindingpure->SetDirectory(nullptr);
-    jetfindingpure->Divide(jetfindingpure, pureAllRebinned.get(), 1., 1., "b");
-    jetfindingpure->SetTitle(Form("Jet finding purity for R = %.1f", double(R)/10.));
-    return {{"efficiency", jetfindingeff}, {"purity", jetfindingpure}};
+std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, const std::vector<double> binningdet, bool closure) {
+    std::stringstream dirnamebuilder;
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
+    reader.cd(dirnamebuilder.str().data());
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    std::stringstream inputeffname, inputpurename;
+    inputeffname << "hJetfindingEfficiencyCore";
+    inputpurename << "hPurityDet";
+    if(closure) {
+        inputeffname << "Closure";
+        inputpurename << "Closure";
+    }
+    TH2 *raweff = static_cast<TH2 *>(histlist->FindObject(inputeffname.str().data())),
+        *rawpure = static_cast<TH2 *>(histlist->FindObject(inputpurename.str().data()));
+
+    if(raweff && rawpure) {
+        std::stringstream histnameefficiency, histnamepurity;
+        histnameefficiency << "hJetfindingEfficiency_R" << std::setw(2) << std::setfill('0') << R;
+        histnameefficiency << "hJetfindingPurity_R" << std::setw(2) << std::setfill('0') << R;
+        if(closure) {
+            histnameefficiency << "_closure";
+            histnamepurity << "_closure";
+        }
+        std::unique_ptr<TH1> effall(raweff->ProjectionX("effall")),
+                             efftag(raweff->ProjectionX("efftag", 3 ,3)),
+                             pureall(rawpure->ProjectionX("pureall")),
+                             puretag(rawpure->ProjectionX("puretag", 3, 3)),
+                             effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data())),
+                             pureAllRebinned(pureall->Rebin(binningdet.size()-1, "pureAllRebin", binningdet.data()));
+        auto jetfindingeff = efftag->Rebin(binningpart.size()-1, histnameefficiency.str().data(), binningpart.data()),
+             jetfindingpure = puretag->Rebin(binningdet.size()-1, histnamepurity.str().data(), binningdet.data());
+        jetfindingeff->SetDirectory(nullptr);
+        jetfindingeff->Divide(jetfindingeff, effAllRebinned.get(), 1., 1., "b");
+        jetfindingeff->SetTitle(Form("Jet finding efficiency for R = %.1f", double(R)/10.));
+        jetfindingpure->SetDirectory(nullptr);
+        jetfindingpure->Divide(jetfindingpure, pureAllRebinned.get(), 1., 1., "b");
+        jetfindingpure->SetTitle(Form("Jet finding purity for R = %.1f", double(R)/10.));
+        return {{"efficiency", jetfindingeff}, {"purity", jetfindingpure}};
+    }
+    // return empty map
+    return std::map<std::string, TH1 *>();
 }
 
 void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const std::string_view mbfile, const std::string_view emc7file, const std::string_view ejefile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
@@ -333,12 +423,16 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
     if(sysvar.length()) {
         outputfile << "_" << sysvar;
     }
+    if(radiusSel > 0) {
+        outputfile << "_R" << std::setfill('0') << std::setw(2) << radiusSel;
+    }
     outputfile << ".root";
     std::unique_ptr<TFile> mbreader(TFile::Open(mbfile.data(), "READ")),
                            emc7reader(TFile::Open(emc7file.data(), "READ")),
                            ejereader(TFile::Open(ejefile.data(), "READ")),
                            mcreader(TFile::Open(mcfile.data(), "READ")),
                            writer(TFile::Open(outputfile.str().data(), "RECREATE"));
+
     auto binningpart = getJetPtBinningNonLinTruePoor(),
          binningdet  = getJetPtBinningNonLinSmearPoor(),
          binningrffine   = getJetPtBinningRejectionFactorsFine(),
@@ -348,45 +442,56 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
     //auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
 
     double crosssection = 55.8;
-    for(double radius = 0.2; radius <= 0.6; radius += 0.1) {
-        int R = int(radius*10.);
+
+    for(auto R : ROOT::TSeqI(2, 7)) {
+        double radius = double(R) / 10.;
+        if(radiusSel > 0 && R != radiusSel) {
+            continue;
+        }
         std::cout << "Doing jet radius " << radius << std::endl;
-        auto mbspectrum   = getSpectrumAndNorm(*mbreader, radius, "INT7", "ANY", sysvar),
-             emc7spectrum = getSpectrumAndNorm(*emc7reader, radius, "EMC7", "ANY", sysvar),
-             ejespectrum  = getSpectrumAndNorm(*ejereader, radius, "EJE", "ANY", sysvar);
-        auto trgeffemc7   = makeTriggerEfficiency(*mcreader, radius, "EMC7", sysvar),
-             trgeffeje    = makeTriggerEfficiency(*mcreader, radius, "EJE", sysvar);
-        auto mbclusters   = getClustersAndNorm(*mbreader, radius, "INT7", "ANY", sysvar),
-             emc7clusters = getClustersAndNorm(*emc7reader, radius, "EMC7", "ANY", sysvar),
-             ejeclusters  = getClustersAndNorm(*ejereader, radius, "EJE", "ANY", sysvar);
+        auto mbspectrum   = getSpectrumAndNorm(*mbreader, R, "INT7", "ANY", sysvar),
+             emc7spectrum = getSpectrumAndNorm(*emc7reader, R, "EMC7", "ANY", sysvar),
+             ejespectrum  = getSpectrumAndNorm(*ejereader, R, "EJE", "ANY", sysvar);
+        auto trgeffemc7   = makeTriggerEfficiency(*mcreader, R, "EMC7", sysvar),
+             trgeffeje    = makeTriggerEfficiency(*mcreader, R, "EJE", sysvar),
+             rebinnedTriggerEffEMC7 = makeTriggerEfficiency(*mcreader, R, "EMC7", sysvar, &binningdet),
+             rebinnedTriggerEffEJE  = makeTriggerEfficiency(*mcreader, R, "EJE", sysvar, &binningdet);
+        auto mbclusters   = getClustersAndNorm(*mbreader, R, "INT7", "ANY", sysvar),
+             emc7clusters = getClustersAndNorm(*emc7reader, R, "EMC7", "ANY", sysvar),
+             ejeclusters  = getClustersAndNorm(*ejereader, R, "EJE", "ANY", sysvar);
 
         // Not necessary for 8TeV since trigger cluster "ANY" is used for all triggers
         // apply CENTNOTRD correction
         //ej1spectrum.second->Scale(1./centnotrdcorrection);
 
+        // Uncorrected rebinned Spectra (for monitoring)
+        TH1 *mbrebinnedUncorrected = makeRebinnedSafe(mbspectrum.fSpectrum, "mbrebinnedUncorrected", binningdet),
+            *emc7rebinnedUncorrected = makeRebinnedSafe(emc7spectrum.fSpectrum, "emc7rebinnedUncorrected", binningdet),
+            *ejerebinnedUncorrected  = makeRebinnedSafe(ejespectrum.fSpectrum, "ejerebinnedUncorrected", binningdet);
+
         // Correct for the trigger efficiency
-        emc7spectrum.second->Divide(trgeffemc7);
-        ejespectrum.second->Divide(trgeffeje);
+        emc7spectrum.fSpectrum->Divide(trgeffemc7);
+        ejespectrum.fSpectrum->Divide(trgeffeje);
 
         // Scale by number of events for each trigger
-        mbspectrum.second->Scale(1/mbspectrum.first);
-        emc7spectrum.second->Scale(1/emc7spectrum.first);
-        ejespectrum.second->Scale(1/ejespectrum.first);
+        mbspectrum.fSpectrum->Scale(1/mbspectrum.getNorm());
+        emc7spectrum.fSpectrum->Scale(1/emc7spectrum.getNorm());
+        ejespectrum.fSpectrum->Scale(1/ejespectrum.getNorm());
 
-        mbclusters.second->Scale(1/mbclusters.first);
-        emc7clusters.second->Scale(1/emc7clusters.first);
-        ejeclusters.second->Scale(1/ejeclusters.first);
+        mbclusters.fSpectrum->Scale(1/mbclusters.getNorm());
+        emc7clusters.fSpectrum->Scale(1/emc7clusters.getNorm());
+        ejeclusters.fSpectrum->Scale(1/ejeclusters.getNorm());
 
         // Rebin all raw level histograms
-        std::unique_ptr<TH1> mbrebinned(mbspectrum.second->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
-                             emc7rebinned(emc7spectrum.second->Rebin(binningdet.size()-1, "emc7rebinned", binningdet.data())),
-                             ejerebinned(ejespectrum.second->Rebin(binningdet.size()-1, "ejerebinned", binningdet.data()));
+        TH1 *mbrebinned(mbspectrum.fSpectrum->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
+            *emc7rebinned(emc7spectrum.fSpectrum->Rebin(binningdet.size()-1, "emc7rebinned", binningdet.data())),
+            *ejerebinned(ejespectrum.fSpectrum->Rebin(binningdet.size()-1, "ejerebinned", binningdet.data()));
 
         // Rebin cluster histos for rejection factors
-        auto mbrebinned_clusters          = mbclusters.second->Rebin(binningrfcourse.size()-1, "mbrebinned_scaled", binningrfcourse.data()),
-             emc7rebinned_clusters_course = emc7clusters.second->Rebin(binningrfcourse.size()-1, "emc7rebinned_scaled_course", binningrfcourse.data()),
-             emc7rebinned_clusters_fine   = emc7clusters.second->Rebin(binningrffine.size()-1, "emc7rebinned_scaled_fine", binningrffine.data()),
-             ejerebinned_clusters         = ejeclusters.second->Rebin(binningrffine.size()-1, "ejerebinned_scaled", binningrffine.data());
+        auto mbrebinned_clusters          = mbclusters.fSpectrum->Rebin(binningrfcourse.size()-1, "mbrebinned_scaled", binningrfcourse.data()),
+             emc7rebinned_clusters_course = emc7clusters.fSpectrum->Rebin(binningrfcourse.size()-1, "emc7rebinned_scaled_course", binningrfcourse.data()),
+             emc7rebinned_clusters_fine   = emc7clusters.fSpectrum->Rebin(binningrffine.size()-1, "emc7rebinned_scaled_fine", binningrffine.data()),
+             ejerebinned_clusters         = ejeclusters.fSpectrum->Rebin(binningrffine.size()-1, "ejerebinned_scaled", binningrffine.data());
 
         // Scale by bin width after rebin
         mbrebinned_clusters->Scale(1.,"width");
@@ -395,13 +500,13 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         ejerebinned_clusters->Scale(1.,"width");
 
         // Find the rejection factors
-        auto rfactoremc7  = makeRejectionFactor(emc7rebinned_clusters_course, mbrebinned_clusters, radius, "INT7", "EMC7", sysvar, 5.),
-             rfactoreje   = makeRejectionFactor(ejerebinned_clusters, emc7rebinned_clusters_fine, radius, "EMC7", "EJE", sysvar, 12.);
+        auto rfactoremc7  = makeRejectionFactor(emc7rebinned_clusters_course, mbrebinned_clusters, R, "INT7", "EMC7", sysvar, 5.),
+             rfactoreje   = makeRejectionFactor(ejerebinned_clusters, emc7rebinned_clusters_fine, R, "EMC7", "EJE", sysvar, 12.);
 
         // Correct for the rejection factors
-        emc7spectrum.second->Scale(1/rfactoremc7.first);
-        ejespectrum.second->Scale(1/rfactoremc7.first);
-        ejespectrum.second->Scale(1/rfactoreje.first);
+        emc7spectrum.fSpectrum->Scale(1/rfactoremc7.first);
+        ejespectrum.fSpectrum->Scale(1/rfactoremc7.first);
+        ejespectrum.fSpectrum->Scale(1/rfactoreje.first);
 
         emc7rebinned->Scale(1/rfactoremc7.first);
         ejerebinned->Scale(1/rfactoremc7.first);
@@ -411,11 +516,12 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *emc7rebinned, 50., *ejerebinned, 80.);
         hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
         hrawOrig->Scale(crosssection);
-        auto hrawOrig_fine = makeCombinedRawSpectrum(*mbspectrum.second, *emc7spectrum.second, 50., *ejespectrum.second, 80.);
+        auto hrawOrig_fine = makeCombinedRawSpectrum(*mbspectrum.fSpectrum, *emc7spectrum.fSpectrum, 50., *ejespectrum.fSpectrum, 80.);
         hrawOrig_fine->SetNameTitle(Form("hrawOrig_fine_R%02d", R), Form("Raw Level spectrum R=%.1f, fine binning, before purity correction", radius));
         hrawOrig_fine->Scale(crosssection);
 
-        auto effpure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet);
+        auto effpure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet, false),
+             effpureClosure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet, true);
 
         auto hraw = static_cast<TH1 *>(hrawOrig->Clone());
         hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
@@ -425,7 +531,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         //hraw_fine->Multiply(effpure["purity"]);
 
         // Get the response matrix
-        auto rawresponse = getResponseMatrix(*mcreader, radius, sysvar);
+        auto rawresponse = getResponseMatrix(*mcreader, R, sysvar);
         auto trials = getTrials(*mcreader, R, sysvar);
         auto mcscale = trials.getMaxTrials();
         rawresponse->SetName(Form("%s_fine", rawresponse->GetName()));
@@ -439,11 +545,12 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         auto effkine = truetmp->Rebin(binningpart.size()-1, Form("effKine_R%02d", R), binningpart.data());
         effkine->SetDirectory(nullptr);
         effkine->Divide(effkine, truefull, 1., 1., "b");
+        TH1 *truefullall = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, false);
 
         // split the response matrix for the closure test
-        auto responseclosure = getResponseMatrix(*mcreader, radius, sysvar, 1);
+        auto responseclosure = getResponseMatrix(*mcreader, R, sysvar, 1);
         responseclosure->SetName(Form("%s_fine", responseclosure->GetName()));
-        std::unique_ptr<TH2> truthclosure(getResponseMatrix(*mcreader, radius, sysvar, 2));
+        std::unique_ptr<TH2> truthclosure(getResponseMatrix(*mcreader, R, sysvar, 2));
         truthclosure->SetName("truthclosure");
         responseclosure->Scale(mcscale); // Used to be 15e6
         TH1 *priorsclosuretmp(responseclosure->ProjectionY()),
@@ -455,10 +562,15 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         auto detclosure = static_cast<TH1 *>(detclosureOrig->Clone(Form("detclosure_R%02d", R)));
         priorsclosure->SetDirectory(nullptr);
         detclosureOrig->SetDirectory(nullptr);
-        detclosure->Multiply(effpure["purity"]);
+        if(auto closurepure = effpureClosure.find("purity"); closurepure != effpureClosure.end()) {
+            detclosure->Multiply(closurepure->second);
+        } else {
+            detclosure->Multiply(effpure["purity"]);
+        }
         partclosure->SetDirectory(nullptr);
         auto rebinnedresponseclosure = makeRebinned2D(responseclosure, binningdet, binningpart);
         rebinnedresponseclosure->SetName(Form("%s_closure", rebinnedresponseclosure->GetName()));
+        TH1 *truefullclosure = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, true);
 
         RooUnfoldResponse responsematrix(nullptr, truefull, rebinnedresponse),
                           responsematrixClosure(nullptr, priorsclosure, rebinnedresponseclosure);
@@ -467,7 +579,8 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
 
         UnfoldingPool work;
         for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
-            work.InsertWork({ireg, radius, hraw, effpure["efficiency"], &responsematrix, detclosure, &responsematrixClosure});
+            auto jetFindingEffClosure = effpureClosure.find("efficiency");
+            work.InsertWork({ireg, radius, hraw, effpure["efficiency"], &responsematrix, detclosure, &responsematrixClosure, jetFindingEffClosure != effpureClosure.end() ? jetFindingEffClosure->second : nullptr});
         }
 
         std::set<unfoldingResults> unfolding_results;
@@ -495,15 +608,23 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         auto basedir = static_cast<TDirectory *>(gDirectory);
         basedir->mkdir("rawlevel");
         basedir->cd("rawlevel");
-        mbspectrum.second->Write();
-        emc7spectrum.second->Write();
-        ejespectrum.second->Write();
+        mbspectrum.fSpectrum->Write();
+        emc7spectrum.fSpectrum->Write();
+        ejespectrum.fSpectrum->Write();
+        mbrebinnedUncorrected->Write();
+        emc7rebinnedUncorrected->Write();
+        ejerebinnedUncorrected->Write();
+        mbrebinned->Write();
+        emc7rebinned->Write();
+        ejerebinned->Write();
         mbrebinned_clusters->Write();
         emc7rebinned_clusters_course->Write();
         emc7rebinned_clusters_fine->Write();
         ejerebinned_clusters->Write();
         trgeffemc7->Write();
         trgeffeje->Write();
+        rebinnedTriggerEffEMC7->Write();
+        rebinnedTriggerEffEJE->Write();
         rfactoremc7.second->Write();
         rfactoreje.second->Write();
         effpure["purity"]->Write();
@@ -514,12 +635,23 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         auto hnormINT7 = new TH1F("hNorm_INT7", "Norm - INT7", 1, 0.5, 1.5);
         auto hnormEMC7 = new TH1F("hNorm_EMC7", "Norm - EMC7", 1, 0.5, 1.5);
         auto hnormEJE = new TH1F("hNorm_EJE", "Norm - EJE", 1, 0.5, 1.5);
-        hnormINT7->SetBinContent(1, mbspectrum.first);
+        hnormINT7->SetBinContent(1, mbspectrum.getNorm());
         hnormINT7->Write();
-        hnormEMC7->SetBinContent(1, emc7spectrum.first);
+        hnormEMC7->SetBinContent(1, emc7spectrum.getNorm());
         hnormEMC7->Write();
-        hnormEJE->SetBinContent(1, ejespectrum.first);
+        hnormEJE->SetBinContent(1, ejespectrum.getNorm());
         hnormEJE->Write();
+        makeEventCounterHistogram("hEventCounterWeighted", "Weighted event counts", ejespectrum.fEventCount, emc7spectrum.fEventCount, mbspectrum.fEventCount)->Write();
+        makeEventCounterHistogram("hEventCounterAbs", "Absolute event counts", ejespectrum.fEventCountAbsolute, emc7spectrum.fEventCountAbsolute, mbspectrum.fEventCountAbsolute)->Write();
+        auto heffVtxINT7 = new TH1F("hVertexFindingEfficiencyINT7", "Vertex finding efficiency, Min Bias Dataset", 1, 0.5, 1.5);
+        heffVtxINT7->SetBinContent(1, mbspectrum.fVertexFindingEfficiency);
+        heffVtxINT7->Write();
+        auto heffVtxEMC7 = new TH1F("hVertexFindingEfficiencyEMC7", "Vertex finding efficiency, EMC7 Dataset", 1, 0.5, 1.5);
+        heffVtxEMC7->SetBinContent(1, emc7spectrum.fVertexFindingEfficiency);
+        heffVtxEMC7->Write();
+        auto heffVtxEJE = new TH1F("hVertexFindingEfficiencyEJE", "Vertex finding efficiency, EJE Dataset", 1, 0.5, 1.5);
+        heffVtxEJE->SetBinContent(1, ejespectrum.fVertexFindingEfficiency);
+        heffVtxEJE->Write();
 
         // Not necessary for 8TeV since trigger cluster "ANY" is used for all triggers
         //auto hcntcorr = new TH1F("hCENTNOTRDcorrection", "CENTNOTRD correction", 1, 0.5, 1.5);
@@ -535,6 +667,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         rawresponse->Write();
         rebinnedresponse->Write();
         truefull->Write();
+        if(truefullall) truefullall->Write("partall");
         effkine->Write();
         effpure["efficiency"]->Write();
         basedir->cd();
@@ -543,8 +676,11 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         priorsclosure->Write("priorsclosure");
         detclosure->Write("detclosure");
         partclosure->Write("partclosure");
+        if(truefullclosure) truefullclosure->Write("partallclosure");
         responseclosure->Write("responseClosureFine");
         rebinnedresponseclosure->Write("responseClosureRebinned");
+        if(auto jetFindingPurityClosure = effpureClosure.find("puriry"); jetFindingPurityClosure != effpureClosure.end()) jetFindingPurityClosure->second->Write();
+        if(auto jetFindingEfficiencyClosure = effpureClosure.find("efficiency"); jetFindingEfficiencyClosure != effpureClosure.end()) jetFindingEfficiencyClosure->second->Write();
         for(auto reg : unfolding_results){
             basedir->cd();
             basedir->mkdir(Form("reg%d", reg.fReg));
