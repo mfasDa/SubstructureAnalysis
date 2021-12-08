@@ -330,7 +330,7 @@ TH1* getFullyEfficientTruth(TFile &reader, int R, const std::string_view sysvar,
     return nullptr;
 }
 
-TH1 * makeJetFindingEfficiency(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, bool closure) {
+std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, const std::vector<double> binningdet, bool closure) {
     std::stringstream dirnamebuilder;
     dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
     if(sysvar.length()) dirnamebuilder << "_" << sysvar;
@@ -343,25 +343,35 @@ TH1 * makeJetFindingEfficiency(TFile &reader, int R, const std::string_view sysv
         inputeffname << "Closure";
         inputpurename << "Closure";
     } 
-    TH2 *raweff = static_cast<TH2 *>(histlist->FindObject(inputeffname.str().data()));
+    TH2 *raweff = static_cast<TH2 *>(histlist->FindObject(inputeffname.str().data())),
+        *rawpure = static_cast<TH2 *>(histlist->FindObject(inputpurename.str().data()));
 
-    if(raweff) {
-        std::stringstream histnameefficiency;
+    if(raweff && rawpure) {
+        std::stringstream histnameefficiency, histnamepurity;
         histnameefficiency << "hJetfindingEfficiency_R" << std::setw(2) << std::setfill('0') << R;
+        histnamepurity << "hJetfindingPurity_R" << std::setw(2) << std::setfill('0') << R;
         if(closure) {
             histnameefficiency << "_closure";
+            histnamepurity << "_closure";
         }
         std::unique_ptr<TH1> effall(raweff->ProjectionX("effall")),
                              efftag(raweff->ProjectionX("efftag", 3 ,3)),
-                             effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data()));
-        auto jetfindingeff = efftag->Rebin(binningpart.size()-1, histnameefficiency.str().data(), binningpart.data());
+                             pureall(rawpure->ProjectionX("pureall")),
+                             puretag(rawpure->ProjectionX("puretag", 3, 3)),
+                             effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data())),
+                             pureAllRebinned(pureall->Rebin(binningdet.size()-1, "pureAllRebin", binningdet.data()));
+        auto jetfindingeff = efftag->Rebin(binningpart.size()-1, histnameefficiency.str().data(), binningpart.data()),
+             jetfindingpure = puretag->Rebin(binningdet.size()-1, histnamepurity.str().data(), binningdet.data());
         jetfindingeff->SetDirectory(nullptr);
         jetfindingeff->Divide(jetfindingeff, effAllRebinned.get(), 1., 1., "b");
         jetfindingeff->SetTitle(Form("Jet finding efficiency for R = %.1f", double(R)/10.));
-        return jetfindingeff;
+        jetfindingpure->SetDirectory(nullptr);
+        jetfindingpure->Divide(jetfindingpure, pureAllRebinned.get(), 1., 1., "b");
+        jetfindingpure->SetTitle(Form("Jet finding purity for R = %.1f", double(R)/10.));
+        return {{"efficiency", jetfindingeff}, {"purity", jetfindingpure}};
     }
     // return empty map
-    return nullptr;
+    return std::map<std::string, TH1 *>();
 }
 
 void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
@@ -410,13 +420,17 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
         TH1 *mbrebinned(mbspectrum.fSpectrum->Rebin(binningdet.size()-1, "mbrebinned", binningdet.data())),
             *ej1rebinned(ej1spectrum.fSpectrum->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data())),
             *ej2rebinned(ej2spectrum.fSpectrum->Rebin(binningdet.size()-1, "ej1rebinned", binningdet.data()));
-        auto hraw = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
-        hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
-        hraw->Scale(crosssection/mbspectrum.getNorm());
+        auto hrawOrig = makeCombinedRawSpectrum(*mbrebinned, *ej2rebinned, 50., *ej1rebinned, 100.);
+        hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Raw Level spectrum R=%.1f, before purity correction", radius));
+        hrawOrig->Scale(crosssection/mbspectrum.getNorm());
 
         // Get jet finding efficiency
-        auto jetFindingEff = makeJetFindingEfficiency(*mcreader, R, sysvar, binningpart, false),
-             jetFindingEffClosure = makeJetFindingEfficiency(*mcreader, R, sysvar, binningpart, true);
+        auto effpure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet, false),
+             effpureClosure = makeJetFindingEffPure(*mcreader, R, sysvar, binningpart, binningdet, true); 
+
+        auto hraw = static_cast<TH1 *>(hrawOrig->Clone());
+        hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
+        hraw->Multiply(effpure["purity"]);
 
         // Get the response matrix
         auto rawresponse = getResponseMatrix(*mcreader, R, sysvar);
@@ -435,7 +449,6 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
         effkine->Divide(effkine, truefull, 1., 1., "b");
         TH1 *truefullall = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, false);
 
-
         // split the response matrix for the closure test
         auto responseclosure = getResponseMatrix(*mcreader, R, sysvar, 1);
         responseclosure->SetName(Form("%s_fine", responseclosure->GetName()));
@@ -446,10 +459,16 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
             *detclosuretmp(truthclosure->ProjectionX()),
             *partclosuretmp(truthclosure->ProjectionY());
         auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", R), binningpart.data()),
-             detclosure = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosure_R%02d", R), binningdet.data()),
+             detclosureOrig = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosureOrig_R%02d", R), binningdet.data()),
              partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", R), binningpart.data());
+        auto detclosure = static_cast<TH1 *>(detclosureOrig->Clone(Form("detclosure_R%02d", R)));
         priorsclosure->SetDirectory(nullptr);
-        detclosure->SetDirectory(nullptr);
+        detclosureOrig->SetDirectory(nullptr);
+        if(auto closurepure = effpureClosure.find("purity"); closurepure != effpureClosure.end()) {
+            detclosure->Multiply(closurepure->second);
+        } else {
+            detclosure->Multiply(effpure["purity"]);
+        }
         partclosure->SetDirectory(nullptr);
         auto rebinnedresponseclosure = makeRebinned2D(responseclosure, binningdet, binningpart);
         rebinnedresponseclosure->SetName(Form("%s_closure", rebinnedresponseclosure->GetName()));
@@ -462,7 +481,8 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
 
         UnfoldingPool work;
         for(auto ireg : ROOT::TSeqI(1, hraw->GetXaxis()->GetNbins())) {
-            work.InsertWork({ireg, radius, hraw, jetFindingEff, &responsematrix, detclosure, &responsematrixClosure, jetFindingEffClosure});
+            auto jetFindingEffClosure = effpureClosure.find("efficiency");
+            work.InsertWork({ireg, radius, hraw, effpure["efficiency"], &responsematrix, detclosure, &responsematrixClosure, jetFindingEffClosure != effpureClosure.end() ? jetFindingEffClosure->second : nullptr});
         }
 
         std::set<unfoldingResults> unfolding_results;
@@ -502,6 +522,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
         trgeffej2->Write();
         rebinnedTriggerEffEJ1->Write();
         rebinnedTriggerEffEJ2->Write();
+        effpure["purity"]->Write();
         hraw->Write();
         auto hnorm = new TH1F("hNorm", "Norm", 1, 0.5, 1.5);
         hnorm->SetBinContent(1, mbspectrum.getNorm());
@@ -524,7 +545,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
         truefull->Write();
         if(truefullall) truefullall->Write("partall");
         effkine->Write();
-        jetFindingEff->Write();
+        effpure["efficiency"]->Write();
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
         priorsclosure->Write("priorsclosure");
@@ -533,7 +554,8 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor(const std::string_view dat
         if(truefullclosure) truefullclosure->Write("partallclosure");
         responseclosure->Write("responseClosureFine");
         rebinnedresponseclosure->Write("responseClosureRebinned");
-        if(jetFindingEffClosure) jetFindingEffClosure->Write();
+        if(auto jetFindingPurityClosure = effpureClosure.find("puriry"); jetFindingPurityClosure != effpureClosure.end()) jetFindingPurityClosure->second->Write();
+        if(auto jetFindingEfficiencyClosure = effpureClosure.find("efficiency"); jetFindingEfficiencyClosure != effpureClosure.end()) jetFindingEfficiencyClosure->second->Write();
         for(auto reg : unfolding_results){
             basedir->mkdir(Form("reg%d", reg.fReg));
             basedir->cd(Form("reg%d", reg.fReg));

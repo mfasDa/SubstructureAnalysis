@@ -359,7 +359,7 @@ std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, const s
     if(raweff && rawpure) {
         std::stringstream histnameefficiency, histnamepurity;
         histnameefficiency << "hJetfindingEfficiency_R" << std::setw(2) << std::setfill('0') << R;
-        histnameefficiency << "hJetfindingPurity_R" << std::setw(2) << std::setfill('0') << R;
+        histnamepurity << "hJetfindingPurity_R" << std::setw(2) << std::setfill('0') << R;
         if(closure) {
             histnameefficiency << "_closure";
             histnamepurity << "_closure";
