@@ -155,10 +155,6 @@ class UnfoldingRunner {
                 specunfoldedClosure->Divide(config.fJetFindingEffClosure);
             else
                 specunfoldedClosure->Divide(config.fJetFindingEff);
-            auto specunfoldedClosure = unfolderClosure.Hreco(errorTreatment);
-            specunfoldedClosure->SetDirectory(nullptr);
-            specunfoldedClosure->SetNameTitle(Form("unfoldedClosure_reg%d", config.fReg), Form("Unfolded jet spectrum of the closure test R=%.1f reg %d", config.fRadius, config.fReg));
-            specunfoldedClosure->Scale(1., "width");
 
             return {config.fReg, specunfolded, specnormalizedNoEff, specnormalized, backfolded, specunfoldedClosureNoEff, specunfoldedClosure, nullptr, nullptr,
                     CorrelationHist1D(unfolder.Ereco(), Form("PearsonReg%d", config.fReg), Form("Pearson coefficients regularization %d", config.fReg)),
