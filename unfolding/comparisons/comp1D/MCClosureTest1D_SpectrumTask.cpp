@@ -27,12 +27,24 @@ void MCClosureTest1D_SpectrumTask(const std::string_view inputfile, bool correct
         refspectrum = "partclosure";
     } 
     std::vector<std::string> spectra = {refspectrum};
-    for(auto i : ROOT::TSeqI(1,11)) spectra.push_back(Form("unfoldedClosure_reg%d", i));
+    std::map<int, std::string> unfoldedspectra;
+    for(auto i : ROOT::TSeqI(1,11)){
+        std::string spectrumname;
+        if(correctEffPure){
+            // Full closure test with correction for the jet finding efficiency
+            spectrumname = Form("unfoldedClosure_reg%d", i);
+        } else {
+            // Closure test of the unfolding procedure only
+            spectrumname = Form("unfoldedClosureNoEff_reg%d", i);
+        }
+        spectra.push_back(spectrumname);
+        unfoldedspectra[i] = spectrumname;
+    } 
     auto data = JetSpectrumReader(inputfile, spectra);
     auto jetradii = data.GetJetSpectra().GetJetRadii();
     bool isSVD = (inputfile.find("SVD") != std::string::npos);
 
-    auto plot = new ROOT6tools::TSavableCanvas(Form("MCClosureTest1D%s", (isSVD ? "Svd" : "Bayes")), Form("Monte-Calro closure test (%s unfolding)", (isSVD ? "SVD" : "Bayes")), jetradii.size() * 300., 700.);
+    auto plot = new ROOT6tools::TSavableCanvas(Form("MCClosureTest1D%s%s", (isSVD ? "Svd" : "Bayes"), (correctEffPure ? "Full" : "Unfolding")), Form("Monte-Calro closure test (%s unfolding) - %s", (isSVD ? "SVD" : "Bayes"), (correctEffPure ? "Full" : "Unfolding")), jetradii.size() * 300., 700.);
     plot->Divide(jetradii.size(), 2);
 
     std::array<Color_t, 10> colors = {kRed, kBlue, kGreen, kViolet, kOrange, kTeal, kMagenta, kGray, kAzure, kCyan};
@@ -53,17 +65,20 @@ void MCClosureTest1D_SpectrumTask(const std::string_view inputfile, bool correct
         specpad.Frame(Form("specframe_%s", rstring.data()), "p_{t} (GeV/c)", "d#sigma/dp_{t} (mb/(GeV/c))", 0., 350., 1e-10, 10);
         specpad.FrameTextSize(0.045);
         specpad.Label(0.25, 0.15, 0.45, 0.22, Form("R = %.1f", rvalue));
-        if(!currentcol) specpad.Legend(0.65, 0.45, 0.94, 0.94);
+        if(!currentcol){
+            specpad.Legend(0.65, 0.45, 0.94, 0.94);
+            specpad.Label(0.55, 0.35, 0.94, 0.44, correctEffPure ? "Full closure" : "Unfolding-only");
+        } 
         specpad.Draw<TH1>(htruth, rawstyle, "true");
 
         plot->cd(1 + currentcol + jetradii.size());
         GraphicsPad ratiopad(gPad);
         ratiopad.Margins(0.17, 0.04, -1., 0.04);
-        ratiopad.Frame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Unfolded/true", 0., 350., 0.5, 1.5);
+        ratiopad.Frame(Form("ratioframe_%s", rstring.data()), "p_{t} (GeV/c)", "Corrected/true", 0., 350., 0.5, 1.5);
         ratiopad.FrameTextSize(0.045);
 
         for(auto ireg : ROOT::TSeqI(1, 11)){
-            auto unfolded = data.GetJetSpectrum(rvalue, Form("unfoldedClosure_reg%d", ireg));
+            auto unfolded = data.GetJetSpectrum(rvalue, unfoldedspectra[ireg]);
             Style varstyle{colors[ireg-1], markers[ireg-1]};
             specpad.Draw<>(unfolded, varstyle, Form("reg=%d", ireg));
             auto ratiotrue = new Ratio(unfolded, htruth);
