@@ -35,8 +35,8 @@ public:
     }
 
     void FrameOffsets(double offsetX, double offsetY) {
-        if(offsetX > 0.) mFrame->GetXaxis()->SetTitleOffset(offsetX); 
-        if(offsetY > 0.) mFrame->GetYaxis()->SetTitleOffset(offsetY); 
+        if(offsetX > 0.) mFrame->GetXaxis()->SetTitleOffset(offsetX);
+        if(offsetY > 0.) mFrame->GetYaxis()->SetTitleOffset(offsetY);
     }
 
     void Legend(double xmin, double ymin, double xmax, double ymax) {
@@ -51,12 +51,12 @@ public:
     }
 
     template<typename t>
-    void Draw(t *object, Style &obstyle, const std::string_view title = "") {
+    void Draw(t *object, Style &obstyle, const std::string_view title = "", const std::string_view option = "lep") {
         mPad->cd();
         obstyle.SetStyle<t>(*object);
         object->Draw("epsame");
         if(mLegend && title.length()){
-            mLegend->AddEntry(object, title.data(), "lep");
+            mLegend->AddEntry(object, title.data(), option.data());
         }
     }
 
