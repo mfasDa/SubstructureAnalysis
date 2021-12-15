@@ -31,6 +31,7 @@ if __name__ == "__main__":
     COMPREG           = "ComparisonRegularization_8TeV.cpp"
     SCRIPTS           = [COMPFOLD, CLOSURETEST, COMPREG]
 
+
     # Execute special scripts
     if os.path.exists(FILERESULT_Bayes) and os.path.exists(FILERESULT_SVD):
         cmd = "root -x -q -l -b \'%s(\"%s\", \"%s\", \"%s\", \"%s\")'" %(os.path.join(SCRIPTDIR, COMPBAYESSVD), FILERESULT_SVD, FILERESULT_Bayes, outputdir, filetype)
