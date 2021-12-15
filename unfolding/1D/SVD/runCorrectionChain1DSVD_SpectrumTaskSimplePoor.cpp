@@ -312,7 +312,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
     return combined;
 }
 
-TH1* getFullyEfficientTruth(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, bool noclosure) {
+TH1* getFullyEfficientTruth(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, int closurestatus) {
     std::stringstream dirnamebuilder;
     dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
     if(sysvar.length()) dirnamebuilder << "_" << sysvar;
@@ -320,15 +320,20 @@ TH1* getFullyEfficientTruth(TFile &reader, int R, const std::string_view sysvar,
     auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
     std::stringstream inputname;
     inputname << "hJetSpectrumPartAll";
-    if(noclosure)
+    if(closurestatus == 1)
         inputname << "NoClosure";
+    else if(closurestatus == 2)
+        inputname << "Closure";
     auto spectrum = static_cast<TH1 *>(histlist->FindObject(inputname.str().data()));
     if(spectrum) {
         std::stringstream outname, outtitle;
         outname << "hTruthFullyEfficient_R" << std::setw(2) << std::setfill('0') << R;
         outtitle << "Fully efficient true spectrum for R=" << std::setprecision(2) << double(R)/10.;
-        if(noclosure) {
+        if(closurestatus == 1) {
             outname << "_Closure";
+            outtitle << " (for closure test)";
+        } else if(closurestatus == 2) {
+            outname << "_ClosureSample";
             outtitle << " (for closure test)";
         }
         auto rebinned = spectrum->Rebin(binningpart.size()-1, outname.str().data(), binningpart.data());
@@ -338,41 +343,6 @@ TH1* getFullyEfficientTruth(TFile &reader, int R, const std::string_view sysvar,
     }
     return nullptr;
 }
-
-TH1 * makeJetFindingEfficiency(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binningpart, bool closure) {
-    std::stringstream dirnamebuilder;
-    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
-    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
-    reader.cd(dirnamebuilder.str().data());
-    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
-    std::stringstream inputeffname, inputpurename;
-    inputeffname << "hJetfindingEfficiencyCore";
-    inputpurename << "hPurityDet";
-    if(closure) {
-        inputeffname << "Closure";
-        inputpurename << "Closure";
-    } 
-    TH2 *raweff = static_cast<TH2 *>(histlist->FindObject(inputeffname.str().data()));
-
-    if(raweff) {
-        std::stringstream histnameefficiency;
-        histnameefficiency << "hJetfindingEfficiency_R" << std::setw(2) << std::setfill('0') << R;
-        if(closure) {
-            histnameefficiency << "_closure";
-        }
-        std::unique_ptr<TH1> effall(raweff->ProjectionX("effall")),
-                             efftag(raweff->ProjectionX("efftag", 3 ,3)),
-                             effAllRebinned(effall->Rebin(binningpart.size()-1, "effAllRebin", binningpart.data()));
-        auto jetfindingeff = efftag->Rebin(binningpart.size()-1, histnameefficiency.str().data(), binningpart.data());
-        jetfindingeff->SetDirectory(nullptr);
-        jetfindingeff->Divide(jetfindingeff, effAllRebinned.get(), 1., 1., "b");
-        jetfindingeff->SetTitle(Form("Jet finding efficiency for R = %.1f", double(R)/10.));
-        return jetfindingeff;
-    }
-    // return empty map
-    return nullptr;
-}
-
 
 void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
@@ -425,10 +395,6 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Raw Level spectrum R=%.1f", radius));
         hraw->Scale(crosssection/mbspectrum.getNorm());
 
-        // Get jet finding efficiency
-        auto jetFindingEff = makeJetFindingEfficiency(*mcreader, R, sysvar, binningpart, false),
-             jetFindingEffClosure = makeJetFindingEfficiency(*mcreader, R, sysvar, binningpart, true);
-
         // Get the response matrix
         auto rawresponse = getResponseMatrix(*mcreader, R, sysvar);
         auto trials = getTrials(*mcreader, int(radius*10.), sysvar);
@@ -444,7 +410,12 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         auto effkine = truetmp->Rebin(binningpart.size()-1, Form("effKine_R%02d", R), binningpart.data());
         effkine->SetDirectory(nullptr);
         effkine->Divide(effkine, truefull, 1., 1., "b");
-        TH1 *truefullall = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, false);
+        TH1 *truefullall = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, 0);
+
+        // Get jet finding efficiency
+        auto jetFindingEff = static_cast<TH1 *>(truefull->Clone(Form("hJetfindingEfficiency_R%02d", R)));
+        jetFindingEff->SetDirectory(nullptr);
+        jetFindingEff->Divide(truefullall);
 
         // split the response matrix for the closure test
         auto responseclosure = getResponseMatrix(*mcreader, R, sysvar, 1);
@@ -463,7 +434,15 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor(const std::string_view dataf
         partclosure->SetDirectory(nullptr);
         auto rebinnedresponseclosure = makeRebinned2D(responseclosure, binningdet, binningpart);
         rebinnedresponseclosure->SetName(Form("%s_closure", rebinnedresponseclosure->GetName()));
-        TH1 *truefullclosure = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, true);
+        TH1 *truefullclosure = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, 1),  // From truth sample
+            *jetfindingeffDenom = getFullyEfficientTruth(*mcreader, R, sysvar, binningpart, 2); // from response sample
+
+        // Get jet finding efficiency
+        // must be taken from the response sample
+        auto jetFindingEffClosure = static_cast<TH1 *>(priorsclosure->Clone(Form("hJetfindingEfficiency_R%02d_closure", R)));
+        jetFindingEffClosure->Scale(1/mcscale);
+        jetFindingEffClosure->SetDirectory(nullptr);
+        jetFindingEffClosure->Divide(jetfindingeffDenom);
 
         RooUnfoldResponse responsematrix(nullptr, truefull, rebinnedresponse),
                           responsematrixClosure(nullptr, priorsclosure, rebinnedresponseclosure);
