@@ -18,8 +18,8 @@ SpectrumAndNorm getSpectrumAndNorm(TFile &reader, double R, const std::string_vi
     else if(triggercluster == "CENT") clusterbin = 2;
     else if(triggercluster == "CENTNOTRD") clusterbin = 3;
     std::stringstream dirnamebuilder, histnamebuilder;
-    dirnamebuilder << "JetSpectrum_FullJets_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger;
-    histnamebuilder << "RawJetSpectrum_FullJets_R" <<  std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger << "_" << triggercluster;
+    dirnamebuilder << "JetSpectrum_ChargedJets_R" << std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger;
+    histnamebuilder << "RawJetSpectrum_ChargedJets_R" <<  std::setw(2) << std::setfill('0') << int(R*10.) << "_" << trigger << "_" << triggercluster;
     if(sysvar.length()) {
         dirnamebuilder << "_" << sysvar;
         histnamebuilder << "_" << sysvar;
@@ -55,30 +55,6 @@ TH1 *makeEventCounterHistogram(const char *name, const char *title, double count
     eventCount->SetBinContent(1, countINT7);
     return eventCount;
 }
-
-TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar, const std::vector<double> *binning = nullptr){
-    std::unique_ptr<TH1> mbref(getSpectrumAndNorm(mcreader, R, "INT7", "ANY", sysvar).fSpectrum),
-                         trgspec(getSpectrumAndNorm(mcreader, R, trigger, "ANY", sysvar).fSpectrum);
-    TH1 *eff = nullptr,
-        *numerator = trgspec.get(),
-        *denominator = mbref.get();
-    std::string histname = Form("TriggerEfficiency_%s_R%02d", trigger.data(), R),
-                histtitle = Form("Trigger efficiency for %s for R=%.1f", trigger.data(), double(R)/10.);
-    if(binning) {
-        // Make rebin on clone, to be on the safe side as the rebin function is not marked const
-        std::unique_ptr<TH1> triggeredRebinned(makeRebinnedSafe(trgspec.get(),Form("%s_rebinned", trgspec->GetName()), *binning)); 
-        std::unique_ptr<TH1> minbiasRebinned(makeRebinnedSafe(mbref.get(), Form("%s_rebinned", mbref->GetName()), *binning));
-        eff = histcopy(triggeredRebinned.get());
-        eff->Divide(triggeredRebinned.get(), minbiasRebinned.get(), 1., 1., "b");
-    } else {
-        eff = histcopy(trgspec.get());
-        eff->Divide(trgspec.get(), mbref.get(), 1., 1., "b");
-    }
-    eff->SetNameTitle(histname.data(), histtitle.data());
-    eff->SetDirectory(nullptr);
-    return eff;
-}
-
 
 void makeNormalizedRawCharged(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = ""){
     std::stringstream outputfile;
