@@ -185,8 +185,8 @@ SpectrumAndNorm getClustersAndNorm(TFile &reader, int R, const std::string_view 
     }
     reader.cd(dirnamebuilder.str().data());
     auto histos = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
-    auto hclusandclass = static_cast<TH2 *>(histos->FindObject("hQAClusterTimeVsEFine"));
-    auto rawclusters = hclusandclass->ProjectionY(histnamebuilder.str().data(), 1, hclusandclass->GetNbinsX());
+    auto rawclusters = static_cast<TH1 *>(histos->FindObject("hClusterEnergy1D"));
+    rawclusters->SetName(histnamebuilder.str().data());
     rawclusters->SetDirectory(nullptr);
 
     // calculate norm
@@ -415,6 +415,20 @@ std::map<std::string, TH1 *> makeJetFindingEffPure(TFile &reader, int R, const s
     return std::map<std::string, TH1 *>();
 }
 
+TH1 *getDetLevelClosure(TFile &reader, int R, const std::string_view sysvar, const std::vector<double> binning) {
+    std::stringstream dirnamebuilder;
+    dirnamebuilder << "EnergyScaleResults_FullJet_R" << std::setw(2) << std::setfill('0') << R << "_INT7";
+    if(sysvar.length()) dirnamebuilder << "_" << sysvar;
+    reader.cd(dirnamebuilder.str().data());
+    auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+    std::string inputpurename = "hPurityDetNoClosure";
+    TH2 *rawpurity = static_cast<TH2 *>(histlist->FindObject(inputpurename.data())); 
+    std::unique_ptr<TH1> detlevelTmp(rawpurity->ProjectionX("pureall"));
+    auto detlevel = makeRebinnedSafe(detlevelTmp.get(), "detLevelFull", binning);
+    detlevel->SetDirectory(nullptr);
+    return detlevel;
+}
+
 void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const std::string_view mbfile, const std::string_view emc7file, const std::string_view ejefile, const std::string_view mcfile, const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     int NTHREAD=2;
@@ -554,11 +568,12 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         truthclosure->SetName("truthclosure");
         responseclosure->Scale(mcscale); // Used to be 15e6
         TH1 *priorsclosuretmp(responseclosure->ProjectionY()),
-            *detclosuretmp(truthclosure->ProjectionX()),
             *partclosuretmp(truthclosure->ProjectionY());
         auto priorsclosure = priorsclosuretmp->Rebin(binningpart.size()-1, Form("priorsclosure_R%02d", R), binningpart.data()),
-             detclosureOrig = detclosuretmp->Rebin(binningdet.size()-1, Form("detclosureOrig_R%02d", R), binningdet.data()),
              partclosure = partclosuretmp->Rebin(binningpart.size()-1, Form("partclosure_R%02d", R), binningpart.data());
+        // Det level closure must be taken from purity histogram
+        // as the response matrix is already restricted to matched jets
+        auto detclosureOrig = getDetLevelClosure(*mcreader, R, sysvar, binningdet);
         auto detclosure = static_cast<TH1 *>(detclosureOrig->Clone(Form("detclosure_R%02d", R)));
         priorsclosure->SetDirectory(nullptr);
         detclosureOrig->SetDirectory(nullptr);
@@ -674,6 +689,7 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         basedir->mkdir("closuretest");
         basedir->cd("closuretest");
         priorsclosure->Write("priorsclosure");
+        detclosureOrig->Write("detclosureFull");
         detclosure->Write("detclosure");
         partclosure->Write("partclosure");
         if(truefullclosure) truefullclosure->Write("partallclosure");
