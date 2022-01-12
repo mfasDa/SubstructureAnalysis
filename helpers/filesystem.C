@@ -3,6 +3,7 @@
 
 #ifndef __CLING__
 #include <RStringView.h>
+#include <string>
 #endif
 
 std::string dirname(const std::string_view filename){

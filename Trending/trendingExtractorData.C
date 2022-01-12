@@ -16,6 +16,8 @@
 #include "TTreeStream.h"
 #endif
 
+#include "../helpers/runDB.C"
+
 std::vector<std::string> tokenize(const std::string_view in, char delim) {
     std::vector<std::string> result;
     std::stringstream parser(in.data());
@@ -257,9 +259,20 @@ class TrendingHandler{
                 meanNne[ipt] = datahandler.meanYTH2("hQANnePt", ptmin[ipt], ptmax[ipt]);
                 rmsNEF[ipt] = datahandler.meanYTH2("hQANnePt", ptmin[ipt], ptmax[ipt]);
             }
+
+            std::string period = "unknown";
+            int periodindex = -1;
+            try{
+                period = mRunDB.getPeriod(mRunNumber);
+                periodindex = mRunDB.getPeriodIndex(period);
+            } catch(RunDB::RunNotFoundException &e) {
+                std::cout << "Error fetching period: " << e.what() << std::endl;
+            }
+            std::cout << "Find period " << period << ", with index " << periodindex << std::endl;
         
             mTreeStreamer << datadir.build_treename().data() 
                           << "run=" << mRunNumber
+                          << "period=" << periodindex
                           << "vtxeff=" << vtxeff
                           << "events=" << rawevents
                           << "meanvz=" << meanvz
@@ -384,6 +397,7 @@ class TrendingHandler{
         std::unique_ptr<TFile> mReader;
         TTreeSRedirector mTreeStreamer;
         std::vector<JetData> mDirectories;
+        RunDB mRunDB;
         int mRunNumber;
 };
 

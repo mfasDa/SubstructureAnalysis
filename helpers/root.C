@@ -3,8 +3,12 @@
 
 #ifndef __CLING__
 #include <vector>
+#include <TClass.h>
 #include <TCollection.h>
 #include <TH1.h>
+#include <TH2.h>
+#include <TH3.h>
+#include <TProfile.h>
 #include <TString.h>
 #endif
 
