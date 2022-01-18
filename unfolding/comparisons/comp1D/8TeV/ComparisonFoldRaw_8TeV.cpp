@@ -132,6 +132,10 @@ void ComparisonFoldRaw_8TeV(const std::string_view inputfile, string outputdir, 
         // Draw line at 1 on ratio
         DrawGammaLines(5.,350.,1.,1.,8.,16,9);
 
+        // Draw 5% uncertainty bars
+        DrawGammaLines(5.,350.,1.05,1.05,6.,16,8);
+        DrawGammaLines(5.,350.,0.95,0.95,6.,16,8);
+
         // Update and save canvas
         canvas->Update();
         canvas->Print(Form("%s/comparisons/FoldRaw/comparisonFoldRaw%s_R%02d.%s", outputdir.c_str(), (isSVD ? "Svd" : "Bayes"), int(r * 10.), filetype.c_str()));
@@ -167,6 +171,10 @@ void ComparisonFoldRaw_8TeV(const std::string_view inputfile, string outputdir, 
         }
 
         DrawGammaLines(5.,350.,1.,1.,8.,16,9);
+
+        // Draw 5% uncertainty bars
+        DrawGammaLines(5.,350.,1.05,1.05,6.,16,8);
+        DrawGammaLines(5.,350.,0.95,0.95,6.,16,8);
 
         ratioCanvas->Update();
         ratioCanvas->Print(Form("%s/comparisons/FoldRaw/RatioFoldRaw%s_R%02d.%s", outputdir.c_str(), (isSVD ? "Svd" : "Bayes"), int(r * 10.), filetype.c_str()));

@@ -127,6 +127,10 @@ void ComparisonBayesSVD_8TeV(const std::string_view svdfile, const std::string_v
         // Draw line at 1 on ratio
         DrawGammaLines(5.,350.,1.,1.,8.,16,9);
 
+        // Draw 5% uncertainty bars
+        DrawGammaLines(5.,350.,1.05,1.05,6.,16,8);
+        DrawGammaLines(5.,350.,0.95,0.95,6.,16,8);
+
         // Update and save canvas
         canvas->Update();
         canvas->Print(Form("%s/comparisons/BayesSVD/comparisonBayesSvd_R%02d.%s", outputdir.c_str(), int(r * 10.), filetype.c_str()));
@@ -154,6 +158,10 @@ void ComparisonBayesSVD_8TeV(const std::string_view svdfile, const std::string_v
         ratiopad_ind.Draw<Ratio>(methodratio, ratiostyle);
 
         DrawGammaLines(5.,350.,1.,1.,8.,16,9);
+
+        // Draw 5% uncertainty bars
+        DrawGammaLines(5.,350.,1.05,1.05,6.,16,8);
+        DrawGammaLines(5.,350.,0.95,0.95,6.,16,8);
 
         ratioCanvas->Update();
         ratioCanvas->Print(Form("%s/comparisons/BayesSVD/RatioBayesSvd_R%02d.%s", outputdir.c_str(), int(r * 10.), filetype.c_str()));

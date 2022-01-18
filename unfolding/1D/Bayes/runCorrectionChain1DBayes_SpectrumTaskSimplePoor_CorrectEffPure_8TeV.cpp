@@ -5,6 +5,7 @@
 #include "../../../helpers/unfolding.C"
 #include "../../binnings/binningPt1D.C"
 
+
 class Trials {
 public:
     Trials(TH1 *hist) { fHistogram = hist; };
@@ -287,18 +288,33 @@ TH1 *makeEventCounterHistogram(const char *name, const char *title, double count
     return eventCount;
 }
 
-std::pair<double, TH1 *> makeRejectionFactor(TH1 *histhigh, TH1 *histlow, int R, const std::string_view triggerlow, const std::string_view triggerhigh, const std::string_view sysvar, double triggerswap){
+std::pair<double, TH1 *> makeRejectionFactor(TH1 *histhigh, TH1 *histlow, int R, const std::string_view triggerlow, const std::string_view triggerhigh, const std::string_view sysvar, double linlow, double linhigh, double eflow, double efhigh, bool fUseErrorFunction = true){
     auto rfac = histcopy(histhigh);
     rfac->SetNameTitle(Form("RejectionFactor_%s_%s_R%02d", triggerhigh.data(), triggerlow.data(), R), Form("Rejection Factor for %s/%s for R=%.1f", triggerhigh.data(), triggerlow.data(), double(R)/10.));
     rfac->SetDirectory(nullptr);
     rfac->Divide(histhigh, histlow, 1., 1.);
 
-    rfac->Fit("pol0","EQ","Same",triggerswap,rfac->GetMaximum());
-    auto fitResult = rfac->GetFunction("pol0");
-    auto fit = fitResult->GetParameter(0);
-    auto fitError = fitResult->GetParError(0);
-    fitResult->SetLineColor(kBlue+2);
-    return {fit, rfac};
+    double triggerRF, triggerTF_Error;
+    TF1* pol0 = new TF1("pol0", "[0]", linlow, linhigh);
+    if(fUseErrorFunction) rfac->Fit(pol0, "QNRMEX0+", "", linlow, linhigh);
+    else rfac->Fit(pol0, "QRMEX+", "", linlow, linhigh);
+    TF1* erfunc = new TF1("erfunc" ,"[3]+[2] * TMath::Erf( (x-[0])/(TMath::Sqrt(2)*[1]))", eflow, efhigh);
+
+    if(fUseErrorFunction){
+        erfunc->SetParameter(0,4.);
+        erfunc->SetParameter(1,1.);
+        erfunc->SetParameter(2,pol0->GetParameter(0)/2);
+        erfunc->SetParameter(3,pol0->GetParameter(0)/2);
+        rfac->Fit(erfunc, "QRMEX+", "", eflow, efhigh);
+        triggerRF = erfunc->GetParameter(2)+erfunc->GetParameter(3);
+        triggerTF_Error = (erfunc->GetParameter(2)+erfunc->GetParameter(3))*TMath::Sqrt(TMath::Power(erfunc->GetParError(2)/erfunc->GetParameter(2),2)+TMath::Power(erfunc->GetParError(3)/erfunc->GetParameter(3),2));
+    }else{
+        triggerRF = pol0->GetParameter(0);
+        triggerTF_Error = pol0->GetParError(0);
+    }
+
+    if(fUseErrorFunction) return {triggerRF, rfac};
+    else return {triggerRF, rfac};
 }
 
 TH1 *makeTriggerEfficiency(TFile &mcreader, int R, const std::string_view trigger, const std::string_view sysvar, const std::vector<double> *binning = nullptr){
@@ -514,8 +530,8 @@ void runCorrectionChain1DBayes_SpectrumTaskSimplePoor_CorrectEffPure_8TeV(const 
         ejerebinned_clusters->Scale(1.,"width");
 
         // Find the rejection factors
-        auto rfactoremc7  = makeRejectionFactor(emc7rebinned_clusters_course, mbrebinned_clusters, R, "INT7", "EMC7", sysvar, 5.),
-             rfactoreje   = makeRejectionFactor(ejerebinned_clusters, emc7rebinned_clusters_fine, R, "EMC7", "EJE", sysvar, 12.);
+        auto rfactoremc7  = makeRejectionFactor(emc7rebinned_clusters_course, mbrebinned_clusters, R, "INT7", "EMC7", sysvar, 4., 40., 2., 40.),
+             rfactoreje   = makeRejectionFactor(ejerebinned_clusters, emc7rebinned_clusters_fine, R, "EMC7", "EJE", sysvar, 12., 60., 6., 200.);
 
         // Correct for the rejection factors
         emc7spectrum.fSpectrum->Scale(1/rfactoremc7.first);
