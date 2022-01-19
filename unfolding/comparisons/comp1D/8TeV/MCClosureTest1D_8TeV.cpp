@@ -13,8 +13,11 @@
 #include "/home/austin/alice/QA_Jets_pp_8TeV/AnalysisSoftware/CommonHeaders/PlottingGammaConversionHistos.h"
 #include "/home/austin/alice/QA_Jets_pp_8TeV/AnalysisSoftware/CommonHeaders/PlottingGammaConversionAdditional.h"
 
-void MCClosureTest1D_8TeV(const std::string_view inputfile, string outputdir, string filetype = "png") {
-    std::vector<std::string> spectra = {"partclosure"};
+void MCClosureTest1D_8TeV(const std::string_view inputfile, string outputdir, string filetype = "png", bool correctEffPure = true) {
+    string closurename;
+    if(correctEffPure) closurename = "partallclosure";
+    else closurename = "partclosure";
+    std::vector<std::string> spectra = {closurename}; 
     for(auto i : ROOT::TSeqI(1,11)) spectra.push_back(Form("unfoldedClosure_reg%d", i));
     auto data = JetSpectrumReader(inputfile, spectra);
     auto jetradii = data.GetJetSpectra().GetJetRadii();
@@ -96,7 +99,7 @@ void MCClosureTest1D_8TeV(const std::string_view inputfile, string outputdir, st
         specpad.Label(0.6, 0.85, 0.8, 0.95, "pp #sqrt{s} = 8 TeV");
         specpad.Label(0.68, 0.8, 0.8, 0.9, "Full Jets");
         specpad.Label(0.6, 0.75, 0.8, 0.85, Form("anti-k_{T}, R = %.1f", r));
-        auto *htruth = data.GetJetSpectrum(r, "partclosure");
+        auto *htruth = data.GetJetSpectrum(r, closurename);
         htruth->Scale(1., "width");
         htruth->SetMarkerSize(2);
         specpad.Draw<TH1>(htruth, rawstyle, "true", "p");
@@ -148,7 +151,7 @@ void MCClosureTest1D_8TeV(const std::string_view inputfile, string outputdir, st
         // Make ratio-only plots
         ratioCanvas->cd();
         ratioCanvas->SetLogx();
-        SetStyleHistoTH2ForGraphs(dummyHistLower, "#it{p}_{T} (GeV/#it{c})", "Folded/Raw", 0.5*textsizeLabelsComp, 0.63*textsizeLabelsComp, 0.5*textsizeLabelsComp,
+        SetStyleHistoTH2ForGraphs(dummyHistLower, "#it{p}_{T} (GeV/#it{c})", "Unfolded/True", 0.5*textsizeLabelsComp, 0.63*textsizeLabelsComp, 0.5*textsizeLabelsComp,
                                   0.63*textsizeLabelsComp, 1.1, 0.7/(textsizeFacComp*margin),512,510,42,42);
         dummyHistLower->GetXaxis()->SetMoreLogLabels();
         dummyHistLower->DrawCopy();
