@@ -69,7 +69,10 @@ protected:
                     std::string tkey;
                     bool donorm(false), dowidth(false);
                     if(contains(type, "hraw")) {
-                        tkey = findKey(keys, {"hraw"});
+                        tkey = findKey(keys, {"hraw_"});
+                        if(!contains(type, "nowidth")) dowidth = true;
+                    } else if(contains(type, "hrawOrig")) {
+                        tkey = findKey(keys, {"hrawOrig_"});
                         if(!contains(type, "nowidth")) dowidth = true;
                     } else if(contains(type, "RawJetSpectrum")) {
                         auto config = tokenize(type, '_');
