@@ -700,7 +700,6 @@
 #include <TGeoMaterial.h>
 #include <TGeoMatrixEditor.h>
 #include <TGeoMatrix.h>
-#include <TGeoMCGeometry.h>
 #include <TGeoMediumEditor.h>
 #include <TGeoMedium.h>
 #include <TGeometry.h>
@@ -1070,13 +1069,7 @@
 #include <TMatrixTSymCramerInv.h>
 #include <TMatrixTSym.h>
 #include <TMatrixTUtils.h>
-#include <TMCAutoLock.h>
-#include <TMCOptical.h>
 #include <TMCParticle.h>
-#include <TMCParticleType.h>
-#include <TMCProcess.h>
-#include <TMCtls.h>
-#include <TMCVerbose.h>
 #include <TMD5.h>
 #include <TMehrotraSolver.h>
 #include <TMemberInspector.h>
@@ -1453,12 +1446,7 @@
 #include <TVirtualIndex.h>
 #include <TVirtualIsAProxy.h>
 #include <TVirtualMagField.h>
-#include <TVirtualMCApplication.h>
 #include <TVirtualMCDecayer.h>
-#include <TVirtualMCGeometry.h>
-#include <TVirtualMC.h>
-#include <TVirtualMCSensitiveDetector.h>
-#include <TVirtualMCStack.h>
 #include <TVirtualMonitoring.h>
 #include <TVirtualMutex.h>
 #include <TVirtualObject.h>
