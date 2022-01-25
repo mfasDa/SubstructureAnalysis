@@ -1,3 +1,6 @@
+#include "../../meta/stl.C"
+#include "../../meta/root.C"
+
 void extractMaxLumiFromCorrectedOutput(const char *filename = "correctedSVD_poor_tc200.root"){
     const double kMBtoPB = 1e9,
                  kXSecInPB = 57.8 * kMBtoPB;
