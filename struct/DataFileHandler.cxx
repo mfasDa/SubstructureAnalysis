@@ -1,6 +1,10 @@
+#ifndef DATAFILEHANDLER_H
+#define DATAFILEHANDLER_H
+
 #include "../meta/stl.C"
 #include "../meta/root.C"
 #include "../helpers/root.C"
+#include "PeriodHandler.cxx"
 
 enum class TriggerCluster {
     kANY,
@@ -72,6 +76,56 @@ class ClusterCounter : public TriggerClusterBinned {
         const TH1 *fData = nullptr;
 };
 
+class EventCounterRun {
+public:
+    class RunNotFoundException : public std::exception {
+        public:
+            RunNotFoundException(int runnumber) : fRun(runnumber), fMessage() {
+                std::stringstream msgbuilder;
+                msgbuilder << "Run " << fRun << " not found";
+                fMessage = msgbuilder.str();
+            }
+            ~RunNotFoundException() noexcept = default;
+
+            const char *what() const noexcept { return fMessage.data(); }
+            int getRun() const noexcept { return fRun; }
+
+        private:
+            int fRun;
+            std::string fMessage;
+    };
+    struct RunRange {
+        int fFirstRun;
+        int fLastRun;
+    };
+    EventCounterRun() = default;
+    EventCounterRun(const TH1 *datahist) : fData(std::shared_ptr<TH1>(histcopy(datahist))) { buildRunIndices(); }
+    ~EventCounterRun() = default;
+
+    double getEventCountsForRun(int run) const {
+        if(!fData) throw UninitException();
+        int binID = fData->GetXaxis()->FindBin(run);
+        if(binID < 1 || binID > fData->GetXaxis()->GetNbins()) throw RunNotFoundException(run);
+        return fData->GetBinContent(binID);
+    }
+
+    RunRange getRunRange() const { return {*(fRunNumbers.begin()), *(fRunNumbers.rbegin())}; }
+
+    void setHistogram(const TH1 *runcounter) { fData = std::shared_ptr<TH1>(histcopy(runcounter)); buildRunIndices(); }
+
+private:
+    void buildRunIndices() {
+        fRunNumbers.clear();
+        for(auto ib: ROOT::TSeqI(0, fData->GetXaxis()->GetNbins())) {
+            if(fData->GetBinContent(ib+1)) {
+                fRunNumbers.insert(static_cast<int>(fData->GetXaxis()->GetBinLowEdge(ib+1)));
+            }
+        }
+    }
+    std::shared_ptr<TH1> fData;
+    std::set<int> fRunNumbers;
+};
+
 class VertexFindingEfficiency {
     public:
         VertexFindingEfficiency() = default;
@@ -96,36 +150,54 @@ class DataFileHandler {
     public:
         class Dataset {
             public:
+                class PeriodHandlerNotSetException : public std::exception {
+                public:
+                    PeriodHandlerNotSetException() = default;
+                    ~PeriodHandlerNotSetException() noexcept = default;
+                    const char *what() const noexcept { return "Period handler was not set - cannot determine year or perod(s)"; }
+                };
                 Dataset() = default;
                 ~Dataset() = default;
-                Dataset(const TH1 *normalizationHist, const TH1 *counterAbs, const TH1 *counterWeighted, const TH2 *spectrumAbs, const TH2 *spectrumWeighted) :
+                Dataset(const TH1 *normalizationHist, const TH1 *runcounter, const TH1 *counterAbs, const TH1 *counterWeighted, const TH2 *spectrumAbs, const TH2 *spectrumWeighted) :
                     fEfficiencyVtx(normalizationHist),
+                    fRunCounter(runcounter),
                     fClusterCounterAbs(counterAbs),
                     fClusterCounterWeighted(counterWeighted),
                     fSpectrumAbs(spectrumAbs),
-                    fSpectrumWeighted(spectrumWeighted)
+                    fSpectrumWeighted(spectrumWeighted),
+                    fPeriodHandler(nullptr)
                 {
                 }
 
                 const VertexFindingEfficiency &getVertexFindingEfficiency() const { return fEfficiencyVtx; }
+                const EventCounterRun &getRunCounter() const { return fRunCounter; }
                 const ClusterCounter &getAbsCounters() const { return fClusterCounterAbs; }
                 const ClusterCounter &getWeightedCounters() const { return fClusterCounterWeighted; }
                 const RawDataSpectrum &getRawSpectrumAbs() const { return fSpectrumAbs; }
                 const RawDataSpectrum &getRawSpectrumWeighted() const { return fSpectrumWeighted; }
 
+                std::pair<int, int> getYearRange() const {
+                    if(!fPeriodHandler) throw PeriodHandlerNotSetException();
+                    auto ranges = fRunCounter.getRunRange();
+                    return {fPeriodHandler->getYearForRun(ranges.fFirstRun), fPeriodHandler->getYearForRun(ranges.fLastRun)};
+                }
+
                 void setNormalizationHistogram(const TH1 *normalizationHist) { fEfficiencyVtx.setHistogram(normalizationHist); }
+                void SetRunCounter(const TH1 *runcounter) { fRunCounter.setHistogram(runcounter); }
                 void setAbsCounters(const TH1 *abscounters) { fClusterCounterAbs.setHistogram(abscounters); }
                 void setWeightedCounters(const TH1 *weightedcounters) { fClusterCounterWeighted.setHistogram(weightedcounters); }
                 void setAbsSpectrum(const TH2 *absspectrum) { fSpectrumAbs.setHistogram(absspectrum); }
                 void setWeightedSpectrum(const TH2 *weightedspectrum) { fSpectrumWeighted.setHistogram(weightedspectrum); }
-
+                void setPeriodHandler(PeriodHandler *handler) { fPeriodHandler = handler; }
 
             private:
                 VertexFindingEfficiency fEfficiencyVtx;
+                EventCounterRun fRunCounter;
                 ClusterCounter fClusterCounterAbs;
                 ClusterCounter fClusterCounterWeighted;
                 RawDataSpectrum fSpectrumAbs;
                 RawDataSpectrum fSpectrumWeighted;
+                PeriodHandler *fPeriodHandler;
         };
 
         class DataNotFoundException : public std::exception {
@@ -141,6 +213,7 @@ class DataFileHandler {
             fJetType(jettype),
             fSysVar(sysvar)
         {
+            buildDatasets();
         }
         ~DataFileHandler() = default;
 
@@ -175,7 +248,7 @@ class DataFileHandler {
 
         template<typename T>
         T *HistGetter(TList *list, const char *name) {
-            return dynamic_cast<T>(list->FindObject(name));
+            return dynamic_cast<T *>(list->FindObject(name));
         }
 
         std::string buildDirname(const std::string_view trigger, int R) {
@@ -197,18 +270,23 @@ class DataFileHandler {
             for(auto R : ROOT::TSeqI(2, 7)) {
                 for(const auto &trg : triggers){
                     auto histos = getHistos(trg, R);
-                    auto normhist = HistGetter<TH1>(histos, ""),
-                         counterAbs = HistGetter<TH1>(histos, ""),
-                         counterWeighted = HistGetter<TH1>(histos, "");
-                    auto specAbs = HistGetter<TH2>(histos, ""),
-                         specWeighted = HistGetter<TH2>(histos, "");
-                    fDatasets[Key(R, trg)] = Dataset(normhist, counterAbs, counterWeighted, specAbs, specWeighted);
+                    auto normhist = HistGetter<TH1>(histos, "fNormalisationHist"),
+                         runcounter = HistGetter<TH1>(histos, "hEventCounterRun"),
+                         counterAbs = HistGetter<TH1>(histos, "hClusterCounterAbs"),
+                         counterWeighted = HistGetter<TH1>(histos, "hClusterCounter");
+                    auto specAbs = HistGetter<TH2>(histos, "hJetSpectrumAbs"),
+                         specWeighted = HistGetter<TH2>(histos, "hJetSpectrum");
+                    fDatasets[Key(R, trg)] = Dataset(normhist, runcounter, counterAbs, counterWeighted, specAbs, specWeighted);
                 }
             }
+            for(auto &dset : fDatasets) dset.second.setPeriodHandler(&fPeriodHandler);
+            std::cout << "DataFileHandler: Found " << fDatasets.size() << " datasets" << std::endl;
         }
 
         std::unique_ptr<TFile> fReader;
         std::string fJetType;
         std::string fSysVar;
         std::map<Key, Dataset> fDatasets;
+        PeriodHandler fPeriodHandler;
 };
+#endif // DATAFILEHANDLER_H
