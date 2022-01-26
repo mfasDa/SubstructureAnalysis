@@ -10,6 +10,7 @@ struct RawLuminosities{
     std::map<std::string, double> eventcounts;
     double centnotrdcorrection;
     double downscalingEJ2;
+    double downscalingINT7;
     double vertexfindingeff;
 };
 
@@ -66,6 +67,7 @@ RawLuminosities getLuminosities(const std::string_view inputfile) {
     }
     result.centnotrdcorrection = lumihandler.getCENTNOTRDCorrection();
     result.downscalingEJ2 = lumihandler.getEffectiveDownscaleing(Trigger::EJ2);
+    result.downscalingINT7 = lumihandler.getEffectiveDownscaleing(Trigger::INT7);
     result.vertexfindingeff = lumihandler.getVertexFindingEfficiency();
     return result;
 }
@@ -80,6 +82,7 @@ void trendLuminosityPeriods(const std::string_view inputdir = "", const std::str
     std::array<std::string, 3> triggers = {{"INT7", "EJ2", "EJ1"}};
     std::map<std::string, TrendingHistogram> luminosityTrendings, eventTrendings;
     TrendingHistogram ej2downscaleTrending("EJ2downscaleTrending", "Trending of the average EJ2 downscaling", "<EJ2 downscaling>", periods),
+                      int7downscaleTrending("INT7downscaleTrending", "Trending of the average INT7 downscaling", "<INT7 downscaling>", periods),
                       centnotrdtrending("CENTNOTRDTrending", "Trending of the CENTNOTRD correction", "CENTNOTD correction factor", periods),
                       vertextrending("VertexEffTrending", "Trending of the vertex finding efficiency", "#epsilon_{vtx}", periods);
     bool commontrendings = false;
@@ -91,6 +94,7 @@ void trendLuminosityPeriods(const std::string_view inputdir = "", const std::str
             eventhist.SetValueForPeriod(period, data.eventcounts.find(trg)->second);
             if(!commontrendings) {
                 ej2downscaleTrending.SetValueForPeriod(period, data.downscalingEJ2);
+                int7downscaleTrending.SetValueForPeriod(period, data.downscalingINT7);
                 centnotrdtrending.SetValueForPeriod(period, data.centnotrdcorrection);
                 vertextrending.SetValueForPeriod(period, data.vertexfindingeff);
             }
@@ -135,8 +139,8 @@ void trendLuminosityPeriods(const std::string_view inputdir = "", const std::str
     eventplot->Update();
     eventplot->SaveCanvas(eventplot->GetName());
 
-    auto generalplot = new ROOT6tools::TSavableCanvas("trendingGeneral", "General trending", 1200, 600);
-    generalplot->Divide(3,1);
+    auto generalplot = new ROOT6tools::TSavableCanvas("trendingGeneral", "General trending", 1200, 800);
+    generalplot->Divide(2,2);
     generalplot->cd(1);
     gPad->SetLeftMargin(0.15);
     gPad->SetRightMargin(0.05);
@@ -153,6 +157,12 @@ void trendLuminosityPeriods(const std::string_view inputdir = "", const std::str
     gPad->SetLeftMargin(0.15);
     gPad->SetRightMargin(0.05);
     rawhist = ej2downscaleTrending.getHistogram();
+    rawhist->SetLineColor(kBlue);
+    rawhist->Draw("box");
+    generalplot->cd(4);
+    gPad->SetLeftMargin(0.15);
+    gPad->SetRightMargin(0.05);
+    rawhist = int7downscaleTrending.getHistogram();
     rawhist->SetLineColor(kBlue);
     rawhist->Draw("box");
     generalplot->cd();
