@@ -1,8 +1,8 @@
 #include "../../meta/stl.C"
 #include "../../meta/root.C"
 
-#include "../../struct/DataFileHandler.cxx"
-#include "../../struct/LuminosityHandler.cxx"
+#include "../../struct/spectrum1D/DataFileHandler.cxx"
+#include "../../struct/spectrum1D/LuminosityHandler.cxx"
 
 void extractLuminositiesFromRawOutput(const std::string_view rootfile = "AnalysisResults.root", const std::string_view sysvar = "tc200"){
     DataFileHandler datahandler(rootfile, "FullJets", sysvar);

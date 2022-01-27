@@ -1,7 +1,7 @@
 #ifndef LUMINOSITYHANDLER_H
 #define LUMINOSITYHANDLER_H
-#include "../meta/stl.C"
-#include "../meta/root.C"
+#include "../../meta/stl.C"
+#include "../../meta/root.C"
 
 #include "DataFileHandler.cxx"
 
@@ -112,8 +112,8 @@ class LuminosityHandler {
                 errortype = "PeriodHandlerNotSetException";
                 message = e.what();
                 isError = true;
-            } catch(UninitException &e) {
-                errortype = "UninitException";
+            } catch(UninitializedException &e) {
+                errortype = "UninitializedException";
                 message = e.what();
                 isError = true;
             } catch(EventCounterRun::RunNotFoundException &e) {

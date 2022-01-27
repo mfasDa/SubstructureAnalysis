@@ -4,79 +4,28 @@
 #include "../meta/stl.C"
 #include "../meta/root.C"
 #include "../helpers/root.C"
-#include "PeriodHandler.cxx"
+#include "../PeriodHandler.cxx"
+#include "../HistogramDataHandler.cxx"
+#include "TriggerDefinition.cxx"
+#include "RawDataSpectrum.cxx"
 
-enum class TriggerCluster {
-    kANY,
-    kCENT,
-    kCENTNOTRD
-};
 
-class UninitException : public std::exception{
-public:
-    UninitException() = default;
-    ~UninitException() noexcept = default;
-
-    const char *what() const noexcept { return "Data uninitialized"; }
-};
-
-class TriggerClusterBinned {
-    public:
-        TriggerClusterBinned() = default;
-        ~TriggerClusterBinned() = default;
-
-        int getClusterBin(TriggerCluster clust) const {
-            switch (clust) {
-                case TriggerCluster::kANY: return 1;
-                case TriggerCluster::kCENT: return 2;
-                case TriggerCluster::kCENTNOTRD: return 3;
-            };
-        }
-};
-
-class RawDataSpectrum : public TriggerClusterBinned {
-    public:
-        RawDataSpectrum() = default;
-        RawDataSpectrum(const TH2 *histogram) : fData(histogram) {}
-        ~RawDataSpectrum() = default;
-
-        TH1 *getSpectrumForTriggerCluster(TriggerCluster clust) const {
-            if(!fData) throw UninitException();
-            TH1 *result{nullptr};
-            int bin = getClusterBin(clust);
-            const std::map<TriggerCluster, std::string> clustertitle = {{TriggerCluster::kANY, "ANY"}, {TriggerCluster::kCENT, "CENT"}, {TriggerCluster::kCENTNOTRD, "CENTNOTRD"}};
-            result = fData->ProjectionY(Form("%s_%s", fData->GetName(), clustertitle.find(clust)->second.data()), bin, bin);
-            result->SetDirectory(nullptr);
-            return result;
-        }
-
-        void setHistogram(const TH2 *hist) { fData = hist; }
-
-    private:
-        const TH2 *fData = nullptr;
-};
-
-class ClusterCounter : public TriggerClusterBinned {
+class ClusterCounter : public TriggerClusterBinned, public UnmanagedHistogramData<const TH1> {
     public:
         ClusterCounter() = default;
-        ClusterCounter(const TH1 *hist) : fData(hist) {}
+        ClusterCounter(const TH1 *hist) : UnmanagedHistogramData<const TH1>(hist) {}
         ~ClusterCounter() = default;
 
         double getCounters(TriggerCluster clust) const {
-            if(!fData) throw UninitException();
-            return fData->GetBinContent(getClusterBin(clust));
+            return getHistogram()->GetBinContent(getClusterBin(clust));
         }
 
         double makeClusterRatio(TriggerCluster clusterNum, TriggerCluster clusterDen) const {
             return getCounters(clusterNum) / getCounters(clusterDen);
         }
-        
-        void setHistogram(const TH1 *hist) { fData = hist; }
-    private:
-        const TH1 *fData = nullptr;
 };
 
-class EventCounterRun {
+class EventCounterRun : public ManagedHistogramData<TH1> {
 public:
     class RunNotFoundException : public std::exception {
         public:
@@ -99,50 +48,43 @@ public:
         int fLastRun;
     };
     EventCounterRun() = default;
-    EventCounterRun(const TH1 *datahist) : fData(std::shared_ptr<TH1>(histcopy(datahist))) { buildRunIndices(); }
+    EventCounterRun(const TH1 *datahist) : ManagedHistogramData<TH1>(datahist) { buildRunIndices(); }
     ~EventCounterRun() = default;
 
     double getEventCountsForRun(int run) const {
-        if(!fData) throw UninitException();
-        int binID = fData->GetXaxis()->FindBin(run);
-        if(binID < 1 || binID > fData->GetXaxis()->GetNbins()) throw RunNotFoundException(run);
-        return fData->GetBinContent(binID);
+        auto data = getHistogram();
+        int binID = data->GetXaxis()->FindBin(run);
+        if(binID < 1 || binID > data->GetXaxis()->GetNbins()) throw RunNotFoundException(run);
+        return data->GetBinContent(binID);
     }
 
     RunRange getRunRange() const { return {*(fRunNumbers.begin()), *(fRunNumbers.rbegin())}; }
 
-    void setHistogram(const TH1 *runcounter) { fData = std::shared_ptr<TH1>(histcopy(runcounter)); buildRunIndices(); }
-
 private:
     void buildRunIndices() {
         fRunNumbers.clear();
-        for(auto ib: ROOT::TSeqI(0, fData->GetXaxis()->GetNbins())) {
-            if(fData->GetBinContent(ib+1)) {
-                fRunNumbers.insert(static_cast<int>(fData->GetXaxis()->GetBinLowEdge(ib+1)));
+        auto data = getHistogram();
+        for(auto ib: ROOT::TSeqI(0, data->GetXaxis()->GetNbins())) {
+            if(data->GetBinContent(ib+1)) {
+                fRunNumbers.insert(static_cast<int>(data->GetXaxis()->GetBinLowEdge(ib+1)));
             }
         }
     }
-    std::shared_ptr<TH1> fData;
     std::set<int> fRunNumbers;
 };
 
-class VertexFindingEfficiency {
+class VertexFindingEfficiency : public ManagedHistogramData<TH1> {
     public:
         VertexFindingEfficiency() = default;
-        VertexFindingEfficiency(const TH1 *normalizationHist): fNormalizationHist(std::unique_ptr<TH1>(histcopy(normalizationHist))) {}
+        VertexFindingEfficiency(const TH1 *normalizationHist): ManagedHistogramData<TH1>(normalizationHist) {}
         ~VertexFindingEfficiency() = default;
 
         operator double() const { return evaluate(); }
 
         double evaluate() const {
-            if(!fNormalizationHist) throw UninitException();
-            return fNormalizationHist->GetBinContent(fNormalizationHist->GetXaxis()->FindBin("Vertex reconstruction and quality")) / fNormalizationHist->GetBinContent(fNormalizationHist->GetXaxis()->FindBin("Event selection"));
+            auto normalizationHist = getHistogram();
+            return normalizationHist->GetBinContent(normalizationHist->GetXaxis()->FindBin("Vertex reconstruction and quality")) / normalizationHist->GetBinContent(normalizationHist->GetXaxis()->FindBin("Event selection"));
         }
-        
-        void setHistogram(const TH1 *hist) { fNormalizationHist = std::shared_ptr<TH1>(histcopy(hist)); }
-
-    private:
-        std::shared_ptr<TH1> fNormalizationHist;
 };
 
 
