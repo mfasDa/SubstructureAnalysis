@@ -19,7 +19,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     repo = os.path.abspath(os.path.dirname(sys.argv[0]))
-    unfoldingexecutable = os.path.join(repo, "runUnfolding1D_local.sh")
+    unfoldingexecutable = os.path.join(repo, "runUnfolding1D_local_SysAngularity.sh")
     reweighthigh = 1 if args.reweighthigh else 0
     unfoldingcmd="{EXE} {WDIR} {DATAFILE} {MCFILE} {SYSVAR} {MACRO} {REWEIGHTHIGH}".format(EXE=unfoldingexecutable, WDIR=args.workdir, DATAFILE=args.datafile, MCFILE=args.mcfile, SYSVAR=args.sysvar, MACRO=args.macro, REWEIGHTHIGH=reweighthigh)
     logfile="joboutput_R0%a.log"

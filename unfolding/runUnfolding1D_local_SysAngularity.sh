@@ -31,9 +31,9 @@ if [ ! -f $SCRIPT ]; then
 fi
 echo "Using unfolding macro $SCRIPT"
 
-REWEIGHTHIGHSET="False"
+REWEIGHTHIGHSET="false"
 if [ $REWEIGHTHIGH -gt 0 ]; then
-    REWEIGHTHIGHSET="True"
+    REWEIGHTHIGHSET="true"
 fi
 
 

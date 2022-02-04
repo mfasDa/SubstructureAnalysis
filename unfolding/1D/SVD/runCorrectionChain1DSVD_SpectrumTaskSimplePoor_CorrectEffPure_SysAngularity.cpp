@@ -286,13 +286,22 @@ ResponseMatricesAngularity getResponseMatricesAngularity(TFile &reader, int R, c
     if(sysvar.length()) dirnamebuilder << "_" << sysvar;
     reader.cd(dirnamebuilder.str().data());
     auto histlist = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
-    auto rawresponseLow = static_cast<TH2 *>(histlist->FindObject(responsematrixnameLow.str().data())),
-         rawresponseHigh = static_cast<TH2 *>(histlist->FindObject(responsematrixnameHigh.str().data()));
-    rawresponseLow->SetDirectory(nullptr);
-    rawresponseLow->SetNameTitle(Form("RawresponseLow_R%02d", R), Form("Raw response (low angularity) R=%.1f", double(R)/10.));
-    rawresponseHigh->SetDirectory(nullptr);
-    rawresponseHigh->SetNameTitle(Form("RawresponseHigh_R%02d", R), Form("Raw response (high angularity) R=%.1f", double(R)/10.));
-    return {rawresponseHigh, rawresponseLow};
+    TH2 *rawresponseLow(static_cast<TH2 *>(histlist->FindObject(responsematrixnameLow.str().data()))),
+        *rawresponseHigh(static_cast<TH2 *>(histlist->FindObject(responsematrixnameHigh.str().data())));
+    if(!rawresponseLow) {
+        std::cout << "Not found raw response low angularity with name " << responsematrixnameLow.str() << std::endl;
+    } else {
+        std::cout << "Found raw response low angularity with name " << responsematrixnameLow.str() << std::endl;
+        rawresponseLow->SetDirectory(nullptr);
+    }
+    if(!rawresponseHigh) {
+        std::cout << "Not found raw response high angularity with name " << responsematrixnameHigh.str() << std::endl;
+    } else {
+        std::cout << "Found raw response high angularity with name " << responsematrixnameHigh.str() << std::endl;
+        rawresponseHigh->SetDirectory(nullptr);
+    }
+    ResponseMatricesAngularity matrixbuilder{rawresponseHigh, rawresponseLow};
+    return matrixbuilder;
 }
 
 Trials getTrials(TFile &reader, int R, const std::string_view sysvar) {
@@ -455,7 +464,7 @@ TH1 *getDetLevelClosure(TFile &reader, int R, const std::string_view sysvar, con
     return detlevel;
 }
 
-void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_SysAngularity(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool highAngularity, int radiusSel = -1, bool doMT = false){
+void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_SysAngularity(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool highAngularity = true, int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
     outputfile << "correctedSVD_poor";
@@ -520,9 +529,9 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_SysAngularity
         auto rawresponse = responseAngularityBins.buildWeightedResponseMatrix(highAngularity, angularityWeight);
         auto trials = getTrials(*mcreader, R, sysvar);
         auto mcscale = trials.getMaxTrials();
-        rawresponseNoReweight->SetName(Form("%sNoReweight_fine", rawresponse->GetName()));
-        rawresponseNoReweight->Scale(mcscale);   // undo scaling with the number of trials
+        rawresponseNoReweight->SetName(Form("%sNoReweight_fine", rawresponseNoReweight->GetName()));
         rawresponse->SetName(Form("%s_fine", rawresponse->GetName()));
+        rawresponseNoReweight->Scale(mcscale);   // undo scaling with the number of trials
         rawresponse->Scale(mcscale);   // undo scaling with the number of trials
         auto rebinnedresponse  = makeRebinned2D(rawresponse, binningdet, binningpart);
         rebinnedresponse->SetName(Form("%s_standard", rebinnedresponse->GetName()));
