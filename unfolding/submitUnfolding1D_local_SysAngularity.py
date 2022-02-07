@@ -16,12 +16,14 @@ if __name__ == "__main__":
     parser.add_argument("-j", "--jobtag", metavar="JOBTAG", type=str, default="corr1D", help="Job tag in jobname")
     parser.add_argument("-q", "--queue", metavar="QUEUE", type=str, default="short", help="Slurm queue")
     parser.add_argument("--reweighthigh", action="store_true", help="Reweight response matrix for high angularity")
+    parser.add_argument("--angularityweight", metavar="ANGULARITYWEIGHT", type=float, default=1.3, help="Reweighting factor")
     args = parser.parse_args()
 
     repo = os.path.abspath(os.path.dirname(sys.argv[0]))
     unfoldingexecutable = os.path.join(repo, "runUnfolding1D_local_SysAngularity.sh")
     reweighthigh = 1 if args.reweighthigh else 0
-    unfoldingcmd="{EXE} {WDIR} {DATAFILE} {MCFILE} {SYSVAR} {MACRO} {REWEIGHTHIGH}".format(EXE=unfoldingexecutable, WDIR=args.workdir, DATAFILE=args.datafile, MCFILE=args.mcfile, SYSVAR=args.sysvar, MACRO=args.macro, REWEIGHTHIGH=reweighthigh)
+    angularityweight = args.angularityweight
+    unfoldingcmd="{EXE} {WDIR} {DATAFILE} {MCFILE} {SYSVAR} {MACRO} {REWEIGHTHIGH} {WEIGHT}".format(EXE=unfoldingexecutable, WDIR=args.workdir, DATAFILE=args.datafile, MCFILE=args.mcfile, SYSVAR=args.sysvar, MACRO=args.macro, REWEIGHTHIGH=reweighthigh, WEIGHT=angularityweight)
     logfile="joboutput_R0%a.log"
     os.chdir(args.workdir)
     unfoldingjob = slurm.submit(unfoldingcmd, args.jobtag, logfile, args.queue, 1, 1, [2, 6])

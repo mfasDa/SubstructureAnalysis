@@ -464,7 +464,7 @@ TH1 *getDetLevelClosure(TFile &reader, int R, const std::string_view sysvar, con
     return detlevel;
 }
 
-void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_SysAngularity(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool highAngularity = true, int radiusSel = -1, bool doMT = false){
+void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_SysAngularity(const std::string_view datafile, const std::string_view mcfile, const std::string_view sysvar = "", bool highAngularity = true, double angularityWeight = 1.3, int radiusSel = -1, bool doMT = false){
     ROOT::EnableThreadSafety();
     std::stringstream outputfile;
     outputfile << "correctedSVD_poor";
@@ -482,7 +482,6 @@ void runCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_SysAngularity
          binningdet = getJetPtBinningNonLinSmearPoor();
     auto centnotrdcorrection = getCENTNOTRDCorrection(*datareader, sysvar);
     double crosssection = 57.8;
-    double angularityWeight = 1.3;
     for(auto R : ROOT::TSeqI(2, 7)) {
         double radius = double(R) / 10.;
         if(radiusSel > 0 && R != radiusSel) {

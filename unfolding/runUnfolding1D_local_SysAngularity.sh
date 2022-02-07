@@ -6,6 +6,7 @@ MCFILE=$3
 SYSVAR=$4
 UNFOLDINGMACRO=$5
 REWEIGHTHIGH=$6
+ANGULARITYWEIGHT=$7
 
 RADIUS=$SLURM_ARRAY_TASK_ID
 
@@ -39,6 +40,6 @@ fi
 
 if [ ! -d $WORKDIR ]; then mkdir -p $WORKDIR; fi
 cd $WORKDIR
-cmd=$(printf "root -l -b -q \'%s(\"%s\", \"%s\", \"%s\", %s, %d)\' &> %s/unfolding_R%02d.log" $SCRIPT $DATAFILE $MCFILE $SYSVAR $REWEIGHTHIGHSET $RADIUS $WORKDIR $RADIUS)
+cmd=$(printf "root -l -b -q \'%s(\"%s\", \"%s\", \"%s\", %s, %s, %d)\' &> %s/unfolding_R%02d.log" $SCRIPT $DATAFILE $MCFILE $SYSVAR $REWEIGHTHIGHSET $ANGULARITYWEIGHT $RADIUS $WORKDIR $RADIUS)
 echo Running command: $cmd
 eval $cmd
