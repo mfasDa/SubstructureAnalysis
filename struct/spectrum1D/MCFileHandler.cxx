@@ -66,7 +66,7 @@ public:
     JetFindingEfficiency() = default;
     JetFindingEfficiency(const TH2 *hist) : ManagedHistogramData<TH2>(hist) {}
 
-    TH1 *makePurity(const std::vector<double> partptbinning) const {
+    TH1 *makeEfficiency(const std::vector<double> partptbinning) const {
         auto hist = getHistogram();
         std::unique_ptr<TH1> allraw(hist->ProjectionX("allraw")),
                              recraw(hist->ProjectionX("recraw", kAccepted, kAccepted)),
@@ -88,12 +88,12 @@ public:
     JetFindingPurity() = default;
     JetFindingPurity(const TH2 *hist) : ManagedHistogramData<TH2>(hist) {}
 
-    TH1 *makePurity(const std::vector<double> partptbinning) const {
+    TH1 *makePurity(const std::vector<double> detptbinning) const {
         auto hist = getHistogram();
         std::unique_ptr<TH1> allraw(hist->ProjectionX("allraw")),
                              recraw(hist->ProjectionX("recraw", kAccepted, kAccepted)),
-                             all(allraw->Rebin(partptbinning.size() - 1, "allrawRebinned", partptbinning.data()));
-        auto purity = recraw->Rebin(partptbinning.size() - 1, "jetfindingPurity", partptbinning.data());
+                             all(allraw->Rebin(detptbinning.size() - 1, "allrawRebinned", detptbinning.data()));
+        auto purity = recraw->Rebin(detptbinning.size() - 1, "jetfindingPurity", detptbinning.data());
         purity->SetDirectory(nullptr);
         purity->Divide(purity, all.get(), 1., 1., "b");
         return purity;
@@ -226,31 +226,37 @@ public:
     };
     class ClosureSet{
     public:
+        using ClosureFullTrueSpectrum = UnmanagedHistogramData<TH1>;
         ClosureSet() = default;
-        ClosureSet(TH2 *response, TH2 *truth, TH2 *jetfindingEff, TH2 *jetfindingPurity, const TH1 *ntrials) :
+        ClosureSet(TH2 *response, TH2 *truth, TH2 *jetfindingEff, TH2 *jetfindingPurity, TH1 *partleveltrue, const TH1 *ntrials) :
             fResponse(response),
             fTruth(truth),
             fJetFindingEfficiency(jetfindingEff),
             fJetFindingPurity(jetfindingPurity),
+            fPartLevelClosureTrue(partleveltrue),
             fNTrials(ntrials)
         { }
         ~ClosureSet() = default;
 
         RawResponseMatrix &getResponseMatrix() { return fResponse; }
+        RawResponseMatrix &getTruthMatrix() { return fTruth; }
         JetFindingEfficiency &getJetFindingEfficiency() { return fJetFindingEfficiency; }
         JetFindingPurity &getJetFindingPurity() { return fJetFindingPurity; }
+        ClosureFullTrueSpectrum &getPartLevelTrue() { return fPartLevelClosureTrue; }
         Trials &getTrials() { return fNTrials; }
 
         void setResponse(TH2 *response) { fResponse.setHistogram(response); }
         void setJetFindingEfficiency(TH2 *efficiency) { fJetFindingEfficiency.setHistogram(efficiency); }
         void setJetFindingPurity(TH2 *purity) { fJetFindingPurity.setHistogram(purity); }
         void setTrials(const TH1 *trials) { fNTrials.setHistogram(trials); }
+        void setPartLevelClosureTrue(TH1 *spectrum) {fPartLevelClosureTrue.setHistogram(spectrum); }
 
     private:
         RawResponseMatrix fResponse;
         RawResponseMatrix fTruth;
         JetFindingEfficiency fJetFindingEfficiency;
         JetFindingPurity fJetFindingPurity;
+        ClosureFullTrueSpectrum fPartLevelClosureTrue;
         Trials fNTrials;
     };
 
@@ -311,7 +317,8 @@ private:
              jetFindingPure = HistGetter<TH2>(histlistResponse, "hPurityDet"),
              jetFindingPureClosure = HistGetter<TH2>(histlistResponse, "hPurityDetClosure");
         auto nTrials = HistGetter<TH1>(histlistResponse, "fHistTrials"), 
-             partLevelSpectrum = HistGetter<TH1>(histlistResponse, "hJetSpectrumPartAll");
+             partLevelSpectrum = HistGetter<TH1>(histlistResponse, "hJetSpectrumPartAll"),
+             partLevelClosureTrue = HistGetter<TH1>(histlistResponse, "hJetSpectrumPartAllNoClosure");
         response->SetDirectory(nullptr);
         responseClosure->SetDirectory(nullptr);
         truthclosure->SetDirectory(nullptr);
@@ -336,7 +343,7 @@ private:
             auto found = fMCsets.find(R);
             for(auto &[trg, hist] : detLevelSpectra) found->second.setDetLevelSpectrum(hist, trg);
         }
-        fClosureSets[R] = ClosureSet(responseClosure, truthclosure, jetFindingEffClosure, jetFindingPureClosure, nTrials);
+        fClosureSets[R] = ClosureSet(responseClosure, truthclosure, jetFindingEffClosure, jetFindingPureClosure, partLevelClosureTrue, nTrials);
     }
 
     TriggerClass getTriggerClassFromDirname(const std::string_view triggername) {

@@ -20,22 +20,32 @@ public:
     }
 
     TH2 *getRebinnnedResponse() const { return fRebinnedResponse; }
+
     TH1 *makeRebinnedThruthSpectrum() const { 
         auto projected = fRebinnedResponse->ProjectionY();
         projected->SetDirectory(nullptr);
         return projected;
     }
+
     TH1 *makeFullyEfficienctTruthSpectrum() const { 
         std::unique_ptr<TH1> projected(fRawResponse.getRawResponse()->ProjectionY());
         auto rebinned = projected->Rebin(fPartLevelBinning.size()-1, "" , fPartLevelBinning.data());
         rebinned->SetDirectory(nullptr);
         return rebinned;
     }
+
     TH1 *makeKinematicEfficiency() const {
         auto ratio = makeRebinnedThruthSpectrum();
         std::unique_ptr<TH1> denominator(makeFullyEfficienctTruthSpectrum());
         ratio->Divide(ratio, denominator.get(), 1., 1., "b");
         return ratio;
+    }
+
+    TH1 *makeDetLevelSpectrum() const {
+        std::unique_ptr<TH1> projected(fRawResponse.getRawResponse()->ProjectionX());
+        auto rebinned = projected->Rebin(fDetLevelBinning.size()-1, "" , fDetLevelBinning.data());
+        rebinned->SetDirectory(nullptr);
+        return rebinned;
     }
 
 private:

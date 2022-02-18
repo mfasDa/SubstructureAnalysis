@@ -24,7 +24,7 @@ public:
 private:
     void build(){
         std::unique_ptr<TH1> projectionPart(fRawResponse.getRawResponse()->ProjectionY(Form("%s_part", fRawResponse.getRawResponse()->GetName()))),
-                             projectionDet(fRawResponse.getRawResponse()->ProjectionX(Form("%s_part", fRawResponse.getRawResponse()->GetName())));
+                             projectionDet(fRawResponse.getRawResponse()->ProjectionX(Form("%s_det", fRawResponse.getRawResponse()->GetName())));
         fPartLevel = projectionPart->Rebin(fPartLevelBinning.size()-1, Form("_rebinned", projectionPart->GetName()), fPartLevelBinning.data());
         fDetLevel = projectionDet->Rebin(fDetLevelBinning.size()-1, Form("_rebinned", projectionDet->GetName()), fDetLevelBinning.data());
         fPartLevel->SetDirectory(nullptr);

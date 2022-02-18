@@ -1,9 +1,10 @@
 #ifndef DATAFILEHANDLER_H
 #define DATAFILEHANDLER_H
 
-#include "../meta/stl.C"
-#include "../meta/root.C"
-#include "../helpers/root.C"
+#include "../../meta/aliphysics.C"
+#include "../../meta/stl.C"
+#include "../../meta/root.C"
+#include "../../helpers/root.C"
 #include "../PeriodHandler.cxx"
 #include "../HistogramDataHandler.cxx"
 #include "TriggerDefinition.cxx"
@@ -156,6 +157,7 @@ class DataFileHandler {
             fSysVar(sysvar)
         {
             buildDatasets();
+            buildLuminosityHandler();
         }
         ~DataFileHandler() = default;
 
@@ -170,6 +172,7 @@ class DataFileHandler {
         const ClusterCounter &getClusterCounterWeighted(int R, const std::string_view trigger) const { return  getDataset(R, trigger).getWeightedCounters(); }
         const RawDataSpectrum &getSpectrumAbs(int R, const std::string_view trigger) const { return  getDataset(R, trigger).getRawSpectrumAbs(); }
         const RawDataSpectrum &getSpectrumWeighted(int R, const std::string_view trigger) const { return  getDataset(R, trigger).getRawSpectrumWeighted(); }
+        PWG::EMCAL::AliEmcalTriggerLuminosity *getLuminosityHandler() const { if(fLuminosityHandler) return fLuminosityHandler.get(); return nullptr; }
 
     private:
         class Key {
@@ -225,10 +228,24 @@ class DataFileHandler {
             std::cout << "DataFileHandler: Found " << fDatasets.size() << " datasets" << std::endl;
         }
 
+        void buildLuminosityHandler() {
+            TList *luminosityHistos(nullptr);
+            for(auto keyiter : TRangeDynCast<TKey>(fReader->GetListOfKeys())) {
+                std::string_view keyname(keyiter->GetName());
+                if(keyname.find("EmcalTriggerNorm") != std::string::npos) {
+                    fReader->cd(keyname.data());
+                    luminosityHistos = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
+                }
+            }
+            if(luminosityHistos) fLuminosityHandler = std::make_unique<PWG::EMCAL::AliEmcalTriggerLuminosity>(luminosityHistos);
+            fLuminosityHandler->Evaluate();
+        }
+
         std::unique_ptr<TFile> fReader;
         std::string fJetType;
         std::string fSysVar;
         std::map<Key, Dataset> fDatasets;
         PeriodHandler fPeriodHandler;
+        std::unique_ptr<PWG::EMCAL::AliEmcalTriggerLuminosity> fLuminosityHandler;
 };
 #endif // DATAFILEHANDLER_H
