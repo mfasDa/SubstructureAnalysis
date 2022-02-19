@@ -12,9 +12,9 @@ public:
             int mYear;
             unsigned long mNumEvents;
         };
-        std::map<std::string, TH1 *> mRawHist;
-        std::map<std::string, TH1 *> mNormalizedRawHist;
-        std::map<std::string, TH1 *> mNormalizedRawhistRebinned;
+        std::map<std::string, TH1 *> mRawHistOriginal;
+        std::map<std::string, TH1 *> mRawHistRebinned;
+        std::map<std::string, TH1 *> mRawHistNormalized;
         std::map<std::string, TH1 *> mTriggerEffFine;
         std::map<std::string, TH1 *> mTriggerEffRebinned;
         std::map<std::string, TH1 *> mRawHistCorrected;
@@ -38,9 +38,12 @@ public:
             auto base = gDirectory;
             base->mkdir("rawlevel");
             base->cd("rawlevel");
-            for(auto &[trg, hist] : mRawHist) hist->Write();
-            for(auto &[trg, hist] : mNormalizedRawHist) hist->Write();
-            for(auto &[trg, hist] : mNormalizedRawHist) hist->Write();
+            for(auto &[trg, hist] : mRawHistOriginal) hist->Write();
+            for(auto &[trg, hist] : mRawHistRebinned) hist->Write();
+            for(auto &[trg, hist] : mRawHistNormalized) hist->Write();
+            for(auto &[trg, hist] : mTriggerEffFine) hist->Write();
+            for(auto &[trg, hist] : mTriggerEffRebinned) hist->Write();
+            for(auto &[trg, hist] : mRawHistCorrected) hist->Write();
             if(mCombinedRawHistogram) mCombinedRawHistogram->Write();
             if(mCombinedRawHistogramCorrected) mCombinedRawHistogramCorrected->Write();
             auto histEffVtx = buildHistVertexFindingEfficiency();
@@ -256,18 +259,18 @@ public:
     OutputHandler() = default;
     ~OutputHandler() = default;
 
-    void setRawHistTrigger(int R, TH2 *hist, const std::string_view trg) {
-        mRdata[R].mData.mRawHist[trg.data()] = hist;
-    }
-
-    void setNormalizedRawSpectrumTrigger(int R, TH2 *hist, const std::string_view trg, bool rebinned) {
+    void setRawHistTrigger(int R, TH1 *hist, const std::string_view trg, bool rebinned) {
         auto &rdata = mRdata[R];
         auto &datacontent = rdata.mData;
-        if(rebinned) datacontent.mNormalizedRawhistRebinned[trg.data()] = hist;
-        else datacontent.mNormalizedRawHist[trg.data()] = hist;
+        if(rebinned) datacontent.mRawHistRebinned[trg.data()] = hist;
+        else datacontent.mRawHistOriginal[trg.data()] = hist;
     }
 
-    void setTrgEffCorrectedRawSpectrumTrigger(int R, TH2 *hist, const std::string_view trg) {
+    void setNormalizedRawSpectrumTrigger(int R, TH1 *hist, const std::string_view trg) {
+        mRdata[R].mData.mRawHistNormalized[trg.data()] = hist;
+    }
+
+    void setTrgEffCorrectedRawSpectrumTrigger(int R, TH1 *hist, const std::string_view trg) {
         mRdata[R].mData.mRawHistCorrected[trg.data()] = hist;
     }
 
