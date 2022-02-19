@@ -1,6 +1,9 @@
 import logging
 import os
 import subprocess
+from urllib import request
+
+from cluster import get_cluster, get_default_partition, get_fast_partition
 
 class ScriptWriter:
 
@@ -185,13 +188,28 @@ def submit_script(jobscript: str):
     jobid = int(toks[len(toks)-1])
     return jobid
 
-def submit(command: str, jobname: str, logfile: str, partition: str = "short", numnodes: int = 1, numtasks: int = 1, jobarray = None, dependency=0) -> int:
-    submitcmd = "sbatch -N {NUMNODES} -n {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=partition)
+def submit(command: str, jobname: str, logfile: str, partition: str = "short", numnodes: int = 1, numtasks: int = 1, jobarray = None, dependency: int = 0, maxtime: str ="8:00:00") -> int:
+    cluster = get_cluster()
+    submitcmd = "sbatch"
+    if cluster == "CADES":
+        submitcmd += " -A birthright" 
+    requestpartition = partition
+    if requestpartition == "default":
+        requestpartition = get_default_partition(cluster)
+    elif requestpartition == "fast":
+        requestpartition = get_fast_partition(cluster)
+    submitcmd +=" -N {NUMNODES} -c {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=partition)
     if jobarray:
         submitcmd += " --array={ARRAYMIN}-{ARRAYMAX}".format(ARRAYMIN=jobarray[0], ARRAYMAX=jobarray[1])
     if dependency > 0:
         submitcmd += " -d {DEP}".format(DEP=dependency)
-    submitcmd += " -J {JOBNAME} -o {LOGFILE} {COMMAND}".format(JOBNAME=jobname, LOGFILE=logfile, COMMAND=command)
+    submitcmd += " -J {JOBNAME} -o {LOGFILE}".format(JOBNAME=jobname, LOGFILE=logfile)
+    runcommand = command
+    if cluster == "CADES":
+        submitcmd += " --mem=4G --time={MAXTIME}".format(MAXTIME=maxtime)  
+        # On CADES scripts must run inside a container
+        runcommand = "{} {}".format(os.path.join(os.getenv("SUBSTRUCTURE_ROOT"), "cadescontainerwrapper.sh"), command)
+    submitcmd += " {COMMAND}".format(COMMAND=runcommand)
     logging.debug("Submitcmd: {}".format(submitcmd))
     submitResult = subprocess.run(submitcmd, shell=True, stdout=subprocess.PIPE)
     sout = submitResult.stdout.decode("utf-8")

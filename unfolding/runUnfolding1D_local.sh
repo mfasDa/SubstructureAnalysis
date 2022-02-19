@@ -1,18 +1,22 @@
 #! /bin/bash
-
-WORKDIR=$1
-DATAFILE=$2
-MCFILE=$3
-SYSVAR=$4
-UNFOLDINGMACRO=$5
+REPOSITORY=$1
+WORKDIR=$2
+DATAFILE=$3
+MCFILE=$4
+SYSVAR=$5
+UNFOLDINGMACRO=$6
 
 RADIUS=$SLURM_ARRAY_TASK_ID
+
+if [ "x$(echo $CLUSTER)" == "xCADES" ]; then
+    source /home/mfasel_alice/alice_setenv
+fi
 
 ALIENV=`which alienv`
 eval `$ALIENV --no-refresh printenv AliPhysics/latest`
 eval `$ALIENV list`
 
-SOURCEDIR=/software/mfasel/alice/SubstructureAnalysis/unfolding/1D
+SOURCEDIR=$REPOSITORY/unfolding/1D
 UNFOLDINGMETHOD=""
 if [ "x$(echo $UNFOLDINGMACRO | grep SVD)" != "x" ]; then
     UNFOLDINGMETHOD="SVD"
