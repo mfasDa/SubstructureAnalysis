@@ -17,7 +17,7 @@ public:
         build_years();
     }
 
-    const std::map<int, TH1 *> &getLuminosityHistosForYears()  const { mLuminosityTriggerClasses; }
+    const std::map<int, TH1 *> &getLuminosityHistosForYears()  const { return mLuminosityTriggerClasses; }
     const std::map<std::string, TH1 *> &getLuminosityHistosForTriggerClasses() { return mLuminosityYears; }
     TH1 *getLuminosityHistAllYears() const { return mLuminosityAllYears; }
 
@@ -75,7 +75,7 @@ private:
             return nullptr;
         }
         std::array<std::string, 3> triggerclasses = {{"INT7", "EJ1", "EJ2"}};
-        auto hist = new TH1F(Form("hLuminosities%d", year), Form("Integrated Luminosities for", year), 3, 0, 3);
+        auto hist = new TH1F(Form("hLuminosities%d", year), Form("Integrated Luminosities for %d", year), 3, 0, 3);
         hist->SetDirectory(nullptr);
         hist->GetXaxis()->SetTitle("Year");
         hist->GetYaxis()->SetTitle("L_{int} (pb^{-1})");

@@ -1,5 +1,5 @@
 #ifndef RAWDATASPECTRUM
-#define RAWDATASPECRTUM
+#define RAWDATASPECTRUM
 
 #include "../../meta/stl.C"
 #include "../../meta/root.C"

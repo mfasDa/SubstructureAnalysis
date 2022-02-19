@@ -16,8 +16,8 @@ template<typename T>
 class UnmanagedHistogramData {
     public:
         UnmanagedHistogramData() = default;
-        UnmanagedHistogramData(T *histogam) : fHistogram(histogram) {}
-        ~UnmanagedHistogramData() override = default;
+        UnmanagedHistogramData(T *histogram) : fHistogram(histogram) {}
+        ~UnmanagedHistogramData()  = default;
 
         T *getHistogram() const { if(!fHistogram) throw UninitializedException(); return fHistogram; }
         void setHistogram(T *histogram) { fHistogram = histogram; }
@@ -30,11 +30,11 @@ template<typename T>
 class ManagedHistogramData {
     public:
         ManagedHistogramData() = default;
-        ManagedHistogramData(const T *histogram) : fHistogram(std::unique_ptr<T>(histcopy(histogram))) {}
-        ~ManagedHistogram() override = default;
+        ManagedHistogramData(const T *histogram) : fHistogram(static_cast<T *>(histcopy(histogram))) {}
+        ~ManagedHistogramData() = default;
 
         T *getHistogram() const { if(!fHistogram) throw UninitializedException(); return fHistogram.get(); }
-        void setHistogram(const T *histogram) { fHistogram = std::unique_ptr<T>(histcopy(histogram)); }
+        void setHistogram(const T *histogram) { fHistogram = std::shared_ptr<T>(static_cast<T *>(histcopy(histogram))); }
 
     private:
         std::shared_ptr<T> fHistogram;

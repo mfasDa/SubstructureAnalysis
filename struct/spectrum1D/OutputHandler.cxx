@@ -134,7 +134,7 @@ public:
                 }
                 double minrange = yearmin - 0.5, maxrange = yearmax + 0.5;
                 int nbins = int(maxrange - minrange);
-                auto hist = new TH1D(Form("hEventCounterAbs%Trigger", trg.data()), Form("Abs. event counter for %s; year; Number of events", trg.data()), nbins, minrange, maxrange);
+                auto hist = new TH1D(Form("hEventCounterAbs%sTrigger", trg.data()), Form("Abs. event counter for %s; year; Number of events", trg.data()), nbins, minrange, maxrange);
                 hist->SetDirectory(nullptr);
                 std::string_view mytrigger = trg;
                 for(auto year: years) {
