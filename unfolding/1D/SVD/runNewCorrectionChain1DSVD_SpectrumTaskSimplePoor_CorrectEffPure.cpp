@@ -38,18 +38,19 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
 }
 
 void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
+    ROOT::EnableThreadSafety();
     const std::string jettype = "FullJets";
     std::array<std::string, 3> TRIGGERS = {{"INT7", "EJ2", "EJ1"}};
     UnfoldingHandler::UnfoldingMethod_t unfoldingmethod = UnfoldingHandler::UnfoldingMethod_t::kSVD;
     std::map<int, std::shared_ptr<DataFileHandler>> mDataFileHandlers;
     LuminosityHistograms lumihists;
     if(file2017.length()) {
-        auto filehandler = std::make_shared<DataFileHandler>(file2017, sysvar);
+        auto filehandler = std::make_shared<DataFileHandler>(file2017, jettype, sysvar);
         lumihists.addYear(2017, filehandler->getLuminosityHandler());
         mDataFileHandlers[2017] = filehandler;
     }
     if(file2018.length()) {
-        auto filehandler = std::make_shared<DataFileHandler>(file2018, sysvar);
+        auto filehandler = std::make_shared<DataFileHandler>(file2018, jettype, sysvar);
         lumihists.addYear(2018, filehandler->getLuminosityHandler());
         mDataFileHandlers[2018] = filehandler;
     }
@@ -92,11 +93,11 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         auto &closureset = mchandler.getClosureSet(R);
 
         std::unordered_map<std::string, TriggerEfficiency> triggerEffs = {
-            {"EJ2", TriggerEfficiency(mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::INT7).getSpectrumForTriggerCluster(TriggerCluster::kANY), 
-                                      mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::EJ2).getSpectrumForTriggerCluster(TriggerCluster::kANY),
+            {"EJ2", TriggerEfficiency(mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::INT7), 
+                                      mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::EJ2),
                                       binningdet)},        
-            {"EJ1", TriggerEfficiency(mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::INT7).getSpectrumForTriggerCluster(TriggerCluster::kANY), 
-                                      mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::EJ1).getSpectrumForTriggerCluster(TriggerCluster::kANY),
+            {"EJ1", TriggerEfficiency(mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::INT7), 
+                                      mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::EJ1),
                                       binningdet)},        
         };
 
@@ -120,7 +121,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
             auto rebinned = makeRebinnedSafe(spec, Form("RawJetSpectrum_FullJets_R%02d_%s_rebinned", R, trg.data()), binningdet);
             rebinned->SetTitle(Form("Rebinned raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
             auto normalized = histcopy(rebinned);
-            normalized->SetNameTitle(Form(Form("RawJetSpectrum_FullJets_R%02d_%s_normalized", R, trg.data())), Form("Normalized raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
+            normalized->SetNameTitle(Form("RawJetSpectrum_FullJets_R%02d_%s_normalized", R, trg.data()), Form("Normalized raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
             normalized->Scale(1./norms[trg]);
             auto corrected = histcopy(normalized);
             corrected->SetNameTitle(Form("RawJetSpectrum_FullJets_R%02d_%s_corrected", R, trg.data()), Form("Corrected raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
