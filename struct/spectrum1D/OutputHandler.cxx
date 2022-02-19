@@ -15,8 +15,8 @@ public:
         std::map<std::string, TH1 *> mRawHistCorrected;
         TH1 *mCombinedRawHistogram = nullptr;
         TH1 *mCombinedRawHistogramCorrected = nullptr;
-        TH1 *mVertexFindingEfficiency = nullptr;
-        TH1 *mCENTNOTRDCorrection = nullptr;
+        std::map<int, double> mVertexFindingEfficiency;
+        std::map<int, double> mCENTNOTRDCorrection;
         TH1 *mPurity = nullptr;
         TH1 *mLuminosityAllYears = nullptr;
         std::map<int, TH1 *> mEventCountersYears;
@@ -32,13 +32,52 @@ public:
             for(auto &[trg, hist] : mNormalizedRawHist) hist->Write();
             if(mCombinedRawHistogram) mCombinedRawHistogram->Write();
             if(mCombinedRawHistogramCorrected) mCombinedRawHistogramCorrected->Write();
-            if(mVertexFindingEfficiency) mVertexFindingEfficiency->Write();
+            auto histEffVtx = buildHistVertexFindingEfficiency();
+            if(histEffVtx) histEffVtx->Write();
+            auto histCENTNOTRD = buildHistsCENTNOTRDCorrection();
+            if(histCENTNOTRD) histCENTNOTRD->Write();
             if(mPurity) mPurity->Write();
             if(mLuminosityAllYears) mLuminosityAllYears->Write();
             for(auto &[year, counter]: mEventCountersYears) counter->Write();
             for(auto &[year, lumi] : mLuminosityYears) lumi->Write();
             for(auto &[trg, lumi] : mLuminosityTriggers) lumi->Write();
             base->cd();
+        }
+
+        TH1 *buildHistVertexFindingEfficiency(){
+            if(!mVertexFindingEfficiency.size()) return nullptr;
+            int yearmin = INT_MAX,
+                yearmax = INT_MIN;
+            for(auto &[year, eff] : mVertexFindingEfficiency) {
+                if(year < yearmin) yearmin = year;
+                if(year > yearmax) yearmax = year;
+            }
+            double minrange = yearmin - 0.5, maxrange = yearmax + 0.5;
+            int nbins = int(maxrange - minrange);
+            auto heffVtx = new TH1F("hVertexFindingEfficiency", "Vertex finding efficiency; year; #epsilon_{vtx}", nbins, minrange, maxrange);
+            heffVtx->SetDirectory(nullptr);
+            for(auto &[year, eff] : mVertexFindingEfficiency) {
+                heffVtx->SetBinContent(heffVtx->GetXaxis()->FindBin(year), eff);
+            }
+            return heffVtx;
+        }
+        
+        TH1 *buildHistsCENTNOTRDCorrection(){
+            if(!mCENTNOTRDCorrection.size()) return nullptr;
+            int yearmin = INT_MAX,
+                yearmax = INT_MIN;
+            for(auto &[year, eff] : mCENTNOTRDCorrection) {
+                if(year < yearmin) yearmin = year;
+                if(year > yearmax) yearmax = year;
+            }
+            double minrange = yearmin - 0.5, maxrange = yearmax + 0.5;
+            int nbins = int(maxrange - minrange);
+            auto heffVtx = new TH1F("hCENTNOTRDcorrection", "CENTNOTRD correction; year; c_{CENTNOTRD}", nbins, minrange, maxrange);
+            heffVtx->SetDirectory(nullptr);
+            for(auto &[year, corr] : mCENTNOTRDCorrection) {
+                heffVtx->SetBinContent(heffVtx->GetXaxis()->FindBin(year), corr);
+            }
+            return heffVtx;
         }
     };
 
@@ -198,18 +237,12 @@ public:
         mRdata[R].mData.mEventCountersYears = histos;
     }
 
-    void setVertexFindingEfficiency(int R, double eff) {
-        auto heffVtx = new TH1F("hVertexFindingEfficiency", "Vertex finding efficiency", 1, 0.5, 1.5);
-        heffVtx->SetDirectory(nullptr);
-        heffVtx->SetBinContent(1, eff);
-        mRdata[R].mData.mVertexFindingEfficiency = heffVtx;
+    void setVertexFindingEfficiency(int R, int year, double eff) {
+        mRdata[R].mData.mVertexFindingEfficiency[year] = eff;
     }
 
-    void setCENTNOTRDCorrection(int R, double correction) {
-        auto hcntcorr = new TH1F("hCENTNOTRDcorrection", "CENTNOTRD correction", 1, 0.5, 1.5);
-        hcntcorr->SetDirectory(nullptr);
-        hcntcorr->SetBinContent(1, correction);
-        mRdata[R].mData.mCENTNOTRDCorrection = hcntcorr;
+    void setCENTNOTRDCorrection(int R, int year, double correction) {
+        mRdata[R].mData.mCENTNOTRDCorrection[year] = correction;
     }
 
     void setResponseMatrix(int R, TH2 *hist, bool fine) {
