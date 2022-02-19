@@ -7,6 +7,11 @@
 class OutputHandler {
 public:
     struct DataContent {
+        struct RawEventCounter {
+            std::string mTrigger;
+            int mYear;
+            unsigned long mNumEvents;
+        };
         std::map<std::string, TH1 *> mRawHist;
         std::map<std::string, TH1 *> mNormalizedRawHist;
         std::map<std::string, TH1 *> mNormalizedRawhistRebinned;
@@ -19,9 +24,15 @@ public:
         std::map<int, double> mCENTNOTRDCorrection;
         TH1 *mPurity = nullptr;
         TH1 *mLuminosityAllYears = nullptr;
-        std::map<int, TH1 *> mEventCountersYears;
         std::map<int, TH1 *> mLuminosityYears;
         std::map<std::string, TH1 *> mLuminosityTriggers;
+        std::vector<RawEventCounter> mEventCounters;
+
+        void setRawEventCounts(int year, const std::string_view trigger, unsigned long eventcounts) {
+            auto found = std::find_if(mEventCounters.begin(), mEventCounters.end(), [year, trigger](const RawEventCounter count) { return year == count.mYear && trigger == count.mTrigger; });
+            if(found != mEventCounters.end()) found->mNumEvents = eventcounts;
+            else mEventCounters.push_back(RawEventCounter{trigger.data(), year, eventcounts});
+        }
 
         void write() {
             auto base = gDirectory;
@@ -38,9 +49,10 @@ public:
             if(histCENTNOTRD) histCENTNOTRD->Write();
             if(mPurity) mPurity->Write();
             if(mLuminosityAllYears) mLuminosityAllYears->Write();
-            for(auto &[year, counter]: mEventCountersYears) counter->Write();
             for(auto &[year, lumi] : mLuminosityYears) lumi->Write();
             for(auto &[trg, lumi] : mLuminosityTriggers) lumi->Write();
+            for(auto evcounter : buildEventCounterHistsYears()) evcounter->Write();
+            for(auto evcounter : buildEventCounterHistsTriggers()) evcounter->Write();
             base->cd();
         }
 
@@ -78,6 +90,58 @@ public:
                 heffVtx->SetBinContent(heffVtx->GetXaxis()->FindBin(year), corr);
             }
             return heffVtx;
+        }
+
+        std::vector<TH1 *> buildEventCounterHistsYears() {
+            std::vector<TH1 *> result;
+            std::map<int, std::set<std::string>> database;
+            for(const auto &count : mEventCounters) {
+                database[count.mYear].insert(count.mTrigger);
+            }
+            for(const auto &[year, triggers] : database) {
+                auto absyear = year;
+                if(!triggers.size()) continue;
+                auto hist = new TH1D(Form("hEventCounterAbs%d", year), Form("Abs. event counter for %d; trigger; Number of events", year), triggers.size(), 0, triggers.size());
+                hist->SetDirectory(nullptr);
+                int currentbin = 1;
+                for(auto trg : triggers) {
+                    hist->GetXaxis()->SetBinLabel(currentbin, trg.data());
+                    auto rawcounter = std::find_if(mEventCounters.begin(), mEventCounters.end(), [absyear, trg](RawEventCounter &counts) { return absyear == counts.mYear && trg == counts.mTrigger; });
+                    hist->SetBinContent(currentbin, rawcounter->mNumEvents);
+                    currentbin++;
+                }
+                result.push_back(hist);
+            }
+            return result;
+        }
+
+        std::vector<TH1 *> buildEventCounterHistsTriggers() {
+            std::vector<TH1 *> result;
+            std::map<std::string, std::set<int>> database;
+            for(const auto &count : mEventCounters) {
+                database[count.mTrigger].insert(count.mYear);
+            }
+            for(const auto &[trg, years] : database) {
+                if(!years.size()) continue;
+                int yearmin = INT_MAX,
+                    yearmax = INT_MIN;
+                for(auto year : years) {
+                    if(year < yearmin) yearmin = year;
+                    if(year > yearmax) yearmax = year;
+                }
+                double minrange = yearmin - 0.5, maxrange = yearmax + 0.5;
+                int nbins = int(maxrange - minrange);
+                auto hist = new TH1D(Form("hEventCounterAbs%Trigger", trg.data()), Form("Abs. event counter for %s; year; Number of events", trg.data()), nbins, minrange, maxrange);
+                hist->SetDirectory(nullptr);
+                std::string_view mytrigger = trg;
+                for(auto year: years) {
+                    auto rawcounter = std::find_if(mEventCounters.begin(), mEventCounters.end(), [year, mytrigger](RawEventCounter &counts) { return year == counts.mYear && mytrigger == counts.mTrigger; });
+                    hist->SetBinContent(hist->GetXaxis()->FindBin(year), rawcounter->mNumEvents);
+                }
+                result.push_back(hist);
+            }
+            return result;
+
         }
     };
 
@@ -233,16 +297,16 @@ public:
         mRdata[R].mData.mLuminosityYears = histos;
     }
 
-    void setEventCountersYears(int R, const std::map<int, TH1 *> histos){ 
-        mRdata[R].mData.mEventCountersYears = histos;
-    }
-
     void setVertexFindingEfficiency(int R, int year, double eff) {
         mRdata[R].mData.mVertexFindingEfficiency[year] = eff;
     }
 
     void setCENTNOTRDCorrection(int R, int year, double correction) {
         mRdata[R].mData.mCENTNOTRDCorrection[year] = correction;
+    }
+
+    void setRawEvents(int R, int year, const std::string_view trigger, unsigned long eventcounts){
+        mRdata[R].mData.setRawEventCounts(year, trigger, eventcounts);
     }
 
     void setResponseMatrix(int R, TH2 *hist, bool fine) {
