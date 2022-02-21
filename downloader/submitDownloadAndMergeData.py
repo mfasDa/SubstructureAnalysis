@@ -6,18 +6,22 @@ import os
 import sys
 
 from SubstructureHelpers.alien import test_alien_token, recreate_token
+from SubstructureHelpers.cluster import SubmissionHostNotSupportedException, UnknownClusterException, get_cluster, is_valid_partition, PartitionException
+from SubstructureHelpers.setup_logging import setup_logging
 from SubstructureHelpers.slurm import submit
 from SubstructureHelpers.train import AliTrainDB
 
 class LaunchHandler:
 
-    def __init__(self, outputbase: str , trainrun: int, legotrain: str):
+    def __init__(self, cluster: str, outputbase: str , trainrun: int, legotrain: str):
         self.__repo = os.getenv("SUBSTRUCTURE_ROOT")
         self.__outputbase = outputbase
         self.__trainrun = None
         self.__legotrain = legotrain
+        self.__cluster = cluster
         self.__partitionDownload = "short"
         self.__tokens = {"cert": None, "key": None}
+        self.__maxtime = "01:00:00"
 
         pwg,trainname = self.__legotrain.split("/")
         trainDB = AliTrainDB(pwg, trainname)
@@ -29,9 +33,12 @@ class LaunchHandler:
             logging.error("%s", e)
 
     def set_partition_for_download(self, partition: str):
-        if not partition in ["long", "short", "vip", "loginOnly"]:
-            return
+        if not is_valid_partition(self.__cluster, partition):
+            raise PartitionException(partition, self.__cluster)
         self.__partitionDownload = partition
+
+    def set_maxtime(self, maxtime: str):
+        self.__maxtime = maxtime
 
     def set_token(self, cert: str, key: str):
         self.__tokens["cert"] = cert
@@ -50,7 +57,7 @@ class LaunchHandler:
         jobname = "down_{YEAR}".format(YEAR=year)
         logfile = os.path.join(self.__outputbase, "download.log")
         downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {YEAR} {TRAINRUN} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO = self.__repo, OUTPUTDIR=self.__outputbase, YEAR=year, TRAINRUN=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
-        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=1)
+        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=1, maxtime=self.__maxtime)
         logging.info("Submitting download job: {}".format(jobid))
         return jobid
 
@@ -61,14 +68,11 @@ if __name__ == "__main__":
     parser.add_argument("-y", "--year", metavar="YEAR", type=int,required=True, help="Year of the sample")
     parser.add_argument("-t", "--trainrun", metavar="TRAINRUN", type=int, required=True, help="Train run")
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp", help="Name of the lego train (default: PWGJE/Jets_EMC_pp)")
-    parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="short", help="Partition for download")
+    parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="fast", help="Partition for download")
+    parser.add_argument("--maxtime", metavar="MAXTIME", type=str, default="01:00:00", help="Maximum time for download job")
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
-
-    loglevel = logging.INFO
-    if args.debug:
-        loglevel = logging.DEBUG
-    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=loglevel)
+    setup_logging(args.debug)
 
     tokens = test_alien_token()
     if not len(tokens):
@@ -80,7 +84,23 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
+    cluster = ""
+    try:
+        cluster = get_cluster()
+    except SubmissionHostNotSupportedException as e:
+        logging.error("Submission error: %s", e)
+        sys.exit(1)
+    logging.info("Submitting download on cluster %s", cluster)
+
+    handler = LaunchHandler(cluster=cluster, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain)
     handler.set_token(cert, key)
-    handler.set_partition_for_download(args.partition)
-    handler.submit(args.year)
+    handler.set_maxtime(args.maxtime)
+    try:
+        handler.set_partition_for_download(args.partition)
+        handler.submit(args.year)
+    except UnknownClusterException as e:
+        logging.error("Submission error: %s", e)
+        sys.exit(1)
+    except PartitionException as e:
+        logging.error("Submission error: %s", e)
+        sys.exit(1)

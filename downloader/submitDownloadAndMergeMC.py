@@ -5,7 +5,9 @@ import logging
 import os
 import sys
 
+from SubstructureHelpers.setup_logging import setup_logging
 from SubstructureHelpers.alien import test_alien_token, recreate_token
+from SubstructureHelpers.cluster import get_cluster, is_valid_partition, SubmissionHostNotSupportedException, PartitionException, UnknownClusterException
 from SubstructureHelpers.slurm import submit
 from SubstructureHelpers.train import AliTrainDB
 from merge.submitMergeRun import merge_submitter_runs
@@ -13,15 +15,17 @@ from merge.submitMergeMCDatasets import merge_submitter_datasets
 
 class LaunchHandler:
 
-    def __init__(self, outputbase: str , trainrun: int, legotrain: str, mergefile: str = "AnalysisResults.root", check: bool = False):
+    def __init__(self, cluster: str, outputbase: str , trainrun: int, legotrain: str, mergefile: str = "AnalysisResults.root", check: bool = False):
         self.__repo = os.getenv("SUBSTRUCTURE_ROOT")
         self.__outputbase = outputbase
         self.__legotrain = legotrain
         self.__trainrun = None
+        self.__cluster = cluster
         self.__partitionDownload = "long"
         self.__mergefile = mergefile
         self.__check = check
         self.__tokens = {"cert": None, "key": None}
+        self.__maxtime = "10:00:00"
 
         pwg,trainname = self.__legotrain.split("/")
         trainDB = AliTrainDB(pwg, trainname)
@@ -33,9 +37,12 @@ class LaunchHandler:
             logging.error("%s", e)
 
     def set_partition_for_download(self, partition: str):
-        if not partition in ["long", "short", "vip", "loginOnly"]:
-            return
+        if not is_valid_partition(self.__cluster, partition):
+            raise PartitionException(partition, self.__cluster)
         self.__partitionDownload = partition
+
+    def set_maxtime(self, maxtime: str):
+        self.__maxtime = maxtime
 
     def set_token(self, cert: str, key: str):
         self.__tokens["cert"] = cert
@@ -66,10 +73,10 @@ class LaunchHandler:
             if not jobid_download:
                 return
             logging.info("Submitting download job with ID: {}".format(jobid_download))
-            jobids_merge.append(self.submit_merge(sample, jobid_download))
+            jobids_merge.append(self.submit_merge(sample, jobid_download, "2:00:00"))
         if len(jobids_merge) > 1:
             # if we have at least 2 subsamples submit also period merging
-            self.submit_merge_samples(jobids_merge)
+            self.submit_merge_samples(jobids_merge, "2:00:00")
 
     def submit_download_MC(self, sample: str) -> int:
         cert = self.__tokens["cert"]
@@ -85,16 +92,16 @@ class LaunchHandler:
         logfile = os.path.join(outputdir, "download.log")
         
         downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {DATASET} {LEGOTRAIN}/{TRAINID} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO=self.__repo, OUTPUTDIR=outputdir, DATASET=sample, LEGOTRAIN=self.__legotrain, TRAINID=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
-        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=4)
+        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=4, maxtime=self.__maxtime)
         return jobid
 
-    def submit_merge(self, sample: str, wait_jobid: int) -> int:
+    def submit_merge(self, sample: str, wait_jobid: int, maxtime: str) -> int:
         workdir = os.path.join(self.__outputbase, sample)
-        jobids = merge_submitter_runs(os.path.join(self.__repo, "merge"), workdir, self.__mergefile, "short", wait_jobid, self.__check)
+        jobids = merge_submitter_runs(os.path.join(self.__repo, "merge"), workdir, self.__mergefile, "short", maxtime, wait_jobid, self.__check)
         return jobids["final"]
 
-    def submit_merge_samples(self, wait_jobids: list) -> int:
-        merge_submitter_datasets(os.path.join(self.__repo, "merge"), self.__outputbase, self.__mergefile, "short", wait_jobids, self.__check)
+    def submit_merge_samples(self, wait_jobids: list, maxtime: str) -> int:
+        merge_submitter_datasets(os.path.join(self.__repo, "merge"), self.__outputbase, self.__mergefile, "short", maxtime, wait_jobids, self.__check)
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
@@ -106,14 +113,19 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--legotrain", metavar="LEGOTRAIN", type=str, default="PWGJE/Jets_EMC_pp_MC", help="Name of the lego train (default: PWGJE/Jets_EMC_pp_MC)")
     parser.add_argument("-s", "--subsample", metavar="SUBSAMPLE", type=str, default="", help="Copy only subsample")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="long", help="Partition for download")
+    parser.add_argument("--maxtime", metavar="MAXTIME", type=str, default="01:00:00", help="Maximum time for download job")
     parser.add_argument("-c", "--check", action="store_true", help="Run check of pt-hard distribution")
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
+    setup_logging(args.debug)
 
-    loglevel = logging.INFO
-    if args.debug:
-        loglevel = logging.DEBUG
-    logging.basicConfig(format="[%(levelname)s]: %(message)s", level=loglevel)
+    cluster = ""
+    try:
+        cluster = get_cluster()
+    except SubmissionHostNotSupportedException as e:
+        logging.error("Submission error: %s", e)
+        sys.exit(1)
+    logging.info("Submitting download on cluster %s", cluster)
 
     tokens = test_alien_token()
     if not len(tokens):
@@ -125,7 +137,15 @@ if __name__ == "__main__":
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = LaunchHandler(outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain, check=args.check)
+    handler = LaunchHandler(cluster=cluster, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain, check=args.check)
     handler.set_token(cert, key)
-    handler.set_partition_for_download(args.partition)
-    handler.submit(args.year)
+    handler.set_maxtime(args.maxtime)
+    try:
+        handler.set_partition_for_download(args.partition)
+        handler.submit(args.year)
+    except UnknownClusterException as e:
+        logging.error("Submission error: %s", e)
+        sys.exit(1)
+    except PartitionException as e:
+        logging.error("Submission error: %s", e)
+        sys.exit(1)
