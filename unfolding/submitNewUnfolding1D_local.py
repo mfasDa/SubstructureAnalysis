@@ -30,5 +30,5 @@ if __name__ == "__main__":
     mergeexecutable = os.path.join(repo, "postprocess1D.sh")
     mergecmd = "{EXE} {WORKDIR}".format(EXE=mergeexecutable, WORKDIR=os.getcwd())
     logfile = "merge"
-    mergejob = slurm.submit(mergecmd, "merge_{TAG}".format(TAG=args.jobtag), logfile, args.queue, 1, 1, None, unfoldingjob, maxtime="1:00:00")
+    mergejob = slurm.submit(mergecmd, "merge_{TAG}".format(TAG=args.jobtag), logfile, args.queue, 1, 1, None, unfoldingjob, maxtime="2:00:00")
     print("Submitting merging job under %d" %mergejob)
