@@ -1,9 +1,8 @@
 import logging
 import os
 import subprocess
-from urllib import request
 
-from cluster import get_cluster, get_default_partition, get_fast_partition
+from SubstructureHelpers.cluster import get_cluster, get_default_partition, get_fast_partition, is_valid_partition, PartitionException
 
 class ScriptWriter:
 
@@ -193,12 +192,14 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
     submitcmd = "sbatch"
     if cluster == "CADES":
         submitcmd += " -A birthright" 
+    if not is_valid_partition(partition, cluster):
+        raise PartitionException(partition, cluster)
     requestpartition = partition
     if requestpartition == "default":
         requestpartition = get_default_partition(cluster)
     elif requestpartition == "fast":
         requestpartition = get_fast_partition(cluster)
-    submitcmd +=" -N {NUMNODES} -c {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=partition)
+    submitcmd +=" -N {NUMNODES} -c {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=requestpartition)
     if jobarray:
         submitcmd += " --array={ARRAYMIN}-{ARRAYMAX}".format(ARRAYMIN=jobarray[0], ARRAYMAX=jobarray[1])
     if dependency > 0:
@@ -206,7 +207,41 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
     submitcmd += " -J {JOBNAME} -o {LOGFILE}".format(JOBNAME=jobname, LOGFILE=logfile)
     runcommand = command
     if cluster == "CADES":
-        submitcmd += " --mem=4G --time={MAXTIME}".format(MAXTIME=maxtime)  
+        submitcmd += " --mem=4G --time={MAXTIME}".format(MAXTIME=maxtime)
+        # On CADES scripts must run inside a container
+        runcommand = "{} {}".format(os.path.join(os.getenv("SUBSTRUCTURE_ROOT"), "cadescontainerwrapper.sh"), command)
+    submitcmd += " {COMMAND}".format(COMMAND=runcommand)
+    logging.debug("Submitcmd: {}".format(submitcmd))
+    submitResult = subprocess.run(submitcmd, shell=True, stdout=subprocess.PIPE)
+    sout = submitResult.stdout.decode("utf-8")
+    toks = sout.split(" ")
+    jobid = int(toks[len(toks)-1])
+    return jobid
+
+def submit_dependencies(command: str, jobname: str, logfile: str, partition: str = "short", numnodes: int = 1, numtasks: int = 1, jobarray = None, dependency: list = [], dependency_mode: str = "afterany", maxtime: str ="8:00:00") -> int:
+    cluster = get_cluster()
+    submitcmd = "sbatch"
+    if cluster == "CADES":
+        submitcmd += " -A birthright" 
+    if not is_valid_partition(partition, cluster):
+        raise PartitionException(partition, cluster)
+    requestpartition = partition
+    if requestpartition == "default":
+        requestpartition = get_default_partition(cluster)
+    elif requestpartition == "fast":
+        requestpartition = get_fast_partition(cluster)
+    submitcmd +=" -N {NUMNODES} -c {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=requestpartition)
+    if jobarray:
+        submitcmd += " --array={ARRAYMIN}-{ARRAYMAX}".format(ARRAYMIN=jobarray[0], ARRAYMAX=jobarray[1])
+    if len(dependency):
+        dependencystring = dependency_mode
+        for dep in dependency:
+            dependencystring += ":{}".format(dep)
+        submitcmd += " --dependency={DEP}".format(DEP=dependencystring)
+    submitcmd += " -J {JOBNAME} -o {LOGFILE}".format(JOBNAME=jobname, LOGFILE=logfile)
+    runcommand = command
+    if cluster == "CADES":
+        submitcmd += " --mem=4G --time={MAXTIME}".format(MAXTIME=maxtime)
         # On CADES scripts must run inside a container
         runcommand = "{} {}".format(os.path.join(os.getenv("SUBSTRUCTURE_ROOT"), "cadescontainerwrapper.sh"), command)
     submitcmd += " {COMMAND}".format(COMMAND=runcommand)
