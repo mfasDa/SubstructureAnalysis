@@ -35,7 +35,7 @@ public:
         }
 
         void write() {
-            auto base = gDirectory;
+            auto base = static_cast<TDirectory *>(gDirectory);
             base->mkdir("rawlevel");
             base->cd("rawlevel");
             for(auto &[trg, hist] : mRawHistOriginal) hist->Write();
@@ -149,7 +149,7 @@ public:
     };
 
     struct MCContent {
-        TH1 *mScale = nullptr;
+        double mScale = 1.;
         TH2 *mResponseMatrixFine = nullptr;
         TH2 *mResponseMatrixRebinned = nullptr;
         TH1 *mKinematicEfficiency = nullptr;
@@ -158,10 +158,10 @@ public:
         TH1 *mTruefullAll = nullptr;
 
         void write() {
-            auto base = gDirectory;
+            auto base = static_cast<TDirectory *>(gDirectory);
             base->mkdir("response");
             base->cd("response");
-            mScale->Write();
+            build_scale_hist()->Write();
             if(mResponseMatrixFine) mResponseMatrixFine->Write();
             if(mResponseMatrixRebinned) mResponseMatrixRebinned->Write();
             if(mKinematicEfficiency) mKinematicEfficiency->Write();
@@ -169,6 +169,13 @@ public:
             if(mTruefull) mTruefull->Write();
             if(mTruefullAll) mTruefullAll->Write("partall");
             base->cd();
+        }
+
+        TH1 *build_scale_hist() {
+            auto hmcscale = new TH1F("hMCscale", "MC scale", 1, 0.5, 1.5);
+            hmcscale->SetDirectory(nullptr);
+            hmcscale->SetBinContent(1, mScale);
+            return hmcscale;
         }
     };
 
@@ -184,7 +191,7 @@ public:
         TH1 *mJetFindingEfficiencyClosure = nullptr;
 
         void write(){
-            auto base = gDirectory;
+            auto base = static_cast<TDirectory *>(gDirectory);
             base->mkdir("closuretest");
             base->cd("closuretest");
             if(mPriorsClosure) mPriorsClosure->Write("priorsclosure");
@@ -214,7 +221,7 @@ public:
         TH1 *mDvectorClosure;
 
         void write() {
-            auto base = gDirectory;
+            auto base = static_cast<TDirectory *>(gDirectory);
             std::string regstring = Form("reg%d", mRegularization);
             base->mkdir(regstring.data());
             base->cd(regstring.data());
@@ -244,14 +251,17 @@ public:
         }
 
         void write() {
-            auto base = gDirectory;
+            auto base = static_cast<TDirectory *>(gDirectory);
             std::string rstring = Form("R%02d", mR);
             base->mkdir(rstring.data());
             base->cd(rstring.data());
             mData.write();
             mMC.write();
             mClosure.write();
-            for(auto &[ref, hists] : mUnfolded) hists.write();
+            for(auto &[reg, hists] : mUnfolded) {
+                hists.mRegularization = reg;
+                hists.write();
+            }
             base->cd();
         }
     };
@@ -285,7 +295,7 @@ public:
         auto &rdata = mRdata[R];
         auto &datacontent = rdata.mData;
         if(purityCorrected) datacontent.mCombinedRawHistogramCorrected = hist;
-        else datacontent.mCombinedRawHistogramCorrected = hist;
+        else datacontent.mCombinedRawHistogram = hist;
     }
 
     void setCombinedLuminosity(int R, TH1 *hist){ 
@@ -334,11 +344,7 @@ public:
     }
 
     void setMCScale(int R, double mcscale) {
-        auto hmcscale = new TH1F("hMCscale", "MC scale", 1, 0.5, 1.5);
-        hmcscale->SetDirectory(nullptr);
-        hmcscale->SetBinContent(1, mcscale);
-        hmcscale->Write();
-        mRdata[R].mMC.mScale = hmcscale;
+        mRdata[R].mMC.mScale = mcscale; 
     }
 
     void setKinematicEfficiency(int R, TH1 *hist) {
@@ -389,7 +395,10 @@ public:
 
     void write(const std::string_view outputfile) {
         std::unique_ptr<TFile> writer(TFile::Open(outputfile.data(), "RECREATE"));
-        for(auto &[R, data] : mRdata) data.write();
+        for(auto &[R, data] : mRdata) {
+            data.mR = R;
+            data.write();
+        }
     }
 
 private:

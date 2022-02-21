@@ -32,6 +32,7 @@ private:
 
     void build_years() {
         for(auto &[year, handler] : mLuminosityHandlers) {
+            if(!handler) std::cerr << "LuminosityHistograms -  build_years: Not found handler for year " << year << std::endl;
             auto hist = build_year(year);
             if(hist) mLuminosityTriggerClasses[year] = hist; 
         }
@@ -49,7 +50,7 @@ private:
     }
 
     TH1 *build_triggerclass(const std::string_view trigger) {
-        int currentmin = -1, currentmax = INT_MAX;
+        int currentmin = INT_MAX, currentmax = INT_MIN;
         for(auto &[year, handler] : mLuminosityHandlers) {
             if(year > currentmax) currentmax = year;
             if(year < currentmin) currentmin = year; 
@@ -62,6 +63,7 @@ private:
         hist->GetYaxis()->SetTitle("L_{int} (pb^{-1})");
         hist->SetDirectory(nullptr);
         for(auto &[year, handler] : mLuminosityHandlers) {
+            if(!handler) std::cerr << "LuminosityHistograms -  build_triggerclass: Not found handler for year " << year << std::endl;
             double lumi = handler->GetLuminosityForTrigger(trigger.data(), PWG::EMCAL::AliEmcalTriggerLuminosity::LuminosityUnit_t::kPb);
             hist->SetBinContent(hist->GetXaxis()->FindBin(year), lumi);
         } 
@@ -74,6 +76,7 @@ private:
         if(found == mLuminosityHandlers.end()) {
             return nullptr;
         }
+        handler = found->second;
         std::array<std::string, 3> triggerclasses = {{"INT7", "EJ1", "EJ2"}};
         auto hist = new TH1F(Form("hLuminosities%d", year), Form("Integrated Luminosities for %d", year), 3, 0, 3);
         hist->SetDirectory(nullptr);

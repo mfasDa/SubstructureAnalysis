@@ -3,6 +3,7 @@
 
 #include "../../meta/stl.C"
 #include "../../meta/root.C"
+#include "../../helpers/string.C"
 
 #include "RawDataSpectrum.cxx"
 #include "../HistogramDataHandler.cxx"
@@ -58,7 +59,7 @@ public:
 
 class JetFindingEfficiency : public ManagedHistogramData<TH2> {
 public:
-    enum {
+    enum MatchType_t {
         kNotReconstructed = 1, 
         kReconstructedNoAcceptance = 2,
         kAccepted = 3
@@ -66,7 +67,7 @@ public:
     JetFindingEfficiency() = default;
     JetFindingEfficiency(const TH2 *hist) : ManagedHistogramData<TH2>(hist) {}
 
-    TH1 *makeEfficiency(const std::vector<double> partptbinning) const {
+    TH1 *makeEfficiency(const std::vector<double> &partptbinning) const {
         auto hist = getHistogram();
         std::unique_ptr<TH1> allraw(hist->ProjectionX("allraw")),
                              recraw(hist->ProjectionX("recraw", kAccepted, kAccepted)),
@@ -76,11 +77,35 @@ public:
         efficiency->Divide(efficiency, all.get(), 1., 1., "b");
         return efficiency;
     }
+
+    TH1 *makeProjection(const std::vector<double> &partptbinning, MatchType_t matchtype) const {
+        std::string tag;
+        std::string title;
+        switch(matchtype) {
+        case MatchType_t::kNotReconstructed: tag = "NotReconstructed"; title = "not reconstructed"; break;
+        case MatchType_t::kReconstructedNoAcceptance: tag = "ReconstructedNoAcceptance"; title = "reconstructed, not in acceptance"; break;
+        case MatchType_t::kAccepted: tag = "Accepted"; title = "accepted"; break;
+        };
+        auto hist = getHistogram();
+        std::unique_ptr<TH1> projection(hist->ProjectionX("efficiencyHistSelected", matchtype));
+        auto result =projection->Rebin(partptbinning.size() - 1, Form("jetSpectrumPartLevel%s", tag.data()), partptbinning.data());
+        result->SetDirectory(nullptr);
+        result->SetTitle(Form("Jet spectrum, %s", tag.data()));
+        return result;
+    }
+
+    TH1 *makeProjectionAll(const std::vector<double> &partptbinning) const {
+        std::unique_ptr<TH1> projection(getHistogram()->ProjectionX("efficiencyHistSelected"));
+        auto result =projection->Rebin(partptbinning.size() - 1, "jetSpectrumPartLevelAllMatchType", partptbinning.data());
+        result->SetDirectory(nullptr);
+        result->SetTitle("Jet spectrum, all det level jets");
+        return result;
+    }
 };
 
 class JetFindingPurity : public ManagedHistogramData<TH2>{
 public:
-    enum {
+    enum MatchType_t {
         kNotMatched = 1, 
         kMatchedNoAcceptance = 2,
         kAccepted = 3
@@ -88,7 +113,7 @@ public:
     JetFindingPurity() = default;
     JetFindingPurity(const TH2 *hist) : ManagedHistogramData<TH2>(hist) {}
 
-    TH1 *makePurity(const std::vector<double> detptbinning) const {
+    TH1 *makePurity(const std::vector<double> &detptbinning) const {
         auto hist = getHistogram();
         std::unique_ptr<TH1> allraw(hist->ProjectionX("allraw")),
                              recraw(hist->ProjectionX("recraw", kAccepted, kAccepted)),
@@ -97,6 +122,30 @@ public:
         purity->SetDirectory(nullptr);
         purity->Divide(purity, all.get(), 1., 1., "b");
         return purity;
+    }
+
+    TH1 *makeProjection(const std::vector<double> &detptbinning, MatchType_t matchtype) const {
+        std::string tag;
+        std::string title;
+        switch(matchtype) {
+        case MatchType_t::kNotMatched: tag = "NoMatch"; title = "not matched"; break;
+        case MatchType_t::kMatchedNoAcceptance: tag = "MatchedNoAcceptance"; title = "matched, not in acceptance"; break;
+        case MatchType_t::kAccepted: tag = "Accepted"; title = "accepted"; break;
+        };
+        auto hist = getHistogram();
+        std::unique_ptr<TH1> projection(hist->ProjectionX("purityHistSelected", matchtype));
+        auto result =projection->Rebin(detptbinning.size() - 1, Form("jetSpectrumDetLevel%s", tag.data()), detptbinning.data());
+        result->SetDirectory(nullptr);
+        result->SetTitle(Form("Jet spectrum, %s", tag.data()));
+        return result;
+    }
+     
+    TH1 *makeProjectionAll(const std::vector<double> &detptbinning) const {
+        std::unique_ptr<TH1> projection(getHistogram()->ProjectionX("purityHistSelected"));
+        auto result =projection->Rebin(detptbinning.size() - 1, "jetSpectrumDetLevelAllMatchType", detptbinning.data());
+        result->SetDirectory(nullptr);
+        result->SetTitle("Jet spectrum, all det level jets");
+        return result;
     }
 };
 
@@ -228,11 +277,13 @@ public:
     public:
         using ClosureFullTrueSpectrum = UnmanagedHistogramData<TH1>;
         ClosureSet() = default;
-        ClosureSet(TH2 *response, TH2 *truth, TH2 *jetfindingEff, TH2 *jetfindingPurity, TH1 *partleveltrue, const TH1 *ntrials) :
+        ClosureSet(TH2 *response, TH2 *truth, TH2 *jetfindingEff, TH2 *jetfindingPurity, TH2 *jetfindingEffTruth, TH2 *jetfindingPurityTruth, TH1 *partleveltrue, const TH1 *ntrials) :
             fResponse(response),
             fTruth(truth),
             fJetFindingEfficiency(jetfindingEff),
             fJetFindingPurity(jetfindingPurity),
+            fTruthJetFindingEfficiency(jetfindingEffTruth),
+            fTruthJetFindingPurity(jetfindingPurityTruth),
             fPartLevelClosureTrue(partleveltrue),
             fNTrials(ntrials)
         { }
@@ -242,12 +293,16 @@ public:
         RawResponseMatrix &getTruthMatrix() { return fTruth; }
         JetFindingEfficiency &getJetFindingEfficiency() { return fJetFindingEfficiency; }
         JetFindingPurity &getJetFindingPurity() { return fJetFindingPurity; }
+        JetFindingEfficiency &getTruthJetFindingEfficiency()  { return fTruthJetFindingEfficiency; }
+        JetFindingPurity &getTruthJetFindingPurity() { return fTruthJetFindingPurity; }
         ClosureFullTrueSpectrum &getPartLevelTrue() { return fPartLevelClosureTrue; }
         Trials &getTrials() { return fNTrials; }
 
         void setResponse(TH2 *response) { fResponse.setHistogram(response); }
         void setJetFindingEfficiency(TH2 *efficiency) { fJetFindingEfficiency.setHistogram(efficiency); }
         void setJetFindingPurity(TH2 *purity) { fJetFindingPurity.setHistogram(purity); }
+        void setTruthJetFindingEfficiency(TH2 *efficiency) { fTruthJetFindingEfficiency.setHistogram(efficiency); }
+        void setTruthJetFindingPurity(TH2 *purity) { fTruthJetFindingPurity.setHistogram(purity); }
         void setTrials(const TH1 *trials) { fNTrials.setHistogram(trials); }
         void setPartLevelClosureTrue(TH1 *spectrum) {fPartLevelClosureTrue.setHistogram(spectrum); }
 
@@ -256,6 +311,8 @@ public:
         RawResponseMatrix fTruth;
         JetFindingEfficiency fJetFindingEfficiency;
         JetFindingPurity fJetFindingPurity;
+        JetFindingEfficiency fTruthJetFindingEfficiency;
+        JetFindingPurity fTruthJetFindingPurity;
         ClosureFullTrueSpectrum fPartLevelClosureTrue;
         Trials fNTrials;
     };
@@ -281,11 +338,20 @@ public:
 
 private:
     void build() {
+        std::cout << "MCFileHandler::build: Read MC information" << std::endl;
         std::map<int, std::vector<std::string>> directories;
         for(auto dir : TRangeDynCast<TKey>(fReader->GetListOfKeys())) {
             std::string_view dirname(dir->GetName());
             if((dirname.find("EnergyScaleResults") == std::string::npos) && (dirname.find("JetSpectrum") == std::string::npos)) continue;
-            auto rstring = dirname.substr(dirname.find("R"), 3);
+            std::cout << "MCFileHandler::build: Reading " << dirname << std::endl;
+            auto tokens = tokenize(dirname.data(), '_');
+            std::string rstring;
+            for(const auto &tok : tokens) {
+                if(tok[0] == 'R' && tok.length() == 3) {
+                    rstring = tok;
+                    break;
+                }
+            }
             auto R = std::atoi(rstring.substr(1, 2).data());
             auto found = directories.find(R);
             if(found == directories.end()){
@@ -296,6 +362,8 @@ private:
             }
         }
         for(const auto &[R, rdirs] : directories) buildRadius(R, rdirs);
+        std::cout << "MCFileHandler::build: Found " << fMCsets.size() << " datasets with MC information" << std::endl;
+        std::cout << "MCFileHandler::build: Found " << fClosureSets.size() << " datasets with closure information" << std::endl;
     }
 
     void buildRadius(int R, const std::vector<std::string> &directories) {
@@ -314,8 +382,10 @@ private:
              truthclosure = HistGetter<TH2>(histlistResponse, "hJetResponseFineNoClosure"),
              jetFindingEff = HistGetter<TH2>(histlistResponse, "hJetfindingEfficiencyCore"),
              jetFindingEffClosure = HistGetter<TH2>(histlistResponse, "hJetfindingEfficiencyCoreClosure"),
+             jetFindingEffClosureTruth = HistGetter<TH2>(histlistResponse, "hJetfindingEfficiencyCoreNoClosure"),
              jetFindingPure = HistGetter<TH2>(histlistResponse, "hPurityDet"),
-             jetFindingPureClosure = HistGetter<TH2>(histlistResponse, "hPurityDetClosure");
+             jetFindingPureClosure = HistGetter<TH2>(histlistResponse, "hPurityDetClosure"),
+             jetFindingPureClosureTruth = HistGetter<TH2>(histlistResponse, "hPurityDetNoClosure");
         auto nTrials = HistGetter<TH1>(histlistResponse, "fHistTrials"), 
              partLevelSpectrum = HistGetter<TH1>(histlistResponse, "hJetSpectrumPartAll"),
              partLevelClosureTrue = HistGetter<TH1>(histlistResponse, "hJetSpectrumPartAllNoClosure");
@@ -343,12 +413,12 @@ private:
             auto found = fMCsets.find(R);
             for(auto &[trg, hist] : detLevelSpectra) found->second.setDetLevelSpectrum(hist, trg);
         }
-        fClosureSets[R] = ClosureSet(responseClosure, truthclosure, jetFindingEffClosure, jetFindingPureClosure, partLevelClosureTrue, nTrials);
+        fClosureSets[R] = ClosureSet(responseClosure, truthclosure, jetFindingEffClosure, jetFindingPureClosure, jetFindingEffClosureTruth, jetFindingPureClosureTruth, partLevelClosureTrue, nTrials);
     }
 
     TriggerClass getTriggerClassFromDirname(const std::string_view triggername) {
         if(triggername.find("EJ1") != std::string::npos) return TriggerClass::EJ1;        
-        else if(triggername.find("EJ2") != std::string::npos) return TriggerClass::EJ1;        
+        else if(triggername.find("EJ2") != std::string::npos) return TriggerClass::EJ2;        
         else return TriggerClass::INT7;
     }
 

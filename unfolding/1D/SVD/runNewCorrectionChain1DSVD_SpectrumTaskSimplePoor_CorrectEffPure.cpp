@@ -44,30 +44,36 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
     UnfoldingHandler::UnfoldingMethod_t unfoldingmethod = UnfoldingHandler::UnfoldingMethod_t::kSVD;
     std::map<int, std::shared_ptr<DataFileHandler>> mDataFileHandlers;
     LuminosityHistograms lumihists;
-    if(file2017.length()) {
+    if(file2017.length() && file2017 != "None") {
+        std::cout << "Reading file for 2017: " << file2017 << std::endl;
         auto filehandler = std::make_shared<DataFileHandler>(file2017, jettype, sysvar);
         lumihists.addYear(2017, filehandler->getLuminosityHandler());
         mDataFileHandlers[2017] = filehandler;
     }
-    if(file2018.length()) {
+    if(file2018.length() && file2018 != "None") {
+        std::cout << "Reading file for 2018: " << file2018 << std::endl;
         auto filehandler = std::make_shared<DataFileHandler>(file2018, jettype, sysvar);
         lumihists.addYear(2018, filehandler->getLuminosityHandler());
         mDataFileHandlers[2018] = filehandler;
     }
+    std::cout << "Building luminosity histograms" << std::endl;
     lumihists.build();
+    std::cout << "Luminosity histograms setup and ready for analysis" << std::endl;
     MCFileHandler mchandler(filemc, jettype,  sysvar);
-
     OutputHandler outhandler;
 
     std::vector<double> binningdet = getJetPtBinningNonLinSmearPoor(),
                         binningpart = getJetPtBinningNonLinTruePoor();
-
     for(auto R : ROOT::TSeqI(2, 7)) {
         double radius = double(R) / 10.;
         if(radiusSel > 0 && R != radiusSel) {
             continue;
         }
         std::cout << "Doing jet radius " << radius << std::endl;
+        // Set the luminosity histograms
+        outhandler.setLuminosityTriggerClasses(R, lumihists.getLuminosityHistosForTriggerClasses());
+        outhandler.setLuminosityYears(R, lumihists.getLuminosityHistosForYears());
+        outhandler.setCombinedLuminosity(R, lumihists.getLuminosityHistAllYears());
 
         // Adding spectra for each trigger class from the different years
         // add also integrated luminosity, scaled by the corresponding vertex finding efficiencies
@@ -103,6 +109,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
 
         std::unordered_map<std::string, TH1 *> triggerEffsRebinned;
         for(auto &[trg, eff]: triggerEffs) {
+            std::cout << "Building trigger efficiency for trigger " << trg << std::endl;
             auto efffine = eff.getEfficiencyFine();
             efffine->SetNameTitle(Form("TriggerEfficiency_%s_R%02d_orig", trg.data(), R), Form("Trigger efficiency for %s for R=%.1f (original)", trg.data(), radius));
             outhandler.setTriggerEff(R, efffine, trg, false);
@@ -114,6 +121,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
 
         // Build the combined raw spectrum
         // Store histograms for different correction steps
+        std::cout << "Running correction and normalization" << std::endl;
         std::map<std::string, TH1 *> mRawSpectraTriggerCorrected;
         for(const auto &trg : TRIGGERS) {
             auto spec = rawspectrumTrigger[trg];
@@ -125,7 +133,10 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
             normalized->Scale(1./norms[trg]);
             auto corrected = histcopy(normalized);
             corrected->SetNameTitle(Form("RawJetSpectrum_FullJets_R%02d_%s_corrected", R, trg.data()), Form("Corrected raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
-            corrected->Divide(triggerEffsRebinned[trg]);
+            if(trg.find("INT7") == std::string::npos) {
+                // Correct for the trigger efficiency (in case the trigger is not min. bias)
+                corrected->Divide(triggerEffsRebinned[trg]);
+            } 
             mRawSpectraTriggerCorrected[trg] = corrected;
             outhandler.setRawHistTrigger(R, spec, trg, false);
             outhandler.setRawHistTrigger(R, rebinned, trg, true);
@@ -134,6 +145,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         }
         TH1 *hrawOrig = makeCombinedRawSpectrum(*mRawSpectraTriggerCorrected["INT7"], *mRawSpectraTriggerCorrected["EJ2"], 50., *mRawSpectraTriggerCorrected["EJ2"], 100.);
         hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Combined raw Level spectrum R=%.1f, before purity correction", radius));
+        std::cout << "Having combined spectrum" << std::endl;
 
         auto jetFindingEff = mcset.getJetFindingEfficiency().makeEfficiency(binningpart),
              jetFindingEffClosure =closureset.getJetFindingEfficiency().makeEfficiency(binningpart),
@@ -143,14 +155,23 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         jetFindingEffClosure->SetNameTitle(Form("hJetfindingEfficiencyClosure_R%02d", R), Form("Jet finding efficiency for R = %.1f", radius));
         jetFindingPurity->SetNameTitle(Form("hJetfindingPurity_R%02d", R), Form("Jet finding purity for R = %.1f (closure test)", radius));
         jetFindingPurityClosure->SetNameTitle(Form("hJetfindingPurityClosure_R%02d", R), Form("Jet finding purity for R = %.1f (closure test)", radius));
+        outhandler.setJetFindingEfficiency(R, jetFindingEff, false);
+        outhandler.setJetFindingEfficiency(R, jetFindingEffClosure, true);
+        outhandler.setJetFindingPurity(R, jetFindingPurity, false);
+        outhandler.setJetFindingPurity(R, jetFindingPurityClosure, true);
 
         // Correct for the jet finding purity
         auto hraw = histcopy(hrawOrig);
         hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Combined raw Level spectrum R=%.1f", radius));
         hraw->Multiply(jetFindingPurity);
+        
+        outhandler.setCombinedRawSpectrum(R, hrawOrig, false);
+        outhandler.setCombinedRawSpectrum(R, hraw, true);
 
         // Get the MC objects
+        std::cout << "Reading response matrix" << std::endl;
         auto ntrials = mcset.getTrials().getAverageTrials();
+        outhandler.setMCScale(R, ntrials);
         auto &responsedata = mcset.getResponseMatrix();
         responsedata.Scale(ntrials);
         auto responsefine = responsedata.getHistogram();
@@ -176,27 +197,26 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         auto priorsclosure = closureresponsebuilder.makeFullyEfficienctTruthSpectrum();
         priorsclosure->SetName(Form("priorsclosure_R%02d", R));
 
-        ResponseHandler closuretruthhandler(closureset.getTruthMatrix(), binningpart, binningdet);
-        auto detclosureNoSub = closuretruthhandler.makeDetLevelSpectrum();
-        detclosureNoSub->SetName(Form("detclosure_R%02d_NoCorr", R));
+        // det level truth must be taken from the purity histogram of the no-response sample
+        // since the response matrix itself is restricted to matched jets
+        std::cout << "Reading auxiliary files for closure test" << std::endl;
+        auto detclosureNoSub = closureset.getTruthJetFindingPurity().makeProjectionAll(binningdet);
+        detclosureNoSub->SetNameTitle(Form("detclosure_R%02d_NoCorr", R), Form("Det. level spectrum for closure test before correction, R=%.1f", radius));
         auto detclosure = histcopy(detclosureNoSub);
-        detclosure->SetName(Form("detclosure_R%02d", R));
+        detclosure->SetNameTitle(Form("detclosure_R%02d", R), Form("Det. level spectrum for closure test before correction, R=%.1f", radius));
         detclosure->Multiply(jetFindingPurityClosure);
-        auto truthclosure = closureresponsebuilder.makeFullyEfficienctTruthSpectrum();
-        truthclosure->SetName(Form("partclosure_R%02d", R));
+        ResponseHandler closuretruthhandler(closureset.getTruthMatrix(), binningpart, binningdet);
+        auto truthclosure = closuretruthhandler.makeFullyEfficienctTruthSpectrum();
+        truthclosure->SetNameTitle(Form("partclosure_R%02d", R), Form("Part. level spectrum matched jets non-response sample, R=%.1f", radius));
         auto closurefulleff = mchandler.getClosureSet(R).getPartLevelTrue().getHistogram();
         closurefulleff = closurefulleff->Rebin(binningpart.size()-1, Form( "hTruthFullyEfficient_R%02d_Closure", R), binningpart.data()); 
+        closurefulleff->SetTitle(Form("Full part. level spectrum non-response sample, R=%.1f", radius));
 
         // Register MC object for writing
-        outhandler.setMCScale(R, ntrials);
         outhandler.setResponseMatrix(R, responsefine, true);
         outhandler.setResponseMatrix(R, responserebinned, false);
         outhandler.setResponseMatrixClosure(R, responseclosurefine, true);
         outhandler.setResponseMatrixClosure(R, responseclosurerebinned, false);
-        outhandler.setJetFindingEfficiency(R, jetFindingEff, false);
-        outhandler.setJetFindingEfficiency(R, jetFindingEffClosure, true);
-        outhandler.setJetFindingPurity(R, jetFindingPurity, false);
-        outhandler.setJetFindingPurity(R, jetFindingPurityClosure, true);
         outhandler.setMCTruth(R, truefull, false);
         outhandler.setMCTruth(R, partlevel, true);
         outhandler.setKinematicEfficiency(R, effkine);
@@ -244,11 +264,6 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
             outhandler.setUnfoldingResults(R, reg.fReg, reg.fUnfolded, reg.fNormalized, reg.fFullyCorrected, reg.fBackfolded, reg.fPearson, reg.fDvector,
                                               reg.fUnfoldedClosure, reg.fFullyCorrectedClosure, reg.fPearsonClosure, reg.fDvectorClosure);
         }
-        
-        // Set the luminosity histograms
-        outhandler.setLuminosityTriggerClasses(R, lumihists.getLuminosityHistosForTriggerClasses());
-        outhandler.setLuminosityYears(R, lumihists.getLuminosityHistosForYears());
-        outhandler.setCombinedLuminosity(R, lumihists.getLuminosityHistAllYears());
     }
     
     std::stringstream outfilename;
@@ -260,5 +275,6 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         outfilename << "_R" << std::setfill('0') << std::setw(2) << radiusSel;
     }
     outfilename << ".root";
+    std::cout << "Writing to " << outfilename.str() << std::endl;
     outhandler.write(outfilename.str());
 }
