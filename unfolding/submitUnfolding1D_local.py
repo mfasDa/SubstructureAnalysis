@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import sys
 
 from SubstructureHelpers import slurm
 
@@ -19,14 +18,16 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--time", metavar="MAXTIME", type=str, default="2:00:00", help="Max. time unfolding (for clusters which allocate time)")
     args = parser.parse_args()
 
-    repo = os.path.abspath(os.path.dirname(sys.argv[0]))
-    unfoldingexecutable = os.path.join(repo, "runUnfolding1D_local.sh")
+    unfoldingexecutable = os.path.join(repo, "unfolding", "runUnfolding1D_local.sh")
     unfoldingcmd="{EXE} {REPO} {WDIR} {DATAFILE} {MCFILE} {SYSVAR} {MACRO}".format(EXE=unfoldingexecutable, REPO=repo, WDIR=args.workdir, DATAFILE=args.datafile, MCFILE=args.mcfile, SYSVAR=args.sysvar, MACRO=args.macro)
     logfile="joboutput_R0%a.log"
-    os.chdir(args.workdir)
+    workdir = os.path.abspath(args.workdir)
+    if not os.path.exists(workdir):
+        os.makedirs(workdir, 0o755)
+    os.chdir(workdir)
     unfoldingjob = slurm.submit(unfoldingcmd, args.jobtag, logfile, args.queue, 1, 1, [2, 6], maxtime=args.time)
     print("Submitting processing job under %d" %unfoldingjob)
-    mergeexecutable = os.path.join(repo, "postprocess1D.sh")
+    mergeexecutable = os.path.join(repo, "unfolding", "postprocess1D.sh")
     mergecmd = "{EXE} {WORKDIR}".format(EXE=mergeexecutable, WORKDIR=os.getcwd())
     logfile = "merge"
     mergejob = slurm.submit(mergecmd, "merge_{TAG}".format(TAG=args.jobtag), logfile, args.queue, 1, 1, None, unfoldingjob, maxtime="1:00:00")
