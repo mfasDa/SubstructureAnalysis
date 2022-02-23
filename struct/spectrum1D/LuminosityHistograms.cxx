@@ -156,12 +156,12 @@ private:
         }
         case HistoData_t::kUncertainty: {
             histname = Form("hLuminosityUncertainties%d", year);
-            histtitle = Form("Luminosity uncertainties for trigger %s", year);
+            histtitle = Form("Luminosity uncertainties for %d", year);
             ytitle = "Systematic uncertainty";
         }
         case HistoData_t::kObservedDownscaling: {
             histname = Form("hObservedDownscaling%d", year);
-            histtitle = Form("Observed downscaling for trigger %s", year);
+            histtitle = Form("Observed downscaling for %d", year);
             ytitle = "Downscale factor";
         }
         };
