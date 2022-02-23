@@ -5,6 +5,8 @@ CellEnergy:
     createHistos: true
     enableNewTempCalib: true
     enableShaperCorrection: true
+    enableAdditionalScale: true                    # Set an additional energy scale shift on cell level.
+    additionalScaleValuesSM: [0.981, 0.970, 0.980] # the enableAdditionalScale should be used together with nonLinFunct: kTestBeamShaperWoScale
 CellBadChannel:
     enabled: true
     createHistos: true
@@ -17,7 +19,7 @@ CellTimeCalib:
     doCalibMergedLG: false
 Clusterizer:
     enabled: true
-    clusterizer: kClusterizerv2
+    clusterizer: kClusterizerv3
     recalDistToBadChannels: true                   # True will recalculate the distance to bad channels
     load1DBadChMap: true
     cellE: 0.1
@@ -28,7 +30,7 @@ ClusterExotics:
 ClusterNonLinearity:
     enabled: true
     createHistos: true
-    nonLinFunct: kTestBeamShaper                  # Sets the non-linearity function. Possible options are defined in the header of the cluster non-linearity correction component
+    nonLinFunct: kTestBeamShaperWoScale           # Sets the non-linearity function. Possible options are defined in the header of the cluster non-linearity correction component
 ClusterNonLinearityMCAfterburner:                 # MC Cluster additional non-linearity afterburner correction component - To be applied after the standard non-linearity correction
     enabled: false 
 ClusterTrackMatcher:                              # Cluster-track matcher component

@@ -12,7 +12,7 @@ CellTimeCalib:
     createHistos: true
 Clusterizer:
     enabled: true
-    clusterizer: kClusterizerv2
+    clusterizer: kClusterizerv3
     recalDistToBadChannels: true                   # True will recalculate the distance to bad channels
     load1DBadChMap: true
     cellE: 0.1
