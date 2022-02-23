@@ -3,6 +3,7 @@
 
 #include "../../meta/root.C"
 #include "../../meta/stl.C"
+#include "LuminosityHistograms.cxx"
 
 class OutputHandler {
 public:
@@ -23,9 +24,7 @@ public:
         std::map<int, double> mVertexFindingEfficiency;
         std::map<int, double> mCENTNOTRDCorrection;
         TH1 *mPurity = nullptr;
-        TH1 *mLuminosityAllYears = nullptr;
-        std::map<int, TH1 *> mLuminosityYears;
-        std::map<std::string, TH1 *> mLuminosityTriggers;
+        std::shared_ptr<LuminosityHistograms> mLuminosityHistograms;
         std::vector<RawEventCounter> mEventCounters;
 
         void setRawEventCounts(int year, const std::string_view trigger, unsigned long eventcounts) {
@@ -51,9 +50,35 @@ public:
             auto histCENTNOTRD = buildHistsCENTNOTRDCorrection();
             if(histCENTNOTRD) histCENTNOTRD->Write();
             if(mPurity) mPurity->Write();
-            if(mLuminosityAllYears) mLuminosityAllYears->Write();
-            for(auto &[year, lumi] : mLuminosityYears) lumi->Write();
-            for(auto &[trg, lumi] : mLuminosityTriggers) lumi->Write();
+            mLuminosityHistograms->getLuminosityHistAllYears()->Write();
+            mLuminosityHistograms->getEffectiveLuminosityHistAllYears()->Write();
+            auto rawbase = static_cast<TDirectory*>(gDirectory);
+            rawbase->mkdir("Luminosities");
+            rawbase->cd("Luminosities");
+            auto lumihistYears = mLuminosityHistograms->getLuminosityHistosForYears();
+            for(auto &[year, lumi] : lumihistYears) lumi->Write();
+            auto lumihistTriggers = mLuminosityHistograms->getLuminosityHistosForTriggerClasses();
+            for(auto &[trg, lumi] : lumihistTriggers) lumi->Write();
+            rawbase->mkdir("EffectiveLuminosities");
+            rawbase->cd("EffectiveLuminosities");
+            auto effectiveLumihistYears = mLuminosityHistograms->getLuminosityHistosForYears();
+            for(auto &[year, lumi] : effectiveLumihistYears) lumi->Write();
+            auto effectiveLumihistTriggers = mLuminosityHistograms->getLuminosityHistosForTriggerClasses();
+            for(auto &[trg, lumi] : effectiveLumihistTriggers) lumi->Write();
+            rawbase->mkdir("LuminosityUncertainty");
+            rawbase->cd("LuminosityUncertainty");
+            auto lumiUncertaintyHistYears = mLuminosityHistograms->getUncertaintyHistosForYears();
+            for(auto &[year, uncertainty] : lumiUncertaintyHistYears) uncertainty->Write();
+            auto lumiUncertaintyHistTriggers = mLuminosityHistograms->getLuminosityHistosForTriggerClasses();
+            for(auto &[trg, uncertainty] : lumiUncertaintyHistTriggers) uncertainty->Write();
+            rawbase->mkdir("EffectiveDownscaling");
+            rawbase->cd("EffectiveDownscaling");
+            auto downscalingHistYears = mLuminosityHistograms->getObservedDownscalingHistosForYears();
+            for(auto &[year, downscaling] : downscalingHistYears) downscaling->Write();
+            auto downscalingHistTriggers = mLuminosityHistograms->getObservedDownscalingHistosForTriggerClasses();
+            for(auto &[trg, downscaling] : lumiUncertaintyHistTriggers) downscaling->Write();
+            rawbase->mkdir("EventCounters");
+            rawbase->cd("EventCounters");
             for(auto evcounter : buildEventCounterHistsYears()) evcounter->Write();
             for(auto evcounter : buildEventCounterHistsTriggers()) evcounter->Write();
             base->cd();
@@ -298,17 +323,9 @@ public:
         else datacontent.mCombinedRawHistogram = hist;
     }
 
-    void setCombinedLuminosity(int R, TH1 *hist){ 
-        mRdata[R].mData.mLuminosityAllYears = hist;
-    }
-
-    void setLuminosityTriggerClasses(int R, const std::map<std::string, TH1 *> histos) { 
-        mRdata[R].mData.mLuminosityTriggers = histos;
-    }
-    
-    void setLuminosityYears(int R, const std::map<int, TH1 *> histos){ 
-        mRdata[R].mData.mLuminosityYears = histos;
-    }
+    void setLuminosityHistograms(int R, std::shared_ptr<LuminosityHistograms> histogramHandler){
+        mRdata[R].mData.mLuminosityHistograms = histogramHandler;
+    }   
 
     void setVertexFindingEfficiency(int R, int year, double eff) {
         mRdata[R].mData.mVertexFindingEfficiency[year] = eff;

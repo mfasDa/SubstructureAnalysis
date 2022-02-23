@@ -43,21 +43,21 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
     std::array<std::string, 3> TRIGGERS = {{"INT7", "EJ2", "EJ1"}};
     UnfoldingHandler::UnfoldingMethod_t unfoldingmethod = UnfoldingHandler::UnfoldingMethod_t::kSVD;
     std::map<int, std::shared_ptr<DataFileHandler>> mDataFileHandlers;
-    LuminosityHistograms lumihists;
+    auto lumihists = std::make_shared<LuminosityHistograms>();
     if(file2017.length() && file2017 != "None") {
         std::cout << "Reading file for 2017: " << file2017 << std::endl;
         auto filehandler = std::make_shared<DataFileHandler>(file2017, jettype, sysvar);
-        lumihists.addYear(2017, filehandler->getLuminosityHandler());
+        lumihists->addYear(2017, filehandler->getLuminosityHandler());
         mDataFileHandlers[2017] = filehandler;
     }
     if(file2018.length() && file2018 != "None") {
         std::cout << "Reading file for 2018: " << file2018 << std::endl;
         auto filehandler = std::make_shared<DataFileHandler>(file2018, jettype, sysvar);
-        lumihists.addYear(2018, filehandler->getLuminosityHandler());
+        lumihists->addYear(2018, filehandler->getLuminosityHandler());
         mDataFileHandlers[2018] = filehandler;
     }
     std::cout << "Building luminosity histograms" << std::endl;
-    lumihists.build();
+    lumihists->build();
     std::cout << "Luminosity histograms setup and ready for analysis" << std::endl;
     MCFileHandler mchandler(filemc, jettype,  sysvar);
     OutputHandler outhandler;
@@ -71,9 +71,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         }
         std::cout << "Doing jet radius " << radius << std::endl;
         // Set the luminosity histograms
-        outhandler.setLuminosityTriggerClasses(R, lumihists.getLuminosityHistosForTriggerClasses());
-        outhandler.setLuminosityYears(R, lumihists.getLuminosityHistosForYears());
-        outhandler.setCombinedLuminosity(R, lumihists.getLuminosityHistAllYears());
+        outhandler.setLuminosityHistograms(R, lumihists);
 
         // Adding spectra for each trigger class from the different years
         // add also integrated luminosity, scaled by the corresponding vertex finding efficiencies
