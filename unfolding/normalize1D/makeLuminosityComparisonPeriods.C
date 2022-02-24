@@ -101,6 +101,7 @@ TH1 *makeTrendLumiData(const std::set<LuminosityData> data, const std::string_vi
     for(const auto &period : data) {
         result->GetXaxis()->SetBinLabel(currentbin, period.mPeriod.data());
         result->SetBinContent(currentbin, period.getValue(trigger, dtype));
+        currentbin++;
     }
     return result;
 }
