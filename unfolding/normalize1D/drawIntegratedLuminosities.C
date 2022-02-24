@@ -13,32 +13,47 @@ void drawIntegratedLuminosities(const std::string_view filename = "correctedSVD_
     {
         std::unique_ptr<TFile> reader(TFile::Open(filename.data(), "READ"));
         reader->cd("R02/rawlevel");
+        hLuminosityAllYears = gDirectory->Get<TH1>("hLuminositiesAllYears");
+        hLuminosityAllYears->SetDirectory(nullptr);
+        auto rawdir = static_cast<TDirectory *>(gDirectory);
+        rawdir->cd("Luminosities");
         for(auto content : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
             const std::string_view objname = content->GetName();
-            if(objname.find(token_luminosity) == std::string::npos && objname.find(token_eventcounter) == std::string::npos)
+            if(objname.find(token_luminosity) == std::string::npos)
                 continue;
             std::cout << "Reading " << objname << std::endl;
             auto hist = content->ReadObject<TH1>();
             hist->SetDirectory(nullptr);
             if(objname.find(token_luminosity) != std::string::npos) {
                 auto tag = objname.substr(token_luminosity.length());
-                if(tag == "AllYears") {
-                    hLuminosityAllYears = hist;
-                } else if(std::all_of(tag.begin(), tag.end(), ::isdigit)) {
+                if(std::all_of(tag.begin(), tag.end(), ::isdigit)) {
                     auto year = std::atoi(tag.data());
+                    std::cout << "Found year " << year << std::endl;
                     lumiHistsForYears[year] = hist;
                 } else {
                     std::string_view triggerclass = tag;
+                    std::cout << "Found trigger " << triggerclass << std::endl;
                     lumiHistsForTriggers[std::string(triggerclass)] = hist;
                 }
-
-            } else {
+            }
+        }
+        rawdir->cd("EventCounters");
+        for(auto content : TRangeDynCast<TKey>(gDirectory->GetListOfKeys())) {
+            const std::string_view objname = content->GetName();
+            if(objname.find(token_eventcounter) == std::string::npos)
+                continue;
+            std::cout << "Reading " << objname << std::endl;
+            auto hist = content->ReadObject<TH1>();
+            hist->SetDirectory(nullptr);
+            if(objname.find(token_eventcounter) != std::string::npos) {
                 auto tag = objname.substr(token_eventcounter.length());
                 if(std::all_of(tag.begin(), tag.end(), ::isdigit)) {
                     auto year = std::atoi(tag.data());
+                    std::cout << "Found year " << year << std::endl;
                     eventCounterHistsForYears[year] = hist;
                 } else {
                     auto triggerclass = tag.substr(0, tag.find("Trigger"));
+                    std::cout << "Found trigger " << triggerclass << std::endl;
                     eventCounterHistsForTriggers[std::string(triggerclass)] = hist;
                 } 
             }
