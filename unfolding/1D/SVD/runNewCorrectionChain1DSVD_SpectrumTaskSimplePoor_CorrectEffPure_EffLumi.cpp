@@ -37,7 +37,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
     return combined;
 }
 
-void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
+void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_EffLumi(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
     ROOT::EnableThreadSafety();
     const std::string jettype = "FullJets";
     std::array<std::string, 3> TRIGGERS = {{"INT7", "EJ2", "EJ1"}};
@@ -62,6 +62,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
 
     std::vector<double> binningdet = getJetPtBinningNonLinSmearPoor(),
                         binningpart = getJetPtBinningNonLinTruePoor();
+    const PWG::EMCAL::AliEmcalTriggerLuminosity::LuminosityUnit_t lumiunit =  PWG::EMCAL::AliEmcalTriggerLuminosity::LuminosityUnit_t::kMb;
     for(auto R : ROOT::TSeqI(2, 7)) {
         double radius = double(R) / 10.;
         if(radiusSel > 0 && R != radiusSel) {
@@ -86,7 +87,9 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
                 if(trgfound != rawspectrumTrigger.end()) trgfound->second->Add(spec);
                 else rawspectrumTrigger[trg] = spec;
                 // luminosity from Luminosity handler does not include vertex finding efficiency, which needs to be evaluated by the user
-                norms[trg] += lumihandler->GetLuminosityForTrigger(trg.data(), PWG::EMCAL::AliEmcalTriggerLuminosity::LuminosityUnit_t::kMb) / effVtx;
+                // use effective luminosity for EMCAL triggers using observed downscaling instead of expected downscaling
+                auto rawlumi = (trg == "INT7") ? lumihandler->GetLuminosityForTrigger(trg.data(),lumiunit) : lumihandler->GetEffectiveLuminosityForTrigger(trg.data(), lumiunit);
+                norms[trg] += rawlumi / effVtx;
                 outhandler.setRawEvents(R, year, trg, filehandler->getClusterCounterAbs(R, trg).getCounters(TriggerCluster::kANY));
             }
         }
