@@ -50,6 +50,9 @@ public:
             auto histCENTNOTRD = buildHistsCENTNOTRDCorrection();
             if(histCENTNOTRD) histCENTNOTRD->Write();
             if(mPurity) mPurity->Write();
+            if(!mLuminosityHistograms) {
+                std::cerr << "Luminosity histogram handler not set" << std::endl;
+            }
             mLuminosityHistograms->getLuminosityHistAllYears()->Write();
             mLuminosityHistograms->getEffectiveLuminosityHistAllYears()->Write();
             auto rawbase = static_cast<TDirectory*>(gDirectory);
@@ -61,22 +64,22 @@ public:
             for(auto &[trg, lumi] : lumihistTriggers) lumi->Write();
             rawbase->mkdir("EffectiveLuminosities");
             rawbase->cd("EffectiveLuminosities");
-            auto effectiveLumihistYears = mLuminosityHistograms->getLuminosityHistosForYears();
+            auto effectiveLumihistYears = mLuminosityHistograms->getEffectiveLuminosityHistosForYears();
             for(auto &[year, lumi] : effectiveLumihistYears) lumi->Write();
-            auto effectiveLumihistTriggers = mLuminosityHistograms->getLuminosityHistosForTriggerClasses();
+            auto effectiveLumihistTriggers = mLuminosityHistograms->getEffectiveLuminosityHistosForTriggerClasses();
             for(auto &[trg, lumi] : effectiveLumihistTriggers) lumi->Write();
             rawbase->mkdir("LuminosityUncertainty");
             rawbase->cd("LuminosityUncertainty");
             auto lumiUncertaintyHistYears = mLuminosityHistograms->getUncertaintyHistosForYears();
             for(auto &[year, uncertainty] : lumiUncertaintyHistYears) uncertainty->Write();
-            auto lumiUncertaintyHistTriggers = mLuminosityHistograms->getLuminosityHistosForTriggerClasses();
+            auto lumiUncertaintyHistTriggers = mLuminosityHistograms->getUncertaintyHistosForTriggerClasses();
             for(auto &[trg, uncertainty] : lumiUncertaintyHistTriggers) uncertainty->Write();
             rawbase->mkdir("EffectiveDownscaling");
             rawbase->cd("EffectiveDownscaling");
             auto downscalingHistYears = mLuminosityHistograms->getObservedDownscalingHistosForYears();
             for(auto &[year, downscaling] : downscalingHistYears) downscaling->Write();
             auto downscalingHistTriggers = mLuminosityHistograms->getObservedDownscalingHistosForTriggerClasses();
-            for(auto &[trg, downscaling] : lumiUncertaintyHistTriggers) downscaling->Write();
+            for(auto &[trg, downscaling] : downscalingHistTriggers) downscaling->Write();
             rawbase->mkdir("EventCounters");
             rawbase->cd("EventCounters");
             for(auto evcounter : buildEventCounterHistsYears()) evcounter->Write();
@@ -411,6 +414,7 @@ public:
     }
 
     void write(const std::string_view outputfile) {
+        std::cout << "OutputHandler - write: Writing to " << outputfile << std::endl;
         std::unique_ptr<TFile> writer(TFile::Open(outputfile.data(), "RECREATE"));
         for(auto &[R, data] : mRdata) {
             data.mR = R;
