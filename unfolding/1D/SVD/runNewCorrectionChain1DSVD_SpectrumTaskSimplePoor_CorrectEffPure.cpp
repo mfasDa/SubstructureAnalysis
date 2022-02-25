@@ -139,7 +139,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
             outhandler.setNormalizedRawSpectrumTrigger(R, normalized, trg);
             outhandler.setTrgEffCorrectedRawSpectrumTrigger(R, corrected, trg);
         }
-        TH1 *hrawOrig = makeCombinedRawSpectrum(*mRawSpectraTriggerCorrected["INT7"], *mRawSpectraTriggerCorrected["EJ2"], 50., *mRawSpectraTriggerCorrected["EJ2"], 100.);
+        TH1 *hrawOrig = makeCombinedRawSpectrum(*mRawSpectraTriggerCorrected["INT7"], *mRawSpectraTriggerCorrected["EJ2"], 50., *mRawSpectraTriggerCorrected["EJ1"], 100.);
         hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Combined raw Level spectrum R=%.1f, before purity correction", radius));
         std::cout << "Having combined spectrum" << std::endl;
 
