@@ -23,8 +23,12 @@ YEAR=$((YEARTAG+2000))
 ALIENPATH=/alice/sim/$YEAR/$DATASET
 
 copycmd=$(printf "%s %s %s %s" $DOWNLOAD_EXECUTABLE $ALIENPATH $TRAINRUN $OUTPUTDIR)
-if [ "x$YEAR" == "x2019" ]; then
-    copycmd=$(printf "%s -a AOD215" "$copycmd")
+AODSET=$($SUBSTRUCTUREREPO/downloader/getaodset.py $DATASET)
+if [ "x$(echo $AODSET)" != "xAOD" ]; then
+    echo "Using AODset: $AODSET"
+    copycmd=$(printf "%s -a %s" "$copycmd" "$AODSET")
+else 
+    echo "Using AODset: $AODSET"
 fi
 echo $copycmd
 eval $copycmd
