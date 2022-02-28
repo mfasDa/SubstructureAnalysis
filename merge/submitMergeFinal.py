@@ -9,9 +9,6 @@ from SubstructureHelpers.slurm import submit
 from SubstructureHelpers.setup_logging import setup_logging
 
 if __name__ == "__main__":
-    repo = os.path.dirname(os.path.abspath(sys.argv[0]))
-    executable = os.path.join(repo, "processMergeFinal.sh")
-
     parser = argparse.ArgumentParser("submitMergeFinal.py", description="Submitter for final merge job")
     parser.add_argument("inputdir", metavar="INPUTDIR", type=str, help="Iput directory for merge")
     parser.add_argument("-r", "--rootfile", metavar="ROOTFILE", type=str, default="AnalysisResults.root", help="Name of the ROOT file")
@@ -30,6 +27,8 @@ if __name__ == "__main__":
         sys.exit(1)
     logging.info("Submitting download on cluster %s", cluster)
 
+    repo = os.getenv("SUBSTRUCTURE_ROOT")
+    executable = os.path.join(repo, "processMergeFinal.sh")
     cmd = "{EXE} {INPUTDIR} {ROOTFILE} {REPO} {CHECK}".format(EXE=executable, INPUTDIR=args.inputdir, ROOTFILE=args.rootfile, REPO=repo, CHECK=1 if args.check else 0)
     logfile = os.path.join(args.inputdir, "merge_final.log")
     jobname = "merge_final"
