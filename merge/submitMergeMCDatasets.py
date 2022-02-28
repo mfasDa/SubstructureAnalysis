@@ -26,7 +26,7 @@ def merge_submitter_datasets(repo: str, inputdir: str, filename: str, partition:
     jobid = submit_dependencies(runcmd_bins, "mergebins", logfile_bins, partition, jobarray=[1,20], dependency=wait, maxtime=maxtime)
     print("Submitted merge job under JobID %d" %jobid)
     finalcmd = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=exefinal, OUTPUTDIR=outputbase, FILENAME=filename, REPO=os.path.dirname(repo), CHECK=1 if check else 0)
-    jobidFinal = submit(finalcmd, "mergefinal", "{OUTDIR}/mergefinal.log", partition, dependency=jobid, maxtime=maxtime)
+    jobidFinal = submit(finalcmd, "mergefinal", "{OUTPUTDIR}/mergefinal.log".format(OUTPUTDIR=outputbase), partition, dependency=jobid, maxtime=maxtime)
     print("Submitted final merging job under JobID %d" %jobidFinal)
     return  {"pthard": jobid, "final": jobidFinal}
     
