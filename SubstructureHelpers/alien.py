@@ -9,6 +9,7 @@ import subprocess
 class AlienTokenException(Exception):
 
     def __init__(self, tokencert: str, tokenkey: str, errorcode: int, detail: str):
+        super(AlienTokenException, self).__init__()
         self.__tokencert = tokencert
         self.__tokenkey = tokenkey
         self.__errorcode = errorcode
