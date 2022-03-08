@@ -121,6 +121,47 @@ class AlienToken(object):
     Enc = property(getenc, setenc)
     Expdate = property(getexpdate, setexpdate)
 
+class JAlienToken:
+
+    def __init__(self, dn: str, issuer: str, begin: time.struct_time, end: time.struct_time):
+        self.__dn = dn
+        self.__issuer = issuer
+        self.__begin = begin
+        self.__end = end
+
+    def set_begin(self, begin: time.struct_time):
+        self.__begin = begin
+
+    def set_end(self, end: time.struct_time):
+        self.__end = end
+    
+    def set_dn(self, dn: str):
+        self.__dn = dn
+
+    def set_issuer(self, issuer: str):
+        self.__issuer = issuer
+
+    def get_begin(self) -> time.struct_time:
+        return self.__begin
+
+    def get_end(self) -> time.struct_time:
+        return self.__end
+
+    def get_dn(self) -> str:
+        return self.__dn
+
+    def get_issuer(self) -> str:
+        return self.__issuer
+    
+    def isvalid(self):
+        now = time.localtime()
+        timediff_seconds = time.mktime(self.__end) - time.mktime(now)
+        two_hours = 2 * 60 * 60
+        if timediff_seconds > two_hours:
+            return True
+        else:
+            return False
+
 class AlienTool: 
     
     def __init__(self):
@@ -218,7 +259,24 @@ class AlienTool:
 
     def fetchtokeninfo(self):
         if isjalien:
-            return None
+            outstrings = subprocess.check_output("alien-token-info").decode("utf-8").split("\n")
+            dn = ""
+            issuer = ""
+            start = None
+            end = None
+            for en in outstrings:
+                keyval = en.split(">>>")
+                key = keyval[0].lstrip().rstrip()
+                value = keyval[1].lstrip().rstrip()
+                if key == "DN":
+                    dn = value
+                elif key == "ISSUER":
+                    issuer = value
+                elif key == "BEGIN":
+                    start = self.__parse_time(value)
+                elif key == "EXPIRE":
+                    end = self.__parse_time(value)
+            return JAlienToken(dn, issuer, start, end)
         try:
             outstrings = subprocess.check_output("alien-token-info").decode("utf-8").split("\n")
             token = AlienToken()
@@ -276,6 +334,9 @@ class AlienTool:
             # Check for expired token
             return False
         return True
+    
+    def __parse_time(self, token_timestring: str):
+        return time.strptime(token_timestring, "%Y-%m-%d %H:%M:%S")
 
     def renewtoken(self):
         if not isjalien:
@@ -300,7 +361,7 @@ class Filepair:
     def target(self):
         return self.__target
 
-class DataPool :
+class DataPool:
   
     def __init__(self):
         self.__data = []
