@@ -239,6 +239,8 @@ class AlienTool:
                 if d.startswith("Error") or d.startswith("Warning"):
                     errorstate = True
                     break
+                if 'CryptographyDeprecationWarning' in d or "cryptography" in d:
+                    continue
                 mydir = d.rstrip().lstrip()
                 if mydir.endswith("/"):
                     mydir = mydir.rstrip("/")
@@ -265,6 +267,8 @@ class AlienTool:
             start = None
             end = None
             for en in outstrings:
+                if not ">>>" in en:
+                    continue
                 keyval = en.split(">>>")
                 key = keyval[0].lstrip().rstrip()
                 value = keyval[1].lstrip().rstrip()

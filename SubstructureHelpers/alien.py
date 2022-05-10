@@ -76,6 +76,8 @@ def get_token_info(tokencert: str, tokenkey: str):
     start = None
     end = None
     for en in infos:
+        if not ">>>" in en:
+            continue
         keyval = en.split(">>>")
         key = keyval[0].lstrip().rstrip()
         value = keyval[1].lstrip().rstrip()

@@ -35,6 +35,8 @@ class AliTrainDB:
         if trainsraw[0] != 0:
             logging.error("Failed building trains DB for train %s/%s", self.__pwg, self.__train)
         for trainstring in trainsraw[1].split("\n"):
+            if 'CryptographyDeprecationWarning' in trainstring or "cryptography" in trainstring:
+                continue
             tmpstring = trainstring.replace("/", "").lstrip().rstrip()
             if "_child" in tmpstring:
                 tmpstring = tmpstring[0:tmpstring.index("_child")]
