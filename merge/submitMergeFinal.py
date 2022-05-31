@@ -28,7 +28,7 @@ if __name__ == "__main__":
     logging.info("Submitting download on cluster %s", cluster)
 
     repo = os.getenv("SUBSTRUCTURE_ROOT")
-    executable = os.path.join(repo, "processMergeFinal.sh")
+    executable = os.path.join(repo, "merge", "processMergeFinal.sh")
     cmd = "{EXE} {INPUTDIR} {ROOTFILE} {REPO} {CHECK}".format(EXE=executable, INPUTDIR=args.inputdir, ROOTFILE=args.rootfile, REPO=repo, CHECK=1 if args.check else 0)
     logfile = os.path.join(args.inputdir, "merge_final.log")
     jobname = "merge_final"
