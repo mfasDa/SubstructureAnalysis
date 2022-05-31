@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("workdir", metavar="WORKDIR", type=str, help="Output location")
     parser.add_argument("datafile", metavar="DATAFILE", type=str, help="Data file")
     parser.add_argument("mcfile", metavar="MCFILE", type=str, help="File with response matrix")
-    parser.add_argument("-b", "--binvar", metavar="BINVAR", type=str, default="Default", help="Binning variation (default: default)")
+    parser.add_argument("-b", "--binvar", metavar="BINVAR", type=str, default="default", help="Binning variation (default: default)")
     parser.add_argument("-o", "--observables", metavar="OBSERVABLES", type=str, default="all", help="Observables to unfold, comma-separated (default: all - all observables)")
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="long", help="partition to submit to (default: long)")
     parser.add_argument("-e", "--effcorr", metavar="EFFCOR", type=int, default=1, help="Efficiency and purity correction (1 - on, 0 - off)")

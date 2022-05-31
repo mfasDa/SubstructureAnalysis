@@ -147,7 +147,7 @@ void makeNormalizedSubstructure(const char *filedata, const char *filemc, const 
                 rawhist->Scale(weight);
 
                 // Extract 1D projections and trigger efficiencies
-                auto spec1Dnorebin = rawhist->ProjectionY(Form("jetSpectrumNoCorrNoRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data(), "e"));
+                auto spec1Dnorebin = rawhist->ProjectionY(Form("jetSpectrumNoCorrNoRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()), 0, -1, "e");
                 spec1Dnorebin->SetDirectory(nullptr);
                 spec1Dnorebin->Write();
                 auto spec1Drebin = spec1Dnorebin->Rebin(ptbinning.size() -1, Form("jetSpectrumNoCorrRebin%s_%s_%s", outdirname.data(), trg.data(), observable.data()), ptbinning.data());
