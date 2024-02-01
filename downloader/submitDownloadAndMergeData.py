@@ -27,6 +27,7 @@ class LaunchHandler:
         trainDB = AliTrainDB(pwg, trainname)
         try:
             self.__trainrun = trainDB.getTrainIdentifier(trainrun)
+            logging.info("Found train run: %s",  self.__trainrun)
         except AliTrainDB.UninitializedException as e:
             logging.error("%s", e)
         except AliTrainDB.TrainNotFoundException as e:
@@ -53,6 +54,8 @@ class LaunchHandler:
         if not key or not cert:
             logging.error("Alien token not provided - cannot download ...")
             return None
+        if not os.path.exists(self.__outputbase):
+            os.makedirs(self.__outputbase)
         executable = os.path.join(self.__repo, "downloader", "runDownloadAndMergeDataBatch.sh")
         jobname = "down_{YEAR}".format(YEAR=year)
         logfile = os.path.join(self.__outputbase, "download.log")
