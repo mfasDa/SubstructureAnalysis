@@ -45,11 +45,18 @@ public:
         kSVD
     };
 
+    enum class AcceptanceType_t {
+        kEMCALFID,
+        kTPCFID
+    };
+
     UnfoldingHandler() = default;
     UnfoldingHandler(UnfoldingMethod_t method) : mMethod(method) {} 
     ~UnfoldingHandler() = default;
 
-    void setUnfoldingMethod(UnfoldingMethod_t method) { mMethod = method; }
+    void setUnfoldingMethod(UnfoldingMethod_t method, AcceptanceType_t atype = AcceptanceType_t::kEMCALFID) { mMethod = method; mAcceptanceType = atype; }
+
+    void setAcceptanceType(AcceptanceType_t atype) { mAcceptanceType = atype; }
 
     void setErrorTreatment(RooUnfold::ErrorTreatment treatment) { mErrorTreatment = treatment; }
 
@@ -59,9 +66,21 @@ public:
             case UnfoldingMethod_t::kBayesian: unfoldingtag = "Bayesian"; break;
             case UnfoldingMethod_t::kSVD: unfoldingtag = "SVD"; break;
         }
-        const double kSizeEmcalPhi = 1.8873487,
-                     kSizeEmcalEta = 1.4;
-        auto acceptance = (kSizeEmcalPhi - 2 * input.fRadius) * (kSizeEmcalEta - 2 * input.fRadius) / (TMath::TwoPi());
+        double acceptance = 0.;
+        switch(mAcceptanceType) {
+            case AcceptanceType_t::kEMCALFID: {
+                const double kSizeEmcalPhi = 1.8873487,
+                             kSizeEmcalEta = 1.4;
+                acceptance = (kSizeEmcalPhi - 2 * input.fRadius) * (kSizeEmcalEta - 2 * input.fRadius) / (TMath::TwoPi());
+                break;
+            }
+            case AcceptanceType_t::kTPCFID: {
+                const double kSizeTPCEta = 1.8;
+                acceptance = (kSizeTPCEta - 2 * input.fRadius);
+                break;
+            }
+
+        }
         std::cout << "[" << unfoldingtag << " unfolding] Regularization " << input.fReg << "\n================================================================\n";
         std::cout << "[" << unfoldingtag << " unfolding] Running unfolding" << std::endl;
         auto resultdata = unfold(input.fRaw, input.fResponseMatrix, input.fReg);
@@ -140,6 +159,7 @@ private:
     }
 
     UnfoldingMethod_t mMethod = UnfoldingMethod_t::kSVD;
+    AcceptanceType_t mAcceptanceType = AcceptanceType_t::kEMCALFID;
     RooUnfold::ErrorTreatment mErrorTreatment = RooUnfold::kCovToy;
 };
 

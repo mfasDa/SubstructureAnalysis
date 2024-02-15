@@ -409,7 +409,7 @@ private:
         if(detLevelSpectra.size() == 3) {
             fMCsets[R] = MCSet(response, jetFindingEff, jetFindingPure, partLevelSpectrum, nTrials, detLevelSpectra[TriggerClass::INT7], detLevelSpectra[TriggerClass::EJ2], detLevelSpectra[TriggerClass::EJ1]);
         } else {
-            fMCsets[R] = MCSet(response, jetFindingEff, jetFindingPure, partLevelSpectrum, nTrials, detLevelSpectra[TriggerClass::INT7], detLevelSpectra[TriggerClass::EJ2], detLevelSpectra[TriggerClass::EJ1]);
+            fMCsets[R] = MCSet(response, jetFindingEff, jetFindingPure, partLevelSpectrum, nTrials);
             auto found = fMCsets.find(R);
             for(auto &[trg, hist] : detLevelSpectra) found->second.setDetLevelSpectrum(hist, trg);
         }

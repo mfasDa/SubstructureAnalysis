@@ -196,6 +196,11 @@ class DataFileHandler {
             return dynamic_cast<T *>(list->FindObject(name));
         }
 
+        bool fileHasDirectory(const std::string_view filedirname) {
+            auto keylist = fReader->GetListOfKeys();
+            return keylist->FindObject(filedirname.data()) != nullptr;
+        }
+
         std::string buildDirname(const std::string_view trigger, int R) {
             std::stringstream dirnamebuilder;
             dirnamebuilder << "JetSpectrum_" << fJetType << "_R" << std::setw(2) << std::setfill('0') << R << "_" << trigger;
@@ -206,7 +211,11 @@ class DataFileHandler {
         }
 
         TList *getHistos(const std::string_view trigger, int R) {
-            fReader->cd(buildDirname(trigger, R).data());
+            auto filedirname = buildDirname(trigger, R);
+            if(!fileHasDirectory(filedirname)) {
+                return nullptr;
+            }
+            fReader->cd(filedirname.data());
             return static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
         }
         
@@ -215,6 +224,9 @@ class DataFileHandler {
             for(auto R : ROOT::TSeqI(2, 7)) {
                 for(const auto &trg : triggers){
                     auto histos = getHistos(trg, R);
+                    if(!histos) {
+                        continue;
+                    }
                     auto normhist = HistGetter<TH1>(histos, "fNormalisationHist"),
                          runcounter = HistGetter<TH1>(histos, "hEventCounterRun"),
                          counterAbs = HistGetter<TH1>(histos, "hClusterCounterAbs"),
@@ -237,8 +249,10 @@ class DataFileHandler {
                     luminosityHistos = static_cast<TKey *>(gDirectory->GetListOfKeys()->At(0))->ReadObject<TList>();
                 }
             }
-            if(luminosityHistos) fLuminosityHandler = std::make_unique<PWG::EMCAL::AliEmcalTriggerLuminosity>(luminosityHistos);
-            fLuminosityHandler->Evaluate();
+            if(luminosityHistos) {
+                fLuminosityHandler = std::make_unique<PWG::EMCAL::AliEmcalTriggerLuminosity>(luminosityHistos);
+                fLuminosityHandler->Evaluate();
+            }
         }
 
         std::unique_ptr<TFile> fReader;
