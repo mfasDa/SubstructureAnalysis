@@ -21,7 +21,7 @@ TH1 *makeRebinnedSafe(const TH1 *input, const char *newname, const std::vector<d
     return rebinned;
 }
 
-void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
+void runNewCorrectionChainChargedEMCacc1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
     ROOT::EnableThreadSafety();
     const std::string jettype = "ChargedJets";
     
@@ -183,7 +183,7 @@ void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(con
                 workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results, unfoldingmethod](){
                     UnfoldingRunner worker(&work);
                     worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kTPCFID);
+                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
                     worker.DoWork();
                     std::unique_lock<std::mutex> combinelock(combinemutex);
                     for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
@@ -193,7 +193,7 @@ void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(con
         } else {
             UnfoldingRunner worker(&work);
             worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-            worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kTPCFID);
+            worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
             worker.DoWork();
             for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
         };

@@ -51,10 +51,10 @@ public:
     };
 
     UnfoldingHandler() = default;
-    UnfoldingHandler(UnfoldingMethod_t method) : mMethod(method) {} 
+    UnfoldingHandler(UnfoldingMethod_t method, AcceptanceType_t atype = AcceptanceType_t::kEMCALFID) : mMethod(method),  mAcceptanceType(atype)  {} 
     ~UnfoldingHandler() = default;
 
-    void setUnfoldingMethod(UnfoldingMethod_t method, AcceptanceType_t atype = AcceptanceType_t::kEMCALFID) { mMethod = method; mAcceptanceType = atype; }
+    void setUnfoldingMethod(UnfoldingMethod_t method) { mMethod = method;}
 
     void setAcceptanceType(AcceptanceType_t atype) { mAcceptanceType = atype; }
 
@@ -95,6 +95,7 @@ public:
         specnormalizedNoEff->SetNameTitle(Form("normalizedNoEff_reg%d", input.fReg), Form("Normalized jet spectrum R=%.1f reg %d, no correction for jet finding efficiency", input.fRadius, input.fReg));
         specnormalizedNoEff->SetDirectory(nullptr);
         specnormalizedNoEff->Scale(1. / (acceptance));
+        std::cout << "[" << unfoldingtag << " unfolding] Normalizing to acceptance " << acceptance << std::endl;
         auto specnormalized = static_cast<TH1 *>(specnormalizedNoEff->Clone(Form("normalizedReg%d", input.fReg)));
         specnormalized->SetNameTitle(Form("normalized_reg%d", input.fReg), Form("Normalized jet spectrum R=%.1f reg %d", input.fRadius, input.fReg));
         specnormalized->SetDirectory(nullptr);

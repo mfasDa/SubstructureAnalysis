@@ -21,9 +21,23 @@ TH1 *makeRebinnedSafe(const TH1 *input, const char *newname, const std::vector<d
     return rebinned;
 }
 
-void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
+double findSpectrumMin(const TH1 *spec) {
+    double minval = DBL_MAX;
+    for(auto ib : ROOT::TSeqI(0, spec->GetNbinsX())) {
+        auto val = spec->GetBinContent(ib+1);
+        if(TMath::Abs(val) < DBL_EPSILON) {
+            continue;
+        }
+        if(val < minval) {
+            minval = val;
+        }
+    }
+    return minval;
+}
+
+void runNewCorrectionChainMBonly1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
     ROOT::EnableThreadSafety();
-    const std::string jettype = "ChargedJets";
+    const std::string jettype = "FullJets";
     
     UnfoldingHandler::UnfoldingMethod_t unfoldingmethod = UnfoldingHandler::UnfoldingMethod_t::kSVD;
     std::map<int, std::shared_ptr<DataFileHandler>> mDataFileHandlers;
@@ -110,7 +124,8 @@ void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(con
         auto ntrials = mcset.getTrials().getAverageTrials();
         outhandler.setMCScale(R, ntrials);
         auto &responsedata = mcset.getResponseMatrix();
-        responsedata.Scale(ntrials);
+        responsedata.ScaleToMin();
+        //responsedata.Scale(ntrials);
         auto responsefine = responsedata.getHistogram();
         responsefine->SetName(Form("Rawresponse_R%02d_fine", R));
         ResponseHandler responsebuilder(responsedata, binningpart, binningdet);
@@ -125,7 +140,8 @@ void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(con
 
         // Get the MC closure objects
         auto &responsedataclosure = closureset.getResponseMatrix();
-        responsedataclosure.Scale(ntrials);
+        responsedataclosure.ScaleToMin();
+        //responsedataclosure.Scale(ntrials);
         auto responseclosurefine = responsedataclosure.getHistogram();
         responseclosurefine->SetName(Form("Rawresponse_R%02d_fine", R));
         ResponseHandler closureresponsebuilder(responsedataclosure, binningpart, binningdet);
@@ -183,7 +199,7 @@ void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(con
                 workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results, unfoldingmethod](){
                     UnfoldingRunner worker(&work);
                     worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kTPCFID);
+                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
                     worker.DoWork();
                     std::unique_lock<std::mutex> combinelock(combinemutex);
                     for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
@@ -193,7 +209,7 @@ void runNewCorrectionChainCharged1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(con
         } else {
             UnfoldingRunner worker(&work);
             worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-            worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kTPCFID);
+            worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
             worker.DoWork();
             for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
         };

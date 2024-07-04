@@ -55,6 +55,27 @@ public:
 
     TH2 *getRawResponse() const { return getHistogram(); };
     void Scale(double scale) { getHistogram()->Scale(scale); }
+    void ScaleToMin(){
+        double currentmin = DBL_MAX;
+        auto responsehist = getHistogram();
+        for(int ibx = 0; ibx < responsehist->GetNbinsX(); ibx++) {
+            for(int iby = 0; iby < responsehist->GetNbinsY(); iby++) {
+                auto currentval = responsehist->GetBinContent(ibx+1, iby+1);
+                if(TMath::Abs(currentval) < DBL_EPSILON) {
+                    continue;
+                }
+                if(currentval < currentmin) {
+                    currentmin = currentval;
+                }
+            }
+        }
+        if(currentmin < DBL_MAX) {
+            std::cout << "Scaling response matrix with " << 1/currentmin << std::endl;
+            responsehist->Scale(1/currentmin);
+        } else {
+            std::cout << "No min. value found - cannot scale" << std::endl;
+        }
+    }
 };
 
 class JetFindingEfficiency : public ManagedHistogramData<TH2> {

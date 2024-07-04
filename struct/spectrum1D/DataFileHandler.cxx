@@ -212,6 +212,7 @@ class DataFileHandler {
 
         TList *getHistos(const std::string_view trigger, int R) {
             auto filedirname = buildDirname(trigger, R);
+            std::cout << "DataFileHandler::getHistos: Reading " << filedirname << std::endl;
             if(!fileHasDirectory(filedirname)) {
                 return nullptr;
             }
