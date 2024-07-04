@@ -104,13 +104,13 @@ def DoMerge(inputpath, filename, runlist, nworkers, outmergedir):
     mergedir = os.path.join(inputpath, outmergedir)
     if not os.path.exists(mergedir):
         os.makedirs(mergedir, 0o755)
-    logging.info("Merging runs in pt-hard bins from %s to %s" %(inputpath, mergedir))
+    logging.info("Merging runs in pt-hard bins from %s to %s", inputpath, mergedir)
 
     # prepare runlist (in case selected)
     runlistlist = None
     if runlist:
         runlistlist = []
-        with open("%s/runlists_EMCAL/%s" %(os.path.dirname(os.path.abspath(sys.argv[0])), runlist)) as reader:
+        with open(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "runlists_EMCAL", runlist), "r", encoding="utf-8") as reader:
             for line in reader:
                 line = line.rstrip().lstrip()
                 tokens = line.split(",")
@@ -118,7 +118,7 @@ def DoMerge(inputpath, filename, runlist, nworkers, outmergedir):
                     if not len(t):
                         continue
                     runlistlist.append(int(t))
-        logging.info("Using runlist %s:" %runlist)
+        logging.info("Using runlist %s:", runlist)
         logging.info("==========================")
         logstr = str()
         first = True
@@ -135,13 +135,13 @@ def DoMerge(inputpath, filename, runlist, nworkers, outmergedir):
     for pthard in sorted(os.listdir(inputpath)):
         if not pthard.isdigit():
             continue
-        logging.info("Merging all file from pt-hard bin %s" %(pthard))
+        logging.info("Merging all file from pt-hard bin %s", pthard)
         outputdir = os.path.join(mergedir, pthard)
         queue.push_back(os.path.join(outputdir, filename), GetFilelist(os.path.join(inputpath, pthard), filename, runlistlist))
     
     # start workers
     nworkersused = max(min(nworkers, multiprocessing.cpu_count()-2), 1);
-    logging.info("Using %d parallel mergers" %nworkersused)
+    logging.info("Using %d parallel mergers", nworkersused)
     workers = []
     for wid in range(0, nworkersused):
         myworker = Merger(wid, queue)
