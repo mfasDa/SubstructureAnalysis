@@ -62,8 +62,8 @@ if __name__ == "__main__":
     CLUSTER = ""
     try:
         CLUSTER = get_cluster()
-    except SubmissionHostNotSupportedException as e:
-        logging.error("Submission error: %s", e)
+    except SubmissionHostNotSupportedException as err:
+        logging.error("Submission error: %s", err)
         sys.exit(1)
     logging.info("Submitting download on Cluster %s", CLUSTER)
 
@@ -80,10 +80,10 @@ if __name__ == "__main__":
                                  dependencies,
                                  args.check,
                                  args.nofinal)
-    except UnknownClusterException as e:
-        logging.error("Submission error: %s", e)
+    except UnknownClusterException as err:
+        logging.error("Submission error: %s", err)
         sys.exit(1)
-    except PartitionException as e:
-        logging.error("Submission error: %s", e)
+    except PartitionException as err:
+        logging.error("Submission error: %s", err)
         sys.exit(1)
     

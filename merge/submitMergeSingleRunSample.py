@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 
+from SubstructureHelpers.setup_logging import setup_logging
+
 def getRunNumber(inputstring: str):
     delim = inputstring.find("_")
     if delim < 0:
@@ -25,14 +27,11 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
 
-    loglevel = logging.INFO
-    if args.debug:
-        loglevel = logging.DEBUG
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=loglevel)
+    setup_logging(args.debug)
 
     samples = [x for x in os.listdir(os.path.abspath(args.inputdir)) if getRunNumber(x) > -1]
     for sample in samples:
         logging.info("Submitting %s ...", sample)
         fullsamplepath = os.path.join(args.inputdir, sample)
-        submitcmd = "{EXE} {SAMPLEDIR} -r {FILE} -p {PARTITION}".format(EXE=submitter, SAMPLEDIR=fullsamplepath, FILE=args.file, PARTITION=args.partition)
+        submitcmd = f"{submitter} {fullsamplepath} -r {args.file} -p {args.partition}"
         subprocess.call(submitcmd, shell=True)

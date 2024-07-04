@@ -7,9 +7,11 @@ import subprocess
 
 def submitMergeMinpthard(sourcedir, workdir, minpthard, filename):
     executable = os.path.join(sourcedir, "processMergeMinPthardbin.sh")
-    jobname = "mergeMin_%d" %minpthard
-    logfile = os.path.join(workdir, "jobmergemin_%d.log" %minpthard)
-    subprocess.call("sbatch -N 1 -n 1 --partition=vip -J %s -o %s %s %s %d %s" %(jobname, logfile, executable, workdir, minpthard, filename), shell=True)
+    jobname = f"mergeMin_{minpthard}"
+    logfile = os.path.join(workdir, f"jobmergemin_{minpthard}.log")
+    runcmd = f"{executable} {workdir} {minpthard} {filename}"
+    sbatch = f"sbatch -N 1 -n 1 --partition=vip -J {jobname} -o {logfile}"
+    subprocess.call(f"{sbatch} {runcmd}" , shell=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("submitMergeMinPthardMulti.py", "Submitter for pt-hard dependent merge")

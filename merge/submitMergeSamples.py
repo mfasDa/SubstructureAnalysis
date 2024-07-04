@@ -37,5 +37,5 @@ if __name__ == "__main__":
     for sample in samples:
         logging.info("Submitting %s ...", sample)
         fullsamplepath = os.path.join(args.inputdir, sample)
-        submitcmd = "{EXE} {SAMPLEDIR} -f {FILE} -p {PARTITION}".format(EXE=submitter, SAMPLEDIR=fullsamplepath, FILE=args.file, PARTITION=args.partition)
+        submitcmd = f"{submitter} {fullsamplepath} -f {args.file} -p {args.partition}"
         subprocess.call(submitcmd, shell=True)

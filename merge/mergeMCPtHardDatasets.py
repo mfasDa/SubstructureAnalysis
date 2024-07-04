@@ -1,12 +1,10 @@
 #! /usr/bin/env python3
 
-from __future__ import print_function
 import argparse
 import logging
 import multiprocessing
 import os
 import subprocess
-import sys
 import threading
 
 class PtHardBin:
@@ -84,10 +82,10 @@ class Merger(threading.Thread):
         logging.info("Worker %d: Finished work", self.__workerID)
 
 def mergemcptharddatasets(inputdir, basename, mergedir, nworkrequest):
-    pthardbins = [] 
+    pthardbins = []
 
-    logging.info("Base file: %s" %basename)
-    logging.info("Merge dir: %s" %mergedir)
+    logging.info("Base file: %s", basename)
+    logging.info("Merge dir: %s", mergedir)
 
     outputdir = os.path.join(inputdir, mergedir)
     if not os.path.exists(outputdir):
@@ -125,7 +123,7 @@ def mergemcptharddatasets(inputdir, basename, mergedir, nworkrequest):
 
     workers = []
     nworkersused = max(min(nworkrequest, multiprocessing.cpu_count()-2), 1)
-    logging.info("Using %d parallel mergers" %nworkersused)
+    logging.info("Using %d parallel mergers", nworkersused)
     for wid in range(0, nworkersused):
         logging.info("Starting merger %d", wid)
         #continue

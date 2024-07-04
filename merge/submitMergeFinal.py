@@ -29,11 +29,10 @@ if __name__ == "__main__":
 
     repo = os.getenv("SUBSTRUCTURE_ROOT")
     executable = os.path.join(repo, "merge", "processMergeFinal.sh")
-    cmd = "{EXE} {INPUTDIR} {ROOTFILE} {REPO} {CHECK}".format(EXE=executable, INPUTDIR=args.inputdir, ROOTFILE=args.rootfile, REPO=repo, CHECK=1 if args.check else 0)
+    cmd = f"{executable} {args.inputdir} {args.rootfile} {repo} {1 if args.check else 0}"
     logfile = os.path.join(args.inputdir, "merge_final.log")
-    jobname = "merge_final"
     try:
         jobid = submit(cmd, "merge_final", logfile, args.partition, maxtime=args.maxtime)
         logging.info("Submitted final merging job with ID %d", jobid)
-    except Exception as e:
-        logging.error("[Submission error] %s", e)
+    except Exception as err:
+        logging.error("[Submission error] %s", err)

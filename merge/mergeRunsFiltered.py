@@ -1,13 +1,12 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
 import os
 import sys
 
 def merge(outputfile, filestomerge):
-    cmd = "hadd -f %s" %outputfile
+    cmd = f"hadd -f {outputfile}"
     for f in filestomerge:
-        cmd += " %s" %f
+        cmd += f" {f}"
     os.system(cmd)
 
 def extract_run(path, inputdir):
@@ -30,16 +29,16 @@ def find_files(inputdir, rootfile, runlist):
 
 def parse_runlist(runlistname):
     runs = []
-    reader = open(runlistname, 'r')
-    for line in reader:
-        content = line.split(",")
-        for c in content:
-            tmp = c.lstrip().rstrip()
-            if not len(c):
-                continue
-            if(tmp.isdigit()):
-                runs.append(int(tmp))
-    reader.close()
+    with open(runlistname, 'r') as reader:
+        for line in reader:
+            content = line.split(",")
+            for c in content:
+                tmp = c.lstrip().rstrip()
+                if not len(c):
+                    continue
+                if(tmp.isdigit()):
+                    runs.append(int(tmp))
+        reader.close()
     return runs
 
 def merge_runs_filtered(outputfile, inputdir, rootfilename, runlist):

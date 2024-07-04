@@ -27,32 +27,32 @@ class MergeHandler:
 
     def submit_pthardbins(self, wait_jobid: int = 0) -> int:
         executable = os.path.join(self.__repo, "processMergeRun.sh")
-        commmand = "{EXECUTABLE} {INPUTDIR} {OUTPUTDIR} {FILENAME}".format(EXECUTABLE=executable, INPUTDIR=self.__inputdir, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename)
-        logfile = "{OUTPUTDIR}/joboutput_%a.log".format(OUTPUTDIR=self.__outputdir)
+        commmand = f"{executable} {self.__inputdir} {self.__outputdir} {self.__filename}"
+        logfile = f"{self.__outputdir}/joboutput_%a.log"
         jobname = "mergebins"
         try:
             jobid = submit(command=commmand, jobname=jobname, logfile=logfile, partition=self.__partition, jobarray=[1,20], dependency=wait_jobid, maxtime=self.__maxtime)
             return jobid
-        except UnknownClusterException as e: 
-           logging.error("Submission error: %s", e)
-           return -1
-        except PartitionException as e: 
-           logging.error("Submission error: %s", e)
-           return -1
+        except UnknownClusterException as err: 
+            logging.error("Submission error: %s", err)
+            return -1
+        except PartitionException as err: 
+            logging.error("Submission error: %s", err)
+            return -1
 
     def submit_final(self, wait_jobid: int = 0) -> int:
         executable = os.path.join(self.__repo, "processMergeFinal.sh")
-        command = "{EXECUTABLE} {OUTPUTDIR} {FILENAME} {REPO} {CHECK}".format(EXECUTABLE=executable, OUTPUTDIR=self.__outputdir, FILENAME=self.__filename, REPO=os.path.dirname(self.__repo), CHECK=1 if self.__check else 0)
-        logfile = "{OUTPUTDIR}/mergefinal.log".format(OUTPUTDIR=self.__outputdir)
+        command = f"{executable} {self.__outputdir} {self.__filename} {os.path.dirname(self.__repo)} {1 if self.__check else 0}"
+        logfile = f"{self.__outputdir}/mergefinal.log"
         jobname = "mergefinal"
         try:
             jobid = submit(command=command, jobname=jobname, logfile=logfile, partition=self.__partition, dependency=wait_jobid, maxtime=self.__maxtime)
             return jobid
-        except UnknownClusterException as e: 
-           logging.error("Submission error: %s", e)
+        except UnknownClusterException as err: 
+           logging.error("Submission error: %s", err)
            return -1
-        except PartitionException as e: 
-           logging.error("Submission error: %s", e)
+        except PartitionException as err: 
+           logging.error("Submission error: %s", err)
            return -1
 
 def merge_submitter_runs(repo: str, inputdir: str, filename: str, partition: str, maxtime: str, wait: int, check: bool) -> dict:
@@ -62,8 +62,8 @@ def merge_submitter_runs(repo: str, inputdir: str, filename: str, partition: str
 
     handler = MergeHandler(repo, inputdir, outputbase, filename, partition, check)
     jobids = handler.submit(wait)
-    print("Submitted merge job under JobID %d" %jobids["pthard"])
-    print("Submitted final merging job under JobID %d" %jobids["final"])
+    print(f"Submitted merge job under JobID {jobids['pthard']}")
+    print(f"Submitted final merging job under JobID {jobids['final']}")
     return jobids
 
 if __name__ == "__main__":
