@@ -19,7 +19,7 @@ class LaunchHandler:
         self.__trainrun = None
         self.__legotrain = legotrain
         self.__cluster = cluster
-        self.__partitionDownload = "short"
+        self.__partition_download = "short"
         self.__tokens = {"cert": None, "key": None}
         self.__maxtime = "01:00:00"
 
@@ -28,15 +28,15 @@ class LaunchHandler:
         try:
             self.__trainrun = trainDB.getTrainIdentifier(trainrun)
             logging.info("Found train run: %s",  self.__trainrun)
-        except AliTrainDB.UninitializedException as e:
-            logging.error("%s", e)
-        except AliTrainDB.TrainNotFoundException as e:
-            logging.error("%s", e)
+        except AliTrainDB.UninitializedException as err:
+            logging.error("%s", err)
+        except AliTrainDB.TrainNotFoundException as err:
+            logging.error("%s", err)
 
     def set_partition_for_download(self, partition: str):
         if not is_valid_partition(self.__cluster, partition):
             raise PartitionException(partition, self.__cluster)
-        self.__partitionDownload = partition
+        self.__partition_download = partition
 
     def set_maxtime(self, maxtime: str):
         self.__maxtime = maxtime
@@ -57,11 +57,11 @@ class LaunchHandler:
         if not os.path.exists(self.__outputbase):
             os.makedirs(self.__outputbase)
         executable = os.path.join(self.__repo, "downloader", "runDownloadAndMergeDataBatch.sh")
-        jobname = "down_{YEAR}".format(YEAR=year)
+        jobname = f"down_{year}"
         logfile = os.path.join(self.__outputbase, "download.log")
-        downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {YEAR} {TRAINRUN} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO = self.__repo, OUTPUTDIR=self.__outputbase, YEAR=year, TRAINRUN=self.__trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
-        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partitionDownload, numnodes=1, numtasks=1, maxtime=self.__maxtime)
-        logging.info("Submitting download job: {}".format(jobid))
+        downloadcmd = f"{executable} {self.__repo} {self.__outputbase} {year} {self.__trainrun} {cert} {key}"
+        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self.__partition_download, numnodes=1, numtasks=1, maxtime=self.__maxtime)
+        logging.info("Submitting download job: %d",jobid)
         return jobid
 
 if __name__ == "__main__":
@@ -78,10 +78,10 @@ if __name__ == "__main__":
     setup_logging(args.debug)
 
     tokens = test_alien_token()
-    if not len(tokens):
+    if not tokens:
         logging.info("No valid tokens found, recreating ...")
         tokens = recreate_token()
-    if not len(tokens):
+    if not tokens:
         logging.error("Failed generating tokens ...")
         sys.exit(1)
     cert = tokens["cert"]

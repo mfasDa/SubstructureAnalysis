@@ -10,17 +10,18 @@ from merge.submitMergeRun import merge_submitter_runs
 
 class MCDownloadHandler:
 
-    def __init__(self, cluster: str, outputbase: str , trainrun: int, legotrain: str, mergefile: str = "AnalysisResults.root", check: bool = False):
+    def __init__(self, cluster: str, outputbase: str , trainrun: int, legotrain: str, mergefile: str = "AnalysisResults.root", check: bool = False, nofinal: bool = False):
         self._repo = os.getenv("SUBSTRUCTURE_ROOT")
         self._outputbase = outputbase
         self._legotrain = legotrain
         self._trainrun = None
         self._cluster = cluster
-        self._partitionDownload = "long"
+        self._partition_download = "long"
         self._mergefile = mergefile
         self._check = check
         self._tokens = {"cert": None, "key": None}
         self._maxtime = "10:00:00"
+        self._nofinal = nofinal
 
         pwg,trainname = self._legotrain.split("/")
         trainDB = AliTrainDB(pwg, trainname)
@@ -34,7 +35,7 @@ class MCDownloadHandler:
     def set_partition_for_download(self, partition: str):
         if not is_valid_partition(self._cluster, partition):
             raise PartitionException(partition, self._cluster)
-        self._partitionDownload = partition
+        self._partition_download = partition
 
     def set_maxtime(self, maxtime: str):
         self._maxtime = maxtime
@@ -62,14 +63,14 @@ class MCDownloadHandler:
             logging.error("Alien token not provided - cannot download ...")
             return None
         executable = os.path.join(self._repo, "downloader", "runDownloadAndMergeMCBatch.sh")
-        jobname = "down_{SAMPLE}".format(SAMPLE=sample)
+        jobname = f"down_{sample}"
         outputdir = os.path.join(self._outputbase, sample)
         if not os.path.exists(outputdir):
             os.makedirs(outputdir, 0o755)
         logfile = os.path.join(outputdir, "download.log")
         
-        downloadcmd = "{EXE} {DOWNLOADREPO} {OUTPUTDIR} {DATASET} {LEGOTRAIN}/{TRAINID} {ALIEN_CERT} {ALIEN_KEY}".format(EXE=executable, DOWNLOADREPO=self._repo, OUTPUTDIR=outputdir, DATASET=sample, LEGOTRAIN=self._legotrain, TRAINID=self._trainrun, ALIEN_CERT=cert, ALIEN_KEY=key)
-        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self._partitionDownload, numnodes=1, numtasks=4, maxtime=self._maxtime)
+        downloadcmd = f"{executable} {self._repo} {outputdir} {sample} {self._legotrain}/{self._trainrun} {cert} {key}"
+        jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self._partition_download, numnodes=1, numtasks=4, maxtime=self._maxtime)
         return jobid
 
     def submit_merge(self, sample: str, wait_jobid: int, maxtime: str) -> int:

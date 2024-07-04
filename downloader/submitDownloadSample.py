@@ -28,16 +28,16 @@ if __name__ == "__main__":
     cluster = ""
     try:
         cluster = get_cluster()
-    except SubmissionHostNotSupportedException as e:
-        logging.error("Submission error: %s", e)
+    except SubmissionHostNotSupportedException as err:
+        logging.error("Submission error: %s", err)
         sys.exit(1)
     logging.info("Submitting download on cluster %s", cluster)
 
     tokens = test_alien_token()
-    if not len(tokens):
+    if not tokens:
         logging.info("No valid tokens found, recreating ...")
         tokens = recreate_token()
-    if not len(tokens):
+    if not tokens:
         logging.error("Failed generating tokens ...")
         sys.exit(1)
     cert = tokens["cert"]
@@ -49,9 +49,9 @@ if __name__ == "__main__":
     try:
         handler.set_partition_for_download(args.partition)
         handler.submit_sample(args.sample)
-    except UnknownClusterException as e:
-        logging.error("Submission error: %s", e)
+    except UnknownClusterException as err:
+        logging.error("Submission error: %s", err)
         sys.exit(1)
-    except PartitionException as e:
-        logging.error("Submission error: %s", e)
+    except PartitionException as err:
+        logging.error("Submission error: %s", err)
         sys.exit(1)

@@ -41,7 +41,7 @@ class MultiSampleDownloadHandler(MCDownloadHandler):
             self.submit_merge_samples(jobids_merge, "2:00:00")
 
     def submit_merge_samples(self, wait_jobids: list, maxtime: str) -> int:
-        merge_submitter_datasets(os.path.join(self._repo, "merge"), self._outputbase, self._mergefile, "short", maxtime, wait_jobids, self._check)
+        merge_submitter_datasets(os.path.join(self._repo, "merge"), self._outputbase, self._mergefile, "short", maxtime, wait_jobids, self._check, self._nofinal)
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
@@ -55,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--partition", metavar="PARTITION", type=str, default="long", help="Partition for download")
     parser.add_argument("--maxtime", metavar="MAXTIME", type=str, default="01:00:00", help="Maximum time for download job")
     parser.add_argument("-c", "--check", action="store_true", help="Run check of pt-hard distribution")
+    parser.add_argument("-n", "--nofinal", action="store_true", help="Do not launch final merge job (i.e. for trees)")
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
     setup_logging(args.debug)
@@ -68,16 +69,16 @@ if __name__ == "__main__":
     logging.info("Submitting download on cluster %s", cluster)
 
     tokens = test_alien_token()
-    if not len(tokens):
+    if not tokens:
         logging.info("No valid tokens found, recreating ...")
         tokens = recreate_token()
-    if not len(tokens):
+    if not tokens:
         logging.error("Failed generating tokens ...")
         sys.exit(1)
     cert = tokens["cert"]
     key = tokens["key"]
 
-    handler = MultiSampleDownloadHandler(cluster=cluster, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain, check=args.check)
+    handler = MultiSampleDownloadHandler(cluster=cluster, outputbase=args.outputdir, trainrun=args.trainrun, legotrain=args.legotrain, check=args.check, nofinal=args.nofinal)
     handler.set_token(cert, key)
     handler.set_maxtime(args.maxtime)
     try:
