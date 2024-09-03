@@ -21,7 +21,7 @@ class ScriptWriter:
 
     def __init__(self, filename):
         self.__name = filename
-        self.__fileio = open(filename, "w")
+        self.__fileio = open(filename, "w", encoding="utf-8")
         self.__writeline("#! /bin/bash")
         self.__workdirSet = False
         self.__logevel = ScriptWriter.INFO
@@ -48,13 +48,13 @@ class ScriptWriter:
         self.__logtag = tag
 
     def sbatch(self, setting: str):
-        self.__writeline("#SBATCH {}".format(setting))
+        self.__writeline(f"#SBATCH {setting}")
 	
     def comment(self, comment: str):
-        self.__writeline("# {}".format(comment))
+        self.__writeline(f"# {comment}")
 
     def printout(self, printout: str):
-        self.__writeline("echo {}".format(printout))
+        self.__writeline(f"echo {printout}")
 
     def log(self, level: int, message: str):
         if level >= self.__logevel:
@@ -80,7 +80,7 @@ class ScriptWriter:
         self.__writeline(instruction)
     
     def jobname(self, jobname: str):
-        self.sbatch("-J {}".format(jobname))
+        self.sbatch(f"-J {jobname}")
 
     def logfile(self, logfile: str):
         abslogfile = os.path.abspath(logfile)
@@ -90,35 +90,35 @@ class ScriptWriter:
         self.sbatch("-o {}".format(abslogfile))
 
     def partition(self, partition: str):
-        self.sbatch("--partition={}".format(partition))
+        self.sbatch(f"--partition={partition}")
 
     def Nodes(self, nodes: int):
-        self.sbatch("-N {}".format(nodes))
+        self.sbatch(f"-N {nodes}")
 
     def Tasks(self, tasks: int):
-        self.sbatch("-n {}".format(tasks))
+        self.sbatch(f"-n {tasks}")
 
     def Array(self, minid: int, maxid: int):
-        self.sbatch("--array={}-{}".format(minid, maxid))
+        self.sbatch(f"--array={minid}-{maxid}")
 
     def dependency(self, dependency: int):
-        self.sbatch("--dependency={}".format(dependency))
+        self.sbatch(f"--dependency={dependency}")
 
     def workdir(self, directory):
-        self.__writeline("export WORKDIR={}".format(directory))
+        self.__writeline(f"export WORKDIR={directory}")
         if not os.path.exists(directory):
             self.__writeline("if [ ! -d $WORKDIR ]; then mkdir -p $WORKDIR; fi")
         self.__writeline("cd $WORKDIR")
         self.__workdirSet = True
 
     def cd(self, directory):
-        self.__writeline("cd {}".format(directory))
+        self.__writeline(f"cd {directory}")
 
     def rmdir(self, directory):
-        self.__writeline("rm -rf {}".format(directory))
+        self.__writeline(f"rm -rf {directory}")
 
     def setenv(self, variable: str, value: str):
-        self.__writeline("export {}={}".format(variable, value))
+        self.__writeline(f"export {variable}={value}")
     
     def define(self, variable: str, value: str):
         self.__writeline("{}={}".format(variable, value))
@@ -137,13 +137,13 @@ class ScriptWriter:
 
     def modules(self, modules: list):
         for mod in modules:
-            self.__writeline("module load {}".format(mod))
+            self.__writeline(f"module load {mod}")
 
     def alienv(self, packages: list):
         self.define("ALIENV", "`which alienv`")
         instruction = "eval `$ALIENV --no-refresh load"
         for package in packages:
-            instruction += " {}".format(package)
+            instruction += f" {package}"
         instruction += "`"
         self.instruction(instruction)
         self.instruction("eval $ALIENV list")
@@ -151,22 +151,22 @@ class ScriptWriter:
     def process(self, executable: str, args: list = [], logfile: str = ""):
         cmd = executable
         for arg in args:
-            cmd += " {}".format(arg)
-        if len(logfile):
-            cmd += " {}".format(logfile)
+            cmd += f" {arg}"
+        if logfile:
+            cmd += f" {logfile}"
         self.__writeline(cmd)
 
     def stage_in(self, files: list):
         if not self.__workdirSet:
             raise ScriptWriter.WorkdirNotSetException
         for fl in files:
-            self.__writeline("cp {} $WORKDIR/".format(fl))
+            self.__writeline(f"cp {fl} $WORKDIR/")
 
     def stage_out(self, outputdir: str, files: list):
         if not self.__workdirSet:
             raise ScriptWriter.WorkdirNotSetException
         for fl in files:
-            self.__writeline("cp $WORKDIR/{} {}".format(fl, outputdir))
+            self.__writeline(f"cp $WORKDIR/{fl} {outputdir}")
 
     def remove_workdir(self):
         if not self.__workdirSet:
@@ -199,19 +199,31 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
         requestpartition = get_default_partition(cluster)
     elif requestpartition == "fast":
         requestpartition = get_fast_partition(cluster)
-    submitcmd +=" -N {NUMNODES} -c {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=requestpartition)
+    submitcmd += f" -N {numnodes} -c {numtasks} --partition={requestpartition}"
     if jobarray:
-        submitcmd += " --array={ARRAYMIN}-{ARRAYMAX}".format(ARRAYMIN=jobarray[0], ARRAYMAX=jobarray[1])
+        if "indices" in jobarray:
+            indexstring  = ""
+            for index in jobarray:
+                if not index.isdigit():
+                    continue
+                if len(indexstring):
+                    indexstring += ","
+                indexstring +=  f"{index}"
+            submitcmd += f"-array={indexstring}"
+        else:
+            # Range (first to last)
+            submitcmd += f" --array={jobarray[0]}-{jobarray[1]}"
     if dependency > 0:
-        submitcmd += " -d {DEP}".format(DEP=dependency)
-    submitcmd += " -J {JOBNAME} -o {LOGFILE}".format(JOBNAME=jobname, LOGFILE=logfile)
+        submitcmd += f" -d {dependency}"
+    submitcmd += f" -J {jobname} -o {logfile}"
     runcommand = command
     if cluster == "CADES":
-        submitcmd += " --mem=4G --time={MAXTIME}".format(MAXTIME=maxtime)
+        submitcmd += f" --mem=4G --time={maxtime}"
         # On CADES scripts must run inside a container
-        runcommand = "{} {}".format(os.path.join(os.getenv("SUBSTRUCTURE_ROOT"), "cadescontainerwrapper.sh"), command)
-    submitcmd += " {COMMAND}".format(COMMAND=runcommand)
-    logging.debug("Submitcmd: {}".format(submitcmd))
+        wrapper = os.path.join(os.getenv("SUBSTRUCTURE_ROOT"), "cadescontainerwrapper.sh")
+        runcommand = f"{wrapper} {command}"
+    submitcmd += f" {runcommand}"
+    logging.debug("Submitcmd: %s", submitcmd)
     submitResult = subprocess.run(submitcmd, shell=True, stdout=subprocess.PIPE)
     sout = submitResult.stdout.decode("utf-8")
     toks = sout.split(" ")
@@ -230,22 +242,33 @@ def submit_dependencies(command: str, jobname: str, logfile: str, partition: str
         requestpartition = get_default_partition(cluster)
     elif requestpartition == "fast":
         requestpartition = get_fast_partition(cluster)
-    submitcmd +=" -N {NUMNODES} -c {NUMTASKS} --partition={PARTITION}".format(NUMNODES=numnodes, NUMTASKS=numtasks, PARTITION=requestpartition)
+    submitcmd += f" -N {numnodes} -c {numtasks} --partition={requestpartition}"
     if jobarray:
-        submitcmd += " --array={ARRAYMIN}-{ARRAYMAX}".format(ARRAYMIN=jobarray[0], ARRAYMAX=jobarray[1])
-    if len(dependency):
+        if "indices" in jobarray:
+            indexstring  = ""
+            for index in jobarray:
+                if not index.isdigit():
+                    continue
+                if len(indexstring):
+                    indexstring += ","
+                indexstring +=  f"{index}"
+            submitcmd += f"-array={indexstring}"
+        else:
+            # Range (first to last)
+            submitcmd += f" --array={jobarray[0]}-{jobarray[1]}"
+    if dependency:
         dependencystring = dependency_mode
         for dep in dependency:
-            dependencystring += ":{}".format(dep)
-        submitcmd += " --dependency={DEP}".format(DEP=dependencystring)
-    submitcmd += " -J {JOBNAME} -o {LOGFILE}".format(JOBNAME=jobname, LOGFILE=logfile)
+            dependencystring += f":{dep}"
+        submitcmd += f" --dependency={dependencystring}"
+    submitcmd += f" -J {jobname} -o {logfile}"
     runcommand = command
     if cluster == "CADES":
-        submitcmd += " --mem=4G --time={MAXTIME}".format(MAXTIME=maxtime)
+        submitcmd += f" --mem=4G --time={maxtime}"
         # On CADES scripts must run inside a container
         runcommand = "{} {}".format(os.path.join(os.getenv("SUBSTRUCTURE_ROOT"), "cadescontainerwrapper.sh"), command)
-    submitcmd += " {COMMAND}".format(COMMAND=runcommand)
-    logging.debug("Submitcmd: {}".format(submitcmd))
+    submitcmd += f" {runcommand}"
+    logging.debug("Submitcmd: %s", submitcmd)
     submitResult = subprocess.run(submitcmd, shell=True, stdout=subprocess.PIPE)
     sout = submitResult.stdout.decode("utf-8")
     toks = sout.split(" ")
