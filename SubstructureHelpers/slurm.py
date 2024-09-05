@@ -209,7 +209,7 @@ def submit(command: str, jobname: str, logfile: str, partition: str = "short", n
                 if len(indexstring):
                     indexstring += ","
                 indexstring +=  f"{index}"
-            submitcmd += f"-array={indexstring}"
+            submitcmd += f" --array={indexstring}"
         else:
             # Range (first to last)
             submitcmd += f" --array={jobarray[0]}-{jobarray[1]}"
@@ -252,7 +252,7 @@ def submit_dependencies(command: str, jobname: str, logfile: str, partition: str
                 if len(indexstring):
                     indexstring += ","
                 indexstring +=  f"{index}"
-            submitcmd += f"-array={indexstring}"
+            submitcmd += f" --array={indexstring}"
         else:
             # Range (first to last)
             submitcmd += f" --array={jobarray[0]}-{jobarray[1]}"
