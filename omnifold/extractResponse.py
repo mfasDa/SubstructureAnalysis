@@ -45,13 +45,16 @@ def convert_mcset(filename: str, outputdir: str):
     pandasdf = pdf(df_with_infos.AsNumpy())
     pandasdf.to_csv(os.path.join(os.path.abspath(outputdir), f"mcjetsetpthard_{pthardbin}.csv.gzip"), compression="gzip")
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser("extractResponse.py") 
     parser.add_argument("filename", metavar="FILENAME", type=str, help="File to process")
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default="", help="Output directory")
     args = parser.parse_args()
 
     outputdir = args.outputdir
-    if not len(outputdir):
+    if outputdir:
         outputdir = os.path.dirname(os.path.abspath)
     convert_mcset(args.filename, outputdir)
+
+if __name__ == "__main__":
+    main()
