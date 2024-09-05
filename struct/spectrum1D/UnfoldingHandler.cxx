@@ -47,6 +47,7 @@ public:
 
     enum class AcceptanceType_t {
         kEMCALFID,
+        kEMCALFIDreduced,
         kTPCFID
     };
 
@@ -71,6 +72,12 @@ public:
             case AcceptanceType_t::kEMCALFID: {
                 const double kSizeEmcalPhi = 1.8873487,
                              kSizeEmcalEta = 1.4;
+                acceptance = (kSizeEmcalPhi - 2 * input.fRadius) * (kSizeEmcalEta - 2 * input.fRadius) / (TMath::TwoPi());
+                break;
+            }
+            case AcceptanceType_t::kEMCALFIDreduced: {
+                const double kSizeEmcalPhi = 1.6873487,
+                             kSizeEmcalEta = 1.2;
                 acceptance = (kSizeEmcalPhi - 2 * input.fRadius) * (kSizeEmcalEta - 2 * input.fRadius) / (TMath::TwoPi());
                 break;
             }

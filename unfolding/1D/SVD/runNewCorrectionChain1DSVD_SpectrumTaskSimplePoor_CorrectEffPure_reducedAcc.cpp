@@ -37,7 +37,7 @@ TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, cons
     return combined;
 }
 
-void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
+void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure_reducedAcc(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
     ROOT::EnableThreadSafety();
     const std::string jettype = "FullJets";
     std::array<std::string, 3> TRIGGERS = {{"INT7", "EJ2", "EJ1"}};
@@ -242,7 +242,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
                 workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results, unfoldingmethod](){
                     UnfoldingRunner worker(&work);
                     worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
+                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFIDreduced);
                     worker.DoWork();
                     std::unique_lock<std::mutex> combinelock(combinemutex);
                     for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
@@ -252,7 +252,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         } else {
             UnfoldingRunner worker(&work);
             worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-                        worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
+                        worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFIDreduced);
             worker.DoWork();
             for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
         };

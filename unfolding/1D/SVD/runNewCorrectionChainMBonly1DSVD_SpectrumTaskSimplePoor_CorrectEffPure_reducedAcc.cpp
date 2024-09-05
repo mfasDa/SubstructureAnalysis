@@ -21,126 +21,83 @@ TH1 *makeRebinnedSafe(const TH1 *input, const char *newname, const std::vector<d
     return rebinned;
 }
 
-TH1 *makeCombinedRawSpectrum(const TH1 &mb, const TH1 &ej2, double ej2swap, const TH1 &ej1, double ej1swap){
-    auto combined = histcopy(&mb);
-    combined->SetDirectory(nullptr);
-    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ej2swap), combined->GetXaxis()->FindBin(ej1swap))) {
-        std::cout << "[" << combined->GetXaxis()->GetBinLowEdge(b) << " - " << combined->GetXaxis()->GetBinUpEdge(b) << "] Using EJ2" << std::endl;
-        combined->SetBinContent(b, ej2.GetBinContent(b));
-        combined->SetBinError(b, ej2.GetBinError(b));
+double findSpectrumMin(const TH1 *spec) {
+    double minval = DBL_MAX;
+    for(auto ib : ROOT::TSeqI(0, spec->GetNbinsX())) {
+        auto val = spec->GetBinContent(ib+1);
+        if(TMath::Abs(val) < DBL_EPSILON) {
+            continue;
+        }
+        if(val < minval) {
+            minval = val;
+        }
     }
-    for(auto b : ROOT::TSeqI(combined->GetXaxis()->FindBin(ej1swap), combined->GetXaxis()->GetNbins()+1)) {
-        std::cout << "[" << combined->GetXaxis()->GetBinLowEdge(b) << " - " << combined->GetXaxis()->GetBinUpEdge(b) << "] Using EJ1" << std::endl;
-        combined->SetBinContent(b, ej1.GetBinContent(b));
-        combined->SetBinError(b, ej1.GetBinError(b));
-    }
-    return combined;
+    return minval;
 }
 
-void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
+void runNewCorrectionChainMBonly1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std::string_view file2017 = "", const std::string_view file2018 = "", const std::string_view filemc = "", const std::string_view sysvar = "", int radiusSel = -1, bool doMT = false) {
     ROOT::EnableThreadSafety();
     const std::string jettype = "FullJets";
-    std::array<std::string, 3> TRIGGERS = {{"INT7", "EJ2", "EJ1"}};
+    
     UnfoldingHandler::UnfoldingMethod_t unfoldingmethod = UnfoldingHandler::UnfoldingMethod_t::kSVD;
     std::map<int, std::shared_ptr<DataFileHandler>> mDataFileHandlers;
-    auto lumihists = std::make_shared<LuminosityHistograms>();
     if(file2017.length() && file2017 != "None") {
         std::cout << "Reading file for 2017: " << file2017 << std::endl;
         auto filehandler = std::make_shared<DataFileHandler>(file2017, jettype, sysvar);
-        lumihists->addYear(2017, filehandler->getLuminosityHandler());
         mDataFileHandlers[2017] = filehandler;
     }
     if(file2018.length() && file2018 != "None") {
         std::cout << "Reading file for 2018: " << file2018 << std::endl;
         auto filehandler = std::make_shared<DataFileHandler>(file2018, jettype, sysvar);
-        lumihists->addYear(2018, filehandler->getLuminosityHandler());
         mDataFileHandlers[2018] = filehandler;
     }
-    lumihists->build();
     MCFileHandler mchandler(filemc, jettype,  sysvar);
     OutputHandler outhandler;
 
-    std::vector<double> binningdet = getJetPtBinningNonLinSmearPoor(),
-                        binningpart = getJetPtBinningNonLinTruePoor();
+    std::vector<double> binningdet = getJetPtBinningNonLinSmearCharged(),
+                        binningpart = getJetPtBinningNonLinTrueCharged();
     for(auto R : ROOT::TSeqI(2, 7)) {
         double radius = double(R) / 10.;
         if(radiusSel > 0 && R != radiusSel) {
             continue;
         }
         std::cout << "Doing jet radius " << radius << std::endl;
-        // Set the luminosity histograms
-        outhandler.setLuminosityHistograms(R, lumihists);
 
         // Adding spectra for each trigger class from the different years
         // add also integrated luminosity, scaled by the corresponding vertex finding efficiencies
-        std::map<std::string, TH1 *> rawspectrumTrigger;
-        std::map<std::string, double> norms = {{"INT7", 0.}, {"EJ2", 0.}, {"EJ1", 0.}};
+        TH1 * rawspectrumCombined = nullptr;
+        double norm = 0.;
+        std::map<int, double> crossections = {{2017, 58.10}, {2018, 57.52}};
         for(auto &[year, filehandler] : mDataFileHandlers) {
             auto effVtx = filehandler->getVertexFindingEfficiency(R, "INT7").evaluate();
             outhandler.setVertexFindingEfficiency(R, year, effVtx);
-            outhandler.setCENTNOTRDCorrection(R, year, filehandler->getClusterCounterAbs(R, "EJ1").makeClusterRatio(TriggerCluster::kCENTNOTRD, TriggerCluster::kCENT));
-            auto lumihandler = filehandler->getLuminosityHandler();
-            for(auto &trg : TRIGGERS) {
-                auto spec =  filehandler->getSpectrumAbs(R, trg).getSpectrumForTriggerCluster(TriggerCluster::kANY);
-                auto trgfound = rawspectrumTrigger.find(trg);
-                if(trgfound != rawspectrumTrigger.end()) trgfound->second->Add(spec);
-                else rawspectrumTrigger[trg] = spec;
-                // luminosity from Luminosity handler does not include vertex finding efficiency, which needs to be evaluated by the user
-                norms[trg] += lumihandler->GetLuminosityForTrigger(trg.data(), PWG::EMCAL::AliEmcalTriggerLuminosity::LuminosityUnit_t::kMb) / effVtx;
-                outhandler.setRawEvents(R, year, trg, filehandler->getClusterCounterAbs(R, trg).getCounters(TriggerCluster::kANY));
+                
+            auto spec =  filehandler->getSpectrumAbs(R, "INT7").getSpectrumForTriggerCluster(TriggerCluster::kANY);
+            if(!rawspectrumCombined) {
+                rawspectrumCombined = spec;
+            } else {
+                rawspectrumCombined->Add(spec);
             }
+            // luminosity from Luminosity handler does not include vertex finding efficiency, which needs to be evaluated by the user
+            norm += filehandler->getClusterCounterAbs(R, "INT7").getCounters(TriggerCluster::kANY) / (effVtx * crossections.find(year)->second);
+            outhandler.setRawEvents(R, year, "INT7", filehandler->getClusterCounterAbs(R, "INT7").getCounters(TriggerCluster::kANY));
         }
 
         auto &mcset = mchandler.getMCSet(R);
         auto &closureset = mchandler.getClosureSet(R);
 
-        std::unordered_map<std::string, TriggerEfficiency> triggerEffs = {
-            {"EJ2", TriggerEfficiency(mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::INT7), 
-                                      mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::EJ2),
-                                      binningdet)},        
-            {"EJ1", TriggerEfficiency(mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::INT7), 
-                                      mcset.getDetLevelSpectrum(MCFileHandler::TriggerClass::EJ1),
-                                      binningdet)},        
-        };
-
-        std::unordered_map<std::string, TH1 *> triggerEffsRebinned;
-        for(auto &[trg, eff]: triggerEffs) {
-            std::cout << "Building trigger efficiency for trigger " << trg << std::endl;
-            auto efffine = eff.getEfficiencyFine();
-            efffine->SetNameTitle(Form("TriggerEfficiency_%s_R%02d_orig", trg.data(), R), Form("Trigger efficiency for %s for R=%.1f (original)", trg.data(), radius));
-            outhandler.setTriggerEff(R, efffine, trg, false);
-            auto effrebinned = eff.getEfficiencyRebinned();
-            effrebinned->SetNameTitle(Form("TriggerEfficiency_%s_R%02d_rebinned", trg.data(), R), Form("Trigger efficiency for %s for R=%.1f (rebinned)", trg.data(), radius));
-            outhandler.setTriggerEff(R, effrebinned, trg, true);
-            triggerEffsRebinned[trg] = effrebinned;
-        }
-
         // Build the combined raw spectrum
         // Store histograms for different correction steps
-        std::cout << "Running correction and normalization" << std::endl;
-        std::map<std::string, TH1 *> mRawSpectraTriggerCorrected;
-        for(const auto &trg : TRIGGERS) {
-            auto spec = rawspectrumTrigger[trg];
-            spec->SetNameTitle(Form("RawJetSpectrum_FullJets_R%02d_%s", R, trg.data()), Form("Raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
-            auto rebinned = makeRebinnedSafe(spec, Form("RawJetSpectrum_FullJets_R%02d_%s_rebinned", R, trg.data()), binningdet);
-            rebinned->SetTitle(Form("Rebinned raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
-            auto normalized = histcopy(rebinned);
-            normalized->SetNameTitle(Form("RawJetSpectrum_FullJets_R%02d_%s_normalized", R, trg.data()), Form("Normalized raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
-            normalized->Scale(1./norms[trg]);
-            auto corrected = histcopy(normalized);
-            corrected->SetNameTitle(Form("RawJetSpectrum_FullJets_R%02d_%s_corrected", R, trg.data()), Form("Corrected raw spectrum full jets for R=%f for trigger %s", radius, trg.data()));
-            if(trg.find("INT7") == std::string::npos) {
-                // Correct for the trigger efficiency (in case the trigger is not min. bias)
-                corrected->Divide(triggerEffsRebinned[trg]);
-            } 
-            mRawSpectraTriggerCorrected[trg] = corrected;
-            outhandler.setRawHistTrigger(R, spec, trg, false);
-            outhandler.setRawHistTrigger(R, rebinned, trg, true);
-            outhandler.setNormalizedRawSpectrumTrigger(R, normalized, trg);
-            outhandler.setTrgEffCorrectedRawSpectrumTrigger(R, corrected, trg);
-        }
-        TH1 *hrawOrig = makeCombinedRawSpectrum(*mRawSpectraTriggerCorrected["INT7"], *mRawSpectraTriggerCorrected["EJ2"], 50., *mRawSpectraTriggerCorrected["EJ1"], 100.);
-        hrawOrig->SetNameTitle(Form("hrawOrig_R%02d", R), Form("Combined raw Level spectrum R=%.1f, before purity correction", radius));
+        std::cout << "Running rebinning and normalization" << std::endl;
+        rawspectrumCombined->SetNameTitle(Form("RawJetSpectrum_ChargedJets_R%02d_INT7", R), Form("Raw spectrum charged jets for R=%f for trigger INT7", radius));
+            
+        auto rebinned = makeRebinnedSafe(rawspectrumCombined, Form("RawJetSpectrum_ChargedJets_R%02d_INT7_rebinned", R), binningdet);
+        rebinned->SetTitle(Form("Rebinned raw spectrum charged jets for R=%f for trigger INT7", radius));
+        auto normalized = histcopy(rebinned);
+        normalized->SetNameTitle(Form("RawJetSpectrum_ChargedJets_R%02d_INT7_normalized", R), Form("Normalized raw spectrum charged jets for R=%f for trigger INT7", radius));
+        normalized->Scale(1./norm);
+        outhandler.setRawHistTrigger(R, rawspectrumCombined, "INT7", false);
+        outhandler.setNormalizedRawSpectrumTrigger(R, normalized, "INT7");
         std::cout << "Having combined spectrum" << std::endl;
 
         auto jetFindingEff = mcset.getJetFindingEfficiency().makeEfficiency(binningpart),
@@ -157,11 +114,9 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         outhandler.setJetFindingPurity(R, jetFindingPurityClosure, true);
 
         // Correct for the jet finding purity
-        auto hraw = histcopy(hrawOrig);
+        auto hraw = histcopy(normalized);
         hraw->SetNameTitle(Form("hraw_R%02d", R), Form("Combined raw Level spectrum R=%.1f", radius));
         hraw->Multiply(jetFindingPurity);
-        
-        outhandler.setCombinedRawSpectrum(R, hrawOrig, false);
         outhandler.setCombinedRawSpectrum(R, hraw, true);
 
         // Get the MC objects
@@ -169,7 +124,8 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         auto ntrials = mcset.getTrials().getAverageTrials();
         outhandler.setMCScale(R, ntrials);
         auto &responsedata = mcset.getResponseMatrix();
-        responsedata.Scale(ntrials);
+        responsedata.ScaleToMin();
+        //responsedata.Scale(ntrials);
         auto responsefine = responsedata.getHistogram();
         responsefine->SetName(Form("Rawresponse_R%02d_fine", R));
         ResponseHandler responsebuilder(responsedata, binningpart, binningdet);
@@ -184,7 +140,8 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
 
         // Get the MC closure objects
         auto &responsedataclosure = closureset.getResponseMatrix();
-        responsedataclosure.Scale(ntrials);
+        responsedataclosure.ScaleToMin();
+        //responsedataclosure.Scale(ntrials);
         auto responseclosurefine = responsedataclosure.getHistogram();
         responseclosurefine->SetName(Form("Rawresponse_R%02d_fine", R));
         ResponseHandler closureresponsebuilder(responsedataclosure, binningpart, binningdet);
@@ -242,7 +199,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
                 workthreads.push_back(std::thread([&combinemutex, &work, &unfolding_results, unfoldingmethod](){
                     UnfoldingRunner worker(&work);
                     worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
+                    worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFIDreduced);
                     worker.DoWork();
                     std::unique_lock<std::mutex> combinelock(combinemutex);
                     for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
@@ -252,7 +209,7 @@ void runNewCorrectionChain1DSVD_SpectrumTaskSimplePoor_CorrectEffPure(const std:
         } else {
             UnfoldingRunner worker(&work);
             worker.getHandler().setUnfoldingMethod(unfoldingmethod);
-                        worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFID);
+            worker.getHandler().setAcceptanceType(UnfoldingHandler::AcceptanceType_t::kEMCALFIDreduced);
             worker.DoWork();
             for(auto res : worker.getUnfolded()) unfolding_results.insert(res);
         };
