@@ -53,6 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--filename", metavar="FILENAME", default="AnalysisResults.root", type=str, help="File to be merged")
     parser.add_argument("-p", "--partition", metavar="PARTITION", default="short", type=str, help="Partition in slurm")
     parser.add_argument("-n", "--nofinal", action="store_true", help="Do not perform final merge job (i.e. for tree output)")
+    parser.add_argument("-b", "--bfield", metavar="BFIELD", type=str, default="all", help="B-field", choices=["all", "pos", "neg"])
     parser.add_argument("--maxtime", metavar="MAXTIME", type=str, default="01:00:00", help="Maximum time for download job")
     parser.add_argument("-w", "--wait", metavar="WAIT", type=str, default="", help="List of jobs to depend on (spearated by \",\")")
     parser.add_argument("-c", "--check", action="store_true", help="Check pt-hard distribution")
@@ -82,7 +83,8 @@ if __name__ == "__main__":
                                  args.maxtime,
                                  dependencies,
                                  args.check,
-                                 args.nofinal)
+                                 args.nofinal,
+                                 args.bfield)
     except UnknownClusterException as err:
         logging.error("Submission error: %s", err)
         sys.exit(1)

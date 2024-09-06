@@ -21,7 +21,7 @@ for indir in ${dirs[@]}; do
     if [ ! -d $INPUTBASE/$indir ]; then continue; fi
     # do not explicitly require a period tag (won't work for runwise output),
     # but rather only veto the merged outputs
-    if [ "$indir" != "$MERGEDIR" ]; then continue; fi
+    if [ "x$(echo $indir | grep merged)" != "x" ]; then continue; fi
     fname=
     if [ -d $INPUTBASE/$indir/$MERGEDIR ]; then
         # sample-wise output usually contains a merged directory - use that
