@@ -2,6 +2,7 @@
 INPUTBASE=$1
 OUTPUTBASE=$2
 FILENAME=$3
+MERGEDIR=$4
 
 CHUNK=$(printf "%02d" $SLURM_ARRAY_TASK_ID)
 OUTPUTDIR=$OUTPUTBASE/$CHUNK
@@ -20,11 +21,11 @@ for indir in ${dirs[@]}; do
     if [ ! -d $INPUTBASE/$indir ]; then continue; fi
     # do not explicitly require a period tag (won't work for runwise output),
     # but rather only veto the merged outputs
-    if [ "x$(echo $indir | grep merged)" != "x" ]; then continue; fi
+    if [ "$indir" != "$MERGEDIR" ]; then continue; fi
     fname=
-    if [ -d $INPUTBASE/$indir/merged ]; then
+    if [ -d $INPUTBASE/$indir/$MERGEDIR ]; then
         # sample-wise output usually contains a merged directory - use that
-        fname=$INPUTBASE/$indir/merged/$CHUNK/$FILENAME
+        fname=$INPUTBASE/$indir/$MERGEDIR/$CHUNK/$FILENAME
     else
         # runwise output doesn't have a merged directory (because there is no 2-step merging per sample)
         # instead it has to use the input directory of the sample (run) directly

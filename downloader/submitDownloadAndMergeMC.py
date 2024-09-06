@@ -13,7 +13,7 @@ from downloader.mcdownloader import MCDownloadHandler
 
 class MultiSampleDownloadHandler(MCDownloadHandler):
 
-    def submit(self, year: int, subsample: str = ""):
+    def submit(self, year: int, subsample: str = "", bfield: bool = False):
         if not self._trainrun:
             logging.error("Failed initializing train run")
             return
@@ -25,7 +25,10 @@ class MultiSampleDownloadHandler(MCDownloadHandler):
                 logging.error("Requested subsample %s not found for year %d ...", subsample, year)
                 return
         jobids_merge = []
+        jobids_merge_pos = []
+        jobids_merge_neg = []
         for sample in mcsamples[year]:
+            require_field_merge = bfield and year == 2018
             select = False
             if len(subsample):
                 if sample == subsample:
@@ -34,14 +37,24 @@ class MultiSampleDownloadHandler(MCDownloadHandler):
                 select = True
             if not select:
                 continue
-            jobids_sample = self.submit_sample(sample) 
-            jobids_merge.append(jobids_sample["jobid_merge"])
+            jobids_sample = self.submit_sample(sample, require_field_merge)
+            jobids_merge.append(jobids_sample["jobid_merge_all"])
+            if "jobid_merge_pos" in jobids_sample.keys():
+                jobids_merge_pos.append(jobids_sample["jobid_merge_pos"])
+            if "jobid_merge_neg" in jobids_sample.keys():
+                jobids_merge_neg.append(jobids_sample["jobid_merge_neg"])
         if len(jobids_merge) > 1:
             # if we have at least 2 subsamples submit also period merging
-            self.submit_merge_samples(jobids_merge, "2:00:00")
+            self.submit_merge_samples(jobids_merge, "2:00:00", "all")
+        if len(jobids_merge_pos) > 1:
+            # if we have at least 2 subsamples submit also period merging
+            self.submit_merge_samples(jobids_merge_pos, "2:00:00", "pos")
+        if len(jobids_merge_neg) > 1:
+            # if we have at least 2 subsamples submit also period merging
+            self.submit_merge_samples(jobids_merge_neg, "2:00:00", "neg")
 
-    def submit_merge_samples(self, wait_jobids: list, maxtime: str) -> int:
-        merge_submitter_datasets(os.path.join(self._repo, "merge"), self._outputbase, self._mergefile, "short", maxtime, wait_jobids, self._check, self._nofinal)
+    def submit_merge_samples(self, wait_jobids: list, maxtime: str, field: str = "all") -> int:
+        merge_submitter_datasets(os.path.join(self._repo, "merge"), self._outputbase, self._mergefile, "short", maxtime, wait_jobids, self._check, self._nofinal, field)
 
 if __name__ == "__main__":
     currentbase = os.getcwd()
@@ -56,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--maxtime", metavar="MAXTIME", type=str, default="01:00:00", help="Maximum time for download job")
     parser.add_argument("-c", "--check", action="store_true", help="Run check of pt-hard distribution")
     parser.add_argument("-n", "--nofinal", action="store_true", help="Do not launch final merge job (i.e. for trees)")
+    parser.add_argument("-b", "--bfield", action="store_true", help="Per b-field")
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
     setup_logging(args.debug)
@@ -83,7 +97,7 @@ if __name__ == "__main__":
     handler.set_maxtime(args.maxtime)
     try:
         handler.set_partition_for_download(args.partition)
-        handler.submit(args.year)
+        handler.submit(args.year, bfield=args.bfield)
     except UnknownClusterException as e:
         logging.error("Submission error: %s", e)
         sys.exit(1)

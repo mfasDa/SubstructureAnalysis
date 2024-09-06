@@ -15,16 +15,19 @@ def parse_jobs(jobs: str) -> list:
         result = jobs.split(",")
     return result
 
-def merge_submitter_datasets(repo: str, inputdir: str, filename: str, partition: str, maxtime: str, wait: list, check: bool, nofinal: bool = False) -> dict:
-    outputbase = os.path.join(inputdir, "merged")
+def merge_submitter_datasets(repo: str, inputdir: str, filename: str, partition: str, maxtime: str, wait: list, check: bool, nofinal: bool = False, fieldtag: str = "all") -> dict:
+    mergedtag = "merged"
+    if fieldtag != "all":
+        mergedtag += f"_{fieldtag}"
+    outputbase = os.path.join(inputdir, mergedtag)
     if not os.path.exists(outputbase):
         os.makedirs(outputbase, 0o755)
     executable = os.path.join(repo, "processMergeMCDatasets.sh")
     exefinal = os.path.join(repo, "processMergeFinal.sh")
-    runcmd_bins = f"{executable} {inputdir} {outputbase} {filename}"
+    runcmd_bins = f"{executable} {inputdir} {outputbase} {filename} {mergedtag}"
     logfile_bins = os.path.join(outputbase, "joboutput_%a.log")
     jobid = submit_dependencies(runcmd_bins,
-                                "mergebins", 
+                                f"mergebins_{fieldtag}", 
                                 logfile_bins,
                                 partition,
                                 jobarray=[1,20],

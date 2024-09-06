@@ -44,7 +44,7 @@ class MCDownloadHandler:
         self._tokens["cert"] = cert
         self._tokens["key"] = key
 
-    def submit_sample(self, sample: str):
+    def submit_sample(self, sample: str, perfield: bool = False):
         if not self._trainrun:
             logging.error("Failed initializing train run")
             return
@@ -52,9 +52,16 @@ class MCDownloadHandler:
         if not jobid_download:
             return
         logging.info("Submitting download job with ID: %d", jobid_download)
-        jobid_merge =self.submit_merge(sample, jobid_download, "2:00:00")
-        logging.info("Submitting merge job with ID: %d", jobid_merge)
-        return {"jobid_download": jobid_download, "jobid_merge": jobid_merge}
+        jobid_merge =self.submit_merge(sample, jobid_download, "2:00:00", perfield)
+        logging.info("Submitting merge job with ID: %d", jobid_merge["all"])
+        result_jobids = {"jobid_download": jobid_download, "jobid_merge_all": jobid_merge["all"]}
+        if "pos" in jobid_merge.keys():
+            logging.info("Submitting merge job (pos. field) with ID: %d", jobid_merge["pos"])
+            result_jobids["jobid_merge_pos"] = jobid_merge["pos"]
+        if "neg" in jobid_merge.keys():
+            logging.info("Submitting merge job (neg. field) with ID: %d", jobid_merge["neg"])
+            result_jobids["jobid_merge_neg"] = jobid_merge["neg"]
+        return result_jobids
 
     def submit_download(self, sample: str) -> int:
         cert = self._tokens["cert"]
@@ -73,8 +80,15 @@ class MCDownloadHandler:
         jobid = submit(command=downloadcmd, jobname=jobname, logfile=logfile, partition=self._partition_download, numnodes=1, numtasks=4, maxtime=self._maxtime)
         return jobid
 
-    def submit_merge(self, sample: str, wait_jobid: int, maxtime: str) -> int:
+    def submit_merge(self, sample: str, wait_jobid: int, maxtime: str, perfield: bool = False) -> dict:
         workdir = os.path.join(self._outputbase, sample)
-        jobids = merge_submitter_runs(os.path.join(self._repo, "merge"), workdir, self._mergefile, "short", maxtime, wait_jobid, self._check)
-        return jobids["final"]
+        result_jobids = {}
+        jobids_all = merge_submitter_runs(os.path.join(self._repo, "merge"), workdir, self._mergefile, "short", maxtime, wait_jobid, self._check)
+        result_jobids["all"] = jobids_all["final"]
+        if perfield:
+            jobids_pos = merge_submitter_runs(os.path.join(self._repo, "merge"), workdir, self._mergefile, "short", maxtime, wait_jobid, self._check, "pos")
+            jobids_neg = merge_submitter_runs(os.path.join(self._repo, "merge"), workdir, self._mergefile, "short", maxtime, wait_jobid, self._check, "neg")
+            result_jobids["pos"] = jobids_pos["final"]
+            result_jobids["neg"] = jobids_neg["final"]
+        return result_jobids
 
