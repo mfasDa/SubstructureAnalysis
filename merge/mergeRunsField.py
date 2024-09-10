@@ -8,7 +8,7 @@ from SubstructureHelpers.setup_logging import setup_logging
 
 def merge_slot(outputfile: str, inputfiles: list):
     mergedir = os.path.dirname(os.path.abspath(outputfile))
-    if not os.path.exists(os.path.dirname(mergedir)):
+    if not os.path.exists(mergedir):
         os.makedirs(mergedir, 0o755)
     cmd = f"hadd -f {outputfile}"
     for fl in inputfiles:
@@ -52,14 +52,14 @@ def main():
     parser.add_argument("-i", "--inputdir", metavar="INPUTDIR", type=str, help="Input directory")
     parser.add_argument("-o", "--outputdir", metavar="OUTPUTDIR", type=str, default="default", help="Output directory (default: default:=input directory)")
     parser.add_argument("-f", "--filename", metavar="FILENAME", type=str, default="AnalysisResults.root", help="ROOT filename (default: AnalysisResults.root)")
-    parser.add_argument("-b", "--bfield", metavar="BFIELD", type=str, default="neg", help="B-field (pos or neg)", choices=["pos", "neg"])
+    parser.add_argument("-b", "--bfield", metavar="BFIELD", type=str, default="neg", help="B-field (pos or neg)", choices=["pos", "neg", "all"])
     parser.add_argument("-d", "--debug", action="store_true", help="Debug mode")
     args = parser.parse_args()
 
     setup_logging(args.debug)
     workdir = os.path.abspath(args.inputdir)
     allfiles = find_rootfiles(workdir, args.filename)
-    selected = select_files(allfiles, args.bfield)
+    selected = select_files(allfiles, args.bfield) if args.bfield != "all" else allfiles
     outputdir = f"merged_{args.bfield}" if args.outputdir == "default" else os.path.abspath(args.outputdir)
     merge_slot(os.path.join(outputdir, args.filename), selected)
 

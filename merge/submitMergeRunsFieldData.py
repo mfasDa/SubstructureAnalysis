@@ -22,7 +22,7 @@ def main():
     if not os.path.exists(logdir):
         os.makedirs(logdir, 0o755)
     executable = os.path.join(repo, "merge", "processMergeRunsFieldData.sh")
-    for field in ["pos", "neg"]:
+    for field in ["pos", "neg", "all"]:
         logfile = os.path.join(logdir, f"merge_{field}.log")
         jobname = f"merge_{field}"
         sbatch = f"sbatch -N 1 -c 11 --partition {args.partition} -J {jobname} -o {logfile}"
