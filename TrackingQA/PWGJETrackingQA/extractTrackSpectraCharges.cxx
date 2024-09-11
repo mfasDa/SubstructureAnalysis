@@ -90,6 +90,7 @@ std::vector<HistCollection> loadData(TFile &reader, const std::string_view trigg
     listnamebuilder << "_histos";
     auto histlist = reader.Get<TList>(listnamebuilder.str().data());
     auto trackTHnSpare = static_cast<THnSparse *>(histlist->FindObject("fTracks"));
+    trackTHnSpare->Sumw2();
     auto allFullAcceptance = extractSpectra(trackTHnSpare, 0, false),
          allEmcalAcceptance = extractSpectra(trackTHnSpare, 0, true),
          globFullAcceptance = extractSpectra(trackTHnSpare, 1, false),
